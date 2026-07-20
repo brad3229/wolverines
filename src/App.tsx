@@ -90,7 +90,7 @@ function App() {
 
   return (
     <AuthContext.Provider value={auth}>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           {/* Supabase auth emails (invite, magic link, password reset) redirect to the
               bare site root with the session token in the URL hash. Rendering Login here
