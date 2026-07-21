@@ -99,6 +99,18 @@ export function IconSuta(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconTasks(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M7.5 8.5l1.25 1.25L11 7.25" />
+      <line x1="13.5" y1="8" x2="16.5" y2="8" />
+      <path d="M7.5 14.5l1.25 1.25L11 13.25" />
+      <line x1="13.5" y1="14" x2="16.5" y2="14" />
+    </Icon>
+  )
+}
+
 export function IconPay(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

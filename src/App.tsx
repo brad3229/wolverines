@@ -17,6 +17,7 @@ import {
   IconSuta,
   IconPay,
   IconSecurity,
+  IconTasks,
 } from './components/icons'
 import { Login } from './routes/Login'
 import { Dashboard as AdminDashboard } from './routes/admin/Dashboard'
@@ -28,6 +29,8 @@ import { AttendanceHome } from './routes/admin/AttendanceHome'
 import { Suta as AdminSuta } from './routes/admin/Suta'
 import { PayIssues as AdminPayIssues } from './routes/admin/PayIssues'
 import { Security } from './routes/admin/Security'
+import { TaskLists as AdminTaskLists } from './routes/admin/TaskLists'
+import { TaskListDetail as AdminTaskListDetail } from './routes/admin/TaskListDetail'
 import { Dashboard as SoldierDashboard } from './routes/soldier/Dashboard'
 import { Profile } from './routes/soldier/Profile'
 import { SoldierCalendar } from './routes/soldier/Calendar'
@@ -35,8 +38,14 @@ import { CheckIn } from './routes/soldier/CheckIn'
 import { CheckInHome } from './routes/soldier/CheckInHome'
 import { Suta as SoldierSuta } from './routes/soldier/Suta'
 import { PayIssues as SoldierPayIssues } from './routes/soldier/PayIssues'
+import { Tasks as SoldierTasks } from './routes/soldier/Tasks'
 
-function buildAdminNav(pendingSutaCount: number, pendingEditRequestCount: number, pendingPayIssueCount: number): NavItem[] {
+function buildAdminNav(
+  pendingSutaCount: number,
+  pendingEditRequestCount: number,
+  pendingPayIssueCount: number,
+  pendingTaskVerificationCount: number,
+): NavItem[] {
   return [
     {
       to: '/admin/dashboard',
@@ -51,6 +60,7 @@ function buildAdminNav(pendingSutaCount: number, pendingEditRequestCount: number
     { to: '/admin/suta', label: 'Review SUTA', shortLabel: 'Review', icon: <IconSuta />, badge: pendingSutaCount },
     { to: '/admin/my-suta', label: 'My SUTA', icon: <IconSuta /> },
     { to: '/admin/pay-issues', label: 'Pay Issues', shortLabel: 'Pay', icon: <IconPay />, badge: pendingPayIssueCount },
+    { to: '/admin/tasks', label: 'Tasks', icon: <IconTasks />, badge: pendingTaskVerificationCount },
     { to: '/admin/security', label: 'Security', shortLabel: 'Sec', icon: <IconSecurity /> },
   ]
 }
@@ -62,12 +72,18 @@ const SOLDIER_NAV: NavItem[] = [
   { to: '/soldier/checkin', label: 'Check-In', icon: <IconCheckIn /> },
   { to: '/soldier/suta', label: 'SUTA', icon: <IconSuta /> },
   { to: '/soldier/pay-issues', label: 'Pay Issues', shortLabel: 'Pay', icon: <IconPay /> },
+  { to: '/soldier/tasks', label: 'Tasks', icon: <IconTasks /> },
 ]
 
 function App() {
   const auth = useAuthState()
   const [passwordJustSet, setPasswordJustSet] = useState(false)
-  const adminNav = buildAdminNav(auth.pendingSutaCount, auth.pendingEditRequestCount, auth.pendingPayIssueCount)
+  const adminNav = buildAdminNav(
+    auth.pendingSutaCount,
+    auth.pendingEditRequestCount,
+    auth.pendingPayIssueCount,
+    auth.pendingTaskVerificationCount,
+  )
 
   const needsPasswordSetup =
     (initialAuthFlowType === 'invite' || initialAuthFlowType === 'recovery') && auth.session && !passwordJustSet
@@ -190,6 +206,26 @@ function App() {
             }
           />
           <Route
+            path="/admin/tasks"
+            element={
+              <RequireRole allow={['admin']}>
+                <Layout navItems={adminNav} mobileNav="menu">
+                  <AdminTaskLists />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/admin/tasks/:id"
+            element={
+              <RequireRole allow={['admin']}>
+                <Layout navItems={adminNav} mobileNav="menu">
+                  <AdminTaskListDetail />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
             path="/admin/security"
             element={
               <RequireRole allow={['admin']}>
@@ -266,6 +302,16 @@ function App() {
               <RequireRole allow={['soldier']}>
                 <Layout navItems={SOLDIER_NAV}>
                   <SoldierPayIssues />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/soldier/tasks"
+            element={
+              <RequireRole allow={['soldier']}>
+                <Layout navItems={SOLDIER_NAV}>
+                  <SoldierTasks />
                 </Layout>
               </RequireRole>
             }

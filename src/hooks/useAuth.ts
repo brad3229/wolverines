@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { listSutaRequests } from '../lib/sutaRequests'
 import { listEditRequests } from '../lib/editRequests'
 import { listPayIssues } from '../lib/payIssues'
+import { countPendingTaskVerifications } from '../lib/tasks'
 import type { UserRole } from '../types/database'
 
 interface AuthState {
@@ -16,6 +17,7 @@ interface AuthState {
   pendingSutaCount: number
   pendingEditRequestCount: number
   pendingPayIssueCount: number
+  pendingTaskVerificationCount: number
   refreshPendingCounts: () => void
 }
 
@@ -29,6 +31,7 @@ export const AuthContext = createContext<AuthState>({
   pendingSutaCount: 0,
   pendingEditRequestCount: 0,
   pendingPayIssueCount: 0,
+  pendingTaskVerificationCount: 0,
   refreshPendingCounts: () => {},
 })
 
@@ -41,6 +44,7 @@ export function useAuthState(): AuthState {
   const [pendingSutaCount, setPendingSutaCount] = useState(0)
   const [pendingEditRequestCount, setPendingEditRequestCount] = useState(0)
   const [pendingPayIssueCount, setPendingPayIssueCount] = useState(0)
+  const [pendingTaskVerificationCount, setPendingTaskVerificationCount] = useState(0)
 
   useEffect(() => {
     let active = true
@@ -122,11 +126,13 @@ export function useAuthState(): AuthState {
       setPendingSutaCount(0)
       setPendingEditRequestCount(0)
       setPendingPayIssueCount(0)
+      setPendingTaskVerificationCount(0)
       return
     }
     listSutaRequests().then((all) => setPendingSutaCount(all.filter((r) => r.status === 'pending').length))
     listEditRequests().then((all) => setPendingEditRequestCount(all.filter((r) => r.status === 'pending').length))
     listPayIssues().then((all) => setPendingPayIssueCount(all.filter((i) => i.status === 'open').length))
+    countPendingTaskVerifications().then(setPendingTaskVerificationCount)
   }, [role])
 
   // Drives the "Review SUTA", "Dashboard", and "Pay Issues" nav badges -- re-fetched whenever
@@ -144,6 +150,7 @@ export function useAuthState(): AuthState {
     pendingSutaCount,
     pendingEditRequestCount,
     pendingPayIssueCount,
+    pendingTaskVerificationCount,
     refreshPendingCounts,
   }
 }

@@ -13,6 +13,7 @@ export type PayIssueCategory =
   | 'va_disability_waiver'
   | 'other'
 export type PayIssueStatus = 'open' | 'in_progress' | 'resolved'
+export type TaskCompletionStatus = 'incomplete' | 'self_reported' | 'verified'
 
 export interface Profile {
   id: string
@@ -108,4 +109,33 @@ export interface PayIssue {
   resolved_by: string | null
   resolved_at: string | null
   resolution_notes: string | null
+}
+
+export interface TaskList {
+  id: string
+  name: string
+  description: string | null
+  active: boolean
+  created_by: string | null
+  created_at: string
+}
+
+export interface TaskItem {
+  id: string
+  task_list_id: string
+  label: string
+  sort_order: number
+  created_at: string
+}
+
+export interface SoldierTaskCompletion {
+  id: string
+  soldier_id: string
+  task_item_id: string
+  status: TaskCompletionStatus
+  reported_by: string | null
+  reported_at: string | null
+  verified_by: string | null
+  verified_at: string | null
+  notes: string | null
 }

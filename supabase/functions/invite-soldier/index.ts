@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { email, soldierId } = await req.json()
+    const { email, soldierId, redirectTo } = await req.json()
     if (!email || !soldierId) {
       return new Response(JSON.stringify({ error: 'email and soldierId are required' }), {
         status: 400,
@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
 
     const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       data: { role: 'soldier' },
+      redirectTo,
     })
     if (inviteError) {
       return new Response(JSON.stringify({ error: inviteError.message }), {
