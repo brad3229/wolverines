@@ -30,11 +30,8 @@ export function SetPassword({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div
-      className="flex min-h-dvh items-center justify-center bg-surface bg-cover bg-center px-4 py-10"
-      style={{ backgroundImage: `url(${import.meta.env.BASE_URL}greentopobackground.jpg)` }}
-    >
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl border border-line bg-panel p-8 shadow-xl">
+    <div className="flex min-h-dvh items-center justify-center bg-surface px-4 py-10">
+      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl border border-line bg-panel p-8">
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-accent font-display text-base font-bold text-accent-ink">
             ACO
