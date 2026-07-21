@@ -231,6 +231,30 @@ export function SoldierDetail() {
             </div>
           )}
           {roleChangeError && <p className="mt-2 text-sm text-bad-ink">{roleChangeError}</p>}
+
+          {soldier.profile_id !== session?.user.id && (
+            <div className="mt-4 border-t border-line pt-4">
+              <p className="mb-2 text-xs text-ink-muted">
+                Account not confirmed yet, or the invite email never arrived?
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="email"
+                  placeholder="soldier@email.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                />
+                <button
+                  onClick={handleInvite}
+                  className="flex-shrink-0 rounded-md bg-neutral-bg px-4 py-2 text-xs font-bold tracking-wide text-neutral-ink"
+                >
+                  RESEND INVITE
+                </button>
+              </div>
+              {inviteStatus && <p className="mt-2 text-sm text-ink-muted">{inviteStatus}</p>}
+            </div>
+          )}
         </div>
       )}
 
