@@ -53,6 +53,31 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
+    // Re-inviting (e.g. the first invite email pointed at a broken redirect) hits a
+    // stale, unconfirmed auth user left over from the earlier invite -- inviteUserByEmail
+    // errors "already registered" on that email otherwise. Since nothing was ever set up
+    // on it (no confirmed sign-in), it's safe to drop and re-create; an account the
+    // Soldier has actually signed into is left alone and reported back as a real error.
+    const { data: existingSoldier } = await adminClient
+      .from('soldiers')
+      .select('profile_id')
+      .eq('id', soldierId)
+      .single()
+    if (existingSoldier?.profile_id) {
+      const { data: existingUser } = await adminClient.auth.admin.getUserById(existingSoldier.profile_id)
+      if (existingUser?.user) {
+        if (existingUser.user.last_sign_in_at) {
+          return new Response(
+            JSON.stringify({
+              error: 'This Soldier already has an active account. Use password reset instead of re-inviting.',
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          )
+        }
+        await adminClient.auth.admin.deleteUser(existingSoldier.profile_id)
+      }
+    }
+
     const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       data: { role: 'soldier' },
       redirectTo,
