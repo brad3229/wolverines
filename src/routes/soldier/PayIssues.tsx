@@ -56,7 +56,7 @@ export function PayIssues() {
 
   if (notLinked || !soldier) {
     return (
-      <div className="max-w-[520px]">
+      <div className="mx-auto max-w-[560px]">
         <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:mb-5 sm:text-[26px]">
           Pay Issues
         </h1>
@@ -86,7 +86,7 @@ export function PayIssues() {
   }
 
   return (
-    <div className="max-w-[560px]">
+    <div className="mx-auto max-w-[640px]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
         <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Pay Issues</h1>
         <button

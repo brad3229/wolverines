@@ -116,7 +116,7 @@ export function AttendanceHome() {
   }
 
   return (
-    <div className="max-w-[640px]">
+    <div className="mx-auto max-w-[760px]">
       <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:mb-5 sm:text-[26px]">
         Attendance
       </h1>

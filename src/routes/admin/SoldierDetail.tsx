@@ -9,6 +9,7 @@ import { getAttendanceHistory, attendanceBadge } from '../../lib/attendance'
 import type { AttendanceHistoryEntry } from '../../lib/attendance'
 import { formatEventDateRange } from '../../lib/drillEvents'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
+import { BackButton } from '../../components/BackButton'
 import { useAuth } from '../../hooks/useAuth'
 import type { EditRequest, Soldier, UserRole } from '../../types/database'
 
@@ -87,9 +88,7 @@ export function SoldierDetail() {
 
   return (
     <div>
-      <button onClick={() => navigate('/admin/roster')} className="mb-4 text-sm text-ink-muted hover:text-ink-dim">
-        &larr; Back to roster
-      </button>
+      <BackButton to="/admin/roster" label="Back to roster" />
       <h1 className="mb-5 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">
         {soldier.rank} {soldier.first_name} {soldier.last_name}
       </h1>
@@ -190,7 +189,7 @@ export function SoldierDetail() {
         <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">
           <h2 className="mb-1 font-display text-[15px] font-semibold tracking-wide text-ink-dim">ACCOUNT ROLE</h2>
           <p className="mb-3 text-sm text-ink-muted">
-            Current role: <span className="font-semibold text-ink">{accountRole === 'admin' ? 'Admin' : 'Soldier'}</span>
+            Current role: <span className="font-semibold text-ink">{accountRole === 'admin' ? 'Admin' : 'Basic User'}</span>
           </p>
 
           {soldier.profile_id === session?.user.id ? (
@@ -202,7 +201,7 @@ export function SoldierDetail() {
                 accountRole === 'soldier' ? 'bg-accent text-accent-ink' : 'bg-neutral-bg text-neutral-ink'
               }`}
             >
-              {accountRole === 'soldier' ? 'PROMOTE TO ADMIN' : 'DEMOTE TO SOLDIER'}
+              {accountRole === 'soldier' ? 'PROMOTE TO ADMIN' : 'DEMOTE TO BASIC USER'}
             </button>
           ) : (
             <div className="flex flex-col gap-2">

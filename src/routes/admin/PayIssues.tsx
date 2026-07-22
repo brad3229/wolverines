@@ -56,7 +56,7 @@ export function PayIssues() {
   const resolved = issues.filter((i) => i.status === 'resolved')
 
   return (
-    <div className="max-w-[680px]">
+    <div className="mx-auto max-w-[760px]">
       <h1 className="mb-5 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Pay Issues</h1>
 
       <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">OPEN</h2>

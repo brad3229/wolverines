@@ -61,7 +61,7 @@ export function CheckInHome() {
       : { bg: 'bg-good-bg', ink: 'text-good-ink', label: 'PRESENT' }
 
   return (
-    <div className="max-w-[440px]">
+    <div className="mx-auto max-w-[480px]">
       <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:mb-5 sm:text-[26px]">
         Check-In
       </h1>

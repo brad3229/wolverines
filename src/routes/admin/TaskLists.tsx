@@ -35,7 +35,7 @@ export function TaskLists() {
   }
 
   return (
-    <div className="max-w-[680px]">
+    <div className="mx-auto max-w-[760px]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
         <div>
           <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Tasks</h1>

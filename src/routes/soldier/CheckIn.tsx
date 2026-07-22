@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { getDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange, isEventOpenForCheckIn } from '../../lib/drillEvents'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listAttendanceForEvent, markAttendance, deleteAttendance } from '../../lib/attendance'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
+import { BackButton } from '../../components/BackButton'
 import type { Attendance, DrillEvent, Soldier } from '../../types/database'
 
 export function CheckIn() {
   const { eventId } = useParams<{ eventId: string }>()
-  const navigate = useNavigate()
   const { session } = useAuth()
   const [event, setEvent] = useState<DrillEvent | null>(null)
   const [soldier, setSoldier] = useState<Soldier | null>(null)
@@ -78,10 +78,8 @@ export function CheckIn() {
       : { bg: 'bg-good-bg', ink: 'text-good-ink', label: 'PRESENT' }
 
   return (
-    <div className="max-w-[440px]">
-      <button onClick={() => navigate('/soldier/calendar')} className="mb-4 text-sm text-ink-muted hover:text-ink-dim">
-        &larr; Back to calendar
-      </button>
+    <div className="mx-auto max-w-[480px]">
+      <BackButton to="/soldier/calendar" label="Back to calendar" />
       <p className="mb-4 flex flex-wrap items-center gap-2">
         <span className="font-display text-2xl font-semibold">{event.title}</span>
         <span className="rounded-md bg-neutral-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-neutral-ink">

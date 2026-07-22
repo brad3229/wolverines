@@ -46,7 +46,7 @@ export function Tasks() {
 
   if (notLinked || !soldier) {
     return (
-      <div className="max-w-[560px]">
+      <div className="mx-auto max-w-[680px]">
         <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:mb-5 sm:text-[26px]">
           Tasks
         </h1>
@@ -118,7 +118,7 @@ export function Tasks() {
   }
 
   return (
-    <div className="max-w-[560px]">
+    <div className="mx-auto max-w-[680px]">
       <h1 className="mb-1 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Tasks</h1>
       <p className="mb-5 text-[13px] text-ink-muted">
         Tap a station to report it done. An admin will verify it before it counts as complete.

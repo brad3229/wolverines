@@ -16,6 +16,7 @@ import {
 } from '../../lib/tasks'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
+import { BackButton } from '../../components/BackButton'
 import type { Soldier, TaskItem, TaskList, SoldierTaskCompletion, TaskCompletionStatus } from '../../types/database'
 
 function completionKey(soldierId: string, taskItemId: string) {
@@ -167,10 +168,8 @@ export function TaskListDetail() {
   }
 
   return (
-    <div className="max-w-[820px]">
-      <button onClick={() => navigate('/admin/tasks')} className="mb-4 text-sm text-ink-muted hover:text-ink-dim">
-        &larr; Back to tasks
-      </button>
+    <div className="mx-auto max-w-[960px]">
+      <BackButton to="/admin/tasks" label="Back to tasks" />
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>

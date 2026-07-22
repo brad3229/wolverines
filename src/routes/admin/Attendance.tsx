@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { listSoldiers } from '../../lib/soldiers'
 import { getDrillEvent, updateDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange } from '../../lib/drillEvents'
 import { listAttendanceForEvent, markAttendance, deleteAttendance, attendanceRowClass } from '../../lib/attendance'
 import { EventForm, eventFormValuesToPayload } from '../../components/EventForm'
 import { AttendanceSummary } from '../../components/AttendanceSummary'
+import { BackButton } from '../../components/BackButton'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import type { Attendance, AttendanceStatus, DrillEvent, Soldier } from '../../types/database'
@@ -18,7 +19,6 @@ const STATUS_OPTIONS: { value: AttendanceStatus; label: string; activeClass: str
 
 export function AttendancePage() {
   const { eventId } = useParams<{ eventId: string }>()
-  const navigate = useNavigate()
   const { session } = useAuth()
   const [event, setEvent] = useState<DrillEvent | null>(null)
   const [editing, setEditing] = useState(false)
@@ -118,10 +118,8 @@ export function AttendancePage() {
   if (!event) return <p className="text-sm text-ink-muted">Loading...</p>
 
   return (
-    <div className="max-w-[640px]">
-      <button onClick={() => navigate('/admin/calendar')} className="mb-4 text-sm text-ink-muted hover:text-ink-dim">
-        &larr; Back to calendar
-      </button>
+    <div className="mx-auto max-w-[760px]">
+      <BackButton to="/admin/calendar" label="Back to calendar" />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="flex flex-wrap items-center gap-2">
           <span className="font-display text-2xl font-semibold">{event.title}</span>

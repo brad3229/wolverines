@@ -75,7 +75,7 @@ export function Dashboard() {
   })
 
   return (
-    <div className="max-w-[640px]">
+    <div className="mx-auto max-w-[760px]">
       <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Dashboard</h1>
       <p className="mb-5 mt-1 text-[13px] text-ink-muted">{todayLabel} &middot; A CO 1-120 IN</p>
 

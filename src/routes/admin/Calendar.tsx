@@ -30,7 +30,7 @@ export function Calendar() {
   }, [events])
 
   return (
-    <div className="max-w-[640px]">
+    <div className="mx-auto max-w-[760px]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
         <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Calendar</h1>
         <button
