@@ -7,7 +7,7 @@ import { errorMessage } from '../../lib/errors'
 import type { Soldier, TaskList, TaskItem, SoldierTaskCompletion, TaskCompletionStatus } from '../../types/database'
 
 export function Tasks() {
-  const { session } = useAuth()
+  const { session, role } = useAuth()
   const [soldier, setSoldier] = useState<Soldier | null>(null)
   const [lists, setLists] = useState<TaskList[]>([])
   const [itemsByList, setItemsByList] = useState<Record<string, TaskItem[]>>({})
@@ -51,8 +51,10 @@ export function Tasks() {
           Tasks
         </h1>
         <div className="rounded-xl border border-line bg-panel p-5 text-sm text-ink-muted">
-          Your account isn&rsquo;t linked to a Soldier record on the roster, so there&rsquo;s nothing to track yet.
-          Ask an admin to add you to the Roster and link your account to it.
+          Your account isn&rsquo;t linked to a Soldier record on the roster, so there&rsquo;s nothing to track yet.{' '}
+          {role === 'admin'
+            ? 'Add yourself to the Roster and link your account to it, or have another admin do it.'
+            : 'Ask an admin to add you to the Roster and link your account to it.'}
         </div>
       </div>
     )

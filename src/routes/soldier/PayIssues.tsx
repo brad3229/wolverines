@@ -21,7 +21,7 @@ const STATUS_BADGE: Record<PayIssueStatus, { label: string; className: string }>
 }
 
 export function PayIssues() {
-  const { session } = useAuth()
+  const { session, role } = useAuth()
   const [soldier, setSoldier] = useState<Soldier | null>(null)
   const [issues, setIssues] = useState<PayIssue[]>([])
   const [showForm, setShowForm] = useState(false)
@@ -61,8 +61,10 @@ export function PayIssues() {
           Pay Issues
         </h1>
         <div className="rounded-xl border border-line bg-panel p-5 text-sm text-ink-muted">
-          Your account isn&rsquo;t linked to a Soldier record on the roster, so you can&rsquo;t report a pay issue.
-          Ask an admin to add you to the Roster and link your account to it.
+          Your account isn&rsquo;t linked to a Soldier record on the roster, so you can&rsquo;t report a pay issue.{' '}
+          {role === 'admin'
+            ? 'Add yourself to the Roster and link your account to it, or have another admin do it.'
+            : 'Ask an admin to add you to the Roster and link your account to it.'}
         </div>
       </div>
     )

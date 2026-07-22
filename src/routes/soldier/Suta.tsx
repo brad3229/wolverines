@@ -19,7 +19,7 @@ const MAKEUP_BADGE: Record<MakeupStatus, { label: string; className: string } | 
 }
 
 export function Suta() {
-  const { session } = useAuth()
+  const { session, role } = useAuth()
   const [soldier, setSoldier] = useState<Soldier | null>(null)
   const [events, setEvents] = useState<DrillEvent[]>([])
   const [requests, setRequests] = useState<SutaRequest[]>([])
@@ -62,7 +62,10 @@ export function Suta() {
         </h1>
         <div className="rounded-xl border border-line bg-panel p-5 text-sm text-ink-muted">
           Your account isn&rsquo;t linked to a Soldier record on the roster, so you can&rsquo;t submit a SUTA
-          request. Ask an admin to add you to the Roster and link your account to it.
+          request.{' '}
+          {role === 'admin'
+            ? 'Add yourself to the Roster and link your account to it, or have another admin do it.'
+            : 'Ask an admin to add you to the Roster and link your account to it.'}
         </div>
       </div>
     )

@@ -50,6 +50,10 @@ export function SoldierDetail() {
 
   async function handleInvite() {
     if (!id || !inviteEmail) return
+    if (session?.user.email?.toLowerCase() === inviteEmail.trim().toLowerCase()) {
+      setInviteStatus("That's your own admin login email — invite the Soldier's own email instead.")
+      return
+    }
     setInviteStatus('Sending invite...')
     try {
       await inviteSoldierAccount({ email: inviteEmail, soldierId: id })
