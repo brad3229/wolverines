@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthContext, useAuthState } from './hooks/useAuth'
 import { RequireRole } from './components/RequireRole'
@@ -20,25 +20,30 @@ import {
   IconTasks,
 } from './components/icons'
 import { Login } from './routes/Login'
-import { Dashboard as AdminDashboard } from './routes/admin/Dashboard'
-import { Roster } from './routes/admin/Roster'
-import { SoldierDetail } from './routes/admin/SoldierDetail'
-import { Calendar } from './routes/admin/Calendar'
-import { AttendancePage } from './routes/admin/Attendance'
-import { AttendanceHome } from './routes/admin/AttendanceHome'
-import { Suta as AdminSuta } from './routes/admin/Suta'
-import { PayIssues as AdminPayIssues } from './routes/admin/PayIssues'
-import { Security } from './routes/admin/Security'
-import { TaskLists as AdminTaskLists } from './routes/admin/TaskLists'
-import { TaskListDetail as AdminTaskListDetail } from './routes/admin/TaskListDetail'
-import { Dashboard as SoldierDashboard } from './routes/soldier/Dashboard'
-import { Profile } from './routes/soldier/Profile'
-import { SoldierCalendar } from './routes/soldier/Calendar'
-import { CheckIn } from './routes/soldier/CheckIn'
-import { CheckInHome } from './routes/soldier/CheckInHome'
-import { Suta as SoldierSuta } from './routes/soldier/Suta'
-import { PayIssues as SoldierPayIssues } from './routes/soldier/PayIssues'
-import { Tasks as SoldierTasks } from './routes/soldier/Tasks'
+
+// Route components are lazy-loaded so each page only ships the JS it needs,
+// instead of bundling every admin and soldier screen into one initial download.
+const AdminDashboard = lazy(() => import('./routes/admin/Dashboard').then((m) => ({ default: m.Dashboard })))
+const Roster = lazy(() => import('./routes/admin/Roster').then((m) => ({ default: m.Roster })))
+const SoldierDetail = lazy(() => import('./routes/admin/SoldierDetail').then((m) => ({ default: m.SoldierDetail })))
+const Calendar = lazy(() => import('./routes/admin/Calendar').then((m) => ({ default: m.Calendar })))
+const AttendancePage = lazy(() => import('./routes/admin/Attendance').then((m) => ({ default: m.AttendancePage })))
+const AttendanceHome = lazy(() => import('./routes/admin/AttendanceHome').then((m) => ({ default: m.AttendanceHome })))
+const AdminSuta = lazy(() => import('./routes/admin/Suta').then((m) => ({ default: m.Suta })))
+const AdminPayIssues = lazy(() => import('./routes/admin/PayIssues').then((m) => ({ default: m.PayIssues })))
+const Security = lazy(() => import('./routes/admin/Security').then((m) => ({ default: m.Security })))
+const AdminTaskLists = lazy(() => import('./routes/admin/TaskLists').then((m) => ({ default: m.TaskLists })))
+const AdminTaskListDetail = lazy(() =>
+  import('./routes/admin/TaskListDetail').then((m) => ({ default: m.TaskListDetail })),
+)
+const SoldierDashboard = lazy(() => import('./routes/soldier/Dashboard').then((m) => ({ default: m.Dashboard })))
+const Profile = lazy(() => import('./routes/soldier/Profile').then((m) => ({ default: m.Profile })))
+const SoldierCalendar = lazy(() => import('./routes/soldier/Calendar').then((m) => ({ default: m.SoldierCalendar })))
+const CheckIn = lazy(() => import('./routes/soldier/CheckIn').then((m) => ({ default: m.CheckIn })))
+const CheckInHome = lazy(() => import('./routes/soldier/CheckInHome').then((m) => ({ default: m.CheckInHome })))
+const SoldierSuta = lazy(() => import('./routes/soldier/Suta').then((m) => ({ default: m.Suta })))
+const SoldierPayIssues = lazy(() => import('./routes/soldier/PayIssues').then((m) => ({ default: m.PayIssues })))
+const SoldierTasks = lazy(() => import('./routes/soldier/Tasks').then((m) => ({ default: m.Tasks })))
 
 function buildAdminNav(
   pendingSutaCount: number,
@@ -107,6 +112,7 @@ function App() {
   return (
     <AuthContext.Provider value={auth}>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
+        <Suspense fallback={<div className="p-6 text-sm text-ink-muted">Loading...</div>}>
         <Routes>
           {/* Supabase auth emails (invite, magic link, password reset) redirect to the
               bare site root with the session token in the URL hash. Rendering Login here
@@ -319,6 +325,7 @@ function App() {
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthContext.Provider>
   )

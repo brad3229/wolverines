@@ -37,6 +37,10 @@ export const AuthContext = createContext<AuthState>({
 
 export function useAuthState(): AuthState {
   const [session, setSession] = useState<Session | null>(null)
+  // `session` starts null before the async getSession() below resolves, which looks
+  // identical to "definitely logged out" -- this tracks whether that initial check has
+  // actually happened yet, so a refresh doesn't briefly bounce a real session to /login.
+  const [sessionChecked, setSessionChecked] = useState(false)
   const [role, setRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(true)
   const [needsMfaChallenge, setNeedsMfaChallenge] = useState(false)
@@ -50,11 +54,14 @@ export function useAuthState(): AuthState {
     let active = true
 
     supabase.auth.getSession().then(({ data }) => {
-      if (active) setSession(data.session)
+      if (!active) return
+      setSession(data.session)
+      setSessionChecked(true)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
+      setSessionChecked(true)
     })
 
     return () => {
@@ -64,6 +71,8 @@ export function useAuthState(): AuthState {
   }, [])
 
   useEffect(() => {
+    if (!sessionChecked) return
+
     if (!session) {
       setRole(null)
       setLoading(false)
@@ -87,7 +96,7 @@ export function useAuthState(): AuthState {
     return () => {
       active = false
     }
-  }, [session])
+  }, [session, sessionChecked])
 
   // A Soldier can be signed in (aal1, password only) but still owe a second factor
   // if their account has a verified TOTP factor enrolled -- block on that here so

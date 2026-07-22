@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { listSoldiers } from '../../lib/soldiers'
 import { getDrillEvent, updateDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange } from '../../lib/drillEvents'
-import { listAttendanceForEvent, markAttendance, attendanceRowClass } from '../../lib/attendance'
+import { listAttendanceForEvent, markAttendance, deleteAttendance, attendanceRowClass } from '../../lib/attendance'
 import { EventForm, eventFormValuesToPayload } from '../../components/EventForm'
 import { AttendanceSummary } from '../../components/AttendanceSummary'
 import { useAuth } from '../../hooks/useAuth'
+import { errorMessage } from '../../lib/errors'
 import type { Attendance, AttendanceStatus, DrillEvent, Soldier } from '../../types/database'
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; activeClass: string }[] = [
@@ -24,6 +25,8 @@ export function AttendancePage() {
   const [soldiers, setSoldiers] = useState<Soldier[]>([])
   const [records, setRecords] = useState<Record<string, Attendance>>({})
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({})
+  const [pending, setPending] = useState<Set<string>>(new Set())
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!eventId) return
@@ -36,10 +39,10 @@ export function AttendancePage() {
     })
   }, [eventId])
 
-  async function setStatus(soldierId: string, status: AttendanceStatus) {
-    if (!eventId || !session) return
+  async function writeStatus(soldierId: string, status: AttendanceStatus) {
+    if (!eventId || !session) throw new Error('Missing event or session')
     const reason = status === 'late' || status === 'excused' ? reasonDrafts[soldierId] ?? '' : null
-    const updated = await markAttendance({
+    return markAttendance({
       drillEventId: eventId,
       soldierId,
       status,
@@ -47,7 +50,69 @@ export function AttendancePage() {
       markedBy: session.user.id,
       confirmed: true,
     })
+  }
+
+  async function setStatus(soldierId: string, status: AttendanceStatus) {
+    const updated = await writeStatus(soldierId, status)
     setRecords((prev) => ({ ...prev, [soldierId]: updated }))
+  }
+
+  // Clicking the already-active status again clears it, in case it was a mis-click.
+  // Updates `records` immediately (optimistic) so the button reflects the change before
+  // the round trip finishes, then reconciles with the real row or rolls back on failure.
+  // Guarded by `pending` so a second click can't race the first one's in-flight request.
+  async function toggleStatus(soldierId: string, status: AttendanceStatus) {
+    if (!eventId || pending.has(soldierId)) return
+    const previous = records[soldierId]
+    const isActive = previous?.status === status
+    setPending((prev) => new Set(prev).add(soldierId))
+    setError(null)
+
+    if (isActive) {
+      setRecords((prev) => {
+        const next = { ...prev }
+        delete next[soldierId]
+        return next
+      })
+    } else {
+      setRecords((prev) => ({
+        ...prev,
+        [soldierId]: {
+          id: previous?.id ?? `optimistic-${soldierId}`,
+          drill_event_id: eventId,
+          soldier_id: soldierId,
+          status,
+          reason: previous?.reason ?? null,
+          marked_by: session?.user.id ?? '',
+          marked_at: new Date().toISOString(),
+          confirmed_by: session?.user.id ?? null,
+          confirmed_at: new Date().toISOString(),
+        },
+      }))
+    }
+
+    try {
+      if (isActive) {
+        await deleteAttendance({ drillEventId: eventId, soldierId })
+      } else {
+        const updated = await writeStatus(soldierId, status)
+        setRecords((prev) => ({ ...prev, [soldierId]: updated }))
+      }
+    } catch (err) {
+      setRecords((prev) => {
+        const next = { ...prev }
+        if (previous) next[soldierId] = previous
+        else delete next[soldierId]
+        return next
+      })
+      setError(errorMessage(err, 'Failed to update attendance'))
+    } finally {
+      setPending((prev) => {
+        const next = new Set(prev)
+        next.delete(soldierId)
+        return next
+      })
+    }
   }
 
   if (!event) return <p className="text-sm text-ink-muted">Loading...</p>
@@ -113,6 +178,7 @@ export function AttendancePage() {
       </div>
 
       <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">ATTENDANCE</h2>
+      {error && <p className="mb-2 text-sm text-bad-ink">{error}</p>}
       <AttendanceSummary soldiers={soldiers} records={records} />
       <div className="flex flex-col gap-2">
         {soldiers.map((soldier) => {
@@ -135,8 +201,9 @@ export function AttendancePage() {
                   {STATUS_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
-                      onClick={() => setStatus(soldier.id, opt.value)}
-                      className={`rounded-md border px-2 py-2 text-[11px] font-bold tracking-wide transition-colors sm:px-3 ${
+                      onClick={() => toggleStatus(soldier.id, opt.value)}
+                      disabled={pending.has(soldier.id)}
+                      className={`rounded-md border px-2 py-2 text-[11px] font-bold tracking-wide transition-colors disabled:opacity-50 sm:px-3 ${
                         record?.status === opt.value ? opt.activeClass : 'border-line bg-neutral-bg text-ink-muted'
                       }`}
                     >

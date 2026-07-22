@@ -79,6 +79,15 @@ export async function getAttendanceHistory(
   return { history, rate }
 }
 
+export async function deleteAttendance(params: { drillEventId: string; soldierId: string }) {
+  const { error } = await supabase
+    .from('attendance')
+    .delete()
+    .eq('drill_event_id', params.drillEventId)
+    .eq('soldier_id', params.soldierId)
+  if (error) throw error
+}
+
 export async function markAttendance(params: {
   drillEventId: string
   soldierId: string

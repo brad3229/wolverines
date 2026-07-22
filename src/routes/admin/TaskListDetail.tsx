@@ -15,6 +15,7 @@ import {
   resetCompletion,
 } from '../../lib/tasks'
 import { useAuth } from '../../hooks/useAuth'
+import { errorMessage } from '../../lib/errors'
 import type { Soldier, TaskItem, TaskList, SoldierTaskCompletion, TaskCompletionStatus } from '../../types/database'
 
 function completionKey(soldierId: string, taskItemId: string) {
@@ -44,6 +45,8 @@ export function TaskListDetail() {
   const [loading, setLoading] = useState(true)
   const [newItemLabel, setNewItemLabel] = useState('')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [pendingChips, setPendingChips] = useState<Set<string>>(new Set())
+  const [error, setError] = useState<string | null>(null)
 
   function refresh() {
     if (!id) return
@@ -67,15 +70,67 @@ export function TaskListDetail() {
     return completions[completionKey(soldierId, taskItemId)]?.status ?? 'incomplete'
   }
 
+  // Optimistically flips the chip immediately so it doesn't wait on the round trip,
+  // then reconciles with the real row or rolls back on failure.
   async function handleChipClick(soldierId: string, taskItemId: string) {
     if (!session) return
+    const key = completionKey(soldierId, taskItemId)
+    if (pendingChips.has(key)) return
     const current = statusFor(soldierId, taskItemId)
-    const updated =
-      current === 'verified'
-        ? await resetCompletion({ soldierId, taskItemId })
-        : await verifyCompletion({ soldierId, taskItemId, verifiedBy: session.user.id })
-    setCompletions((prev) => ({ ...prev, [completionKey(soldierId, taskItemId)]: updated }))
-    refreshPendingCounts()
+    const previous = completions[key]
+    const now = new Date().toISOString()
+    setPendingChips((prev) => new Set(prev).add(key))
+    setError(null)
+    setCompletions((prev) => ({
+      ...prev,
+      [key]:
+        current === 'verified'
+          ? {
+              id: previous?.id ?? `optimistic-${key}`,
+              soldier_id: soldierId,
+              task_item_id: taskItemId,
+              status: 'incomplete',
+              reported_by: null,
+              reported_at: null,
+              verified_by: null,
+              verified_at: null,
+              notes: previous?.notes ?? null,
+            }
+          : {
+              id: previous?.id ?? `optimistic-${key}`,
+              soldier_id: soldierId,
+              task_item_id: taskItemId,
+              status: 'verified',
+              reported_by: session.user.id,
+              reported_at: now,
+              verified_by: session.user.id,
+              verified_at: now,
+              notes: previous?.notes ?? null,
+            },
+    }))
+
+    try {
+      const updated =
+        current === 'verified'
+          ? await resetCompletion({ soldierId, taskItemId })
+          : await verifyCompletion({ soldierId, taskItemId, verifiedBy: session.user.id })
+      setCompletions((prev) => ({ ...prev, [key]: updated }))
+      refreshPendingCounts()
+    } catch (err) {
+      setCompletions((prev) => {
+        const next = { ...prev }
+        if (previous) next[key] = previous
+        else delete next[key]
+        return next
+      })
+      setError(errorMessage(err, 'Failed to update task status'))
+    } finally {
+      setPendingChips((prev) => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
+    }
   }
 
   async function handleToggleActive() {
@@ -213,6 +268,7 @@ export function TaskListDetail() {
       </div>
 
       <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">SOLDIER PROGRESS</h2>
+      {error && <p className="mb-2 text-sm text-bad-ink">{error}</p>}
       {items.length === 0 ? (
         <p className="text-sm text-ink-muted">Add stations above to start tracking progress.</p>
       ) : soldiers.length === 0 ? (
@@ -243,8 +299,11 @@ export function TaskListDetail() {
                       <button
                         key={item.id}
                         onClick={() => handleChipClick(s.id, item.id)}
+                        disabled={pendingChips.has(completionKey(s.id, item.id))}
                         title={CHIP_TITLE[status]}
-                        className={`rounded-md border px-2.5 py-1.5 text-[11px] font-semibold tracking-wide transition-colors ${CHIP_CLASS[status]}`}
+                        className={`rounded-md border px-2.5 py-1.5 text-[11px] font-semibold tracking-wide transition-colors ${CHIP_CLASS[status]} ${
+                          pendingChips.has(completionKey(s.id, item.id)) ? 'opacity-50' : ''
+                        }`}
                       >
                         {item.label}
                       </button>

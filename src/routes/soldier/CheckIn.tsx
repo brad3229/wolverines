@@ -2,16 +2,17 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange, isEventOpenForCheckIn } from '../../lib/drillEvents'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
-import { listAttendanceForEvent, markAttendance } from '../../lib/attendance'
+import { listAttendanceForEvent, markAttendance, deleteAttendance } from '../../lib/attendance'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
-import type { Attendance, DrillEvent } from '../../types/database'
+import type { Attendance, DrillEvent, Soldier } from '../../types/database'
 
 export function CheckIn() {
   const { eventId } = useParams<{ eventId: string }>()
   const navigate = useNavigate()
   const { session } = useAuth()
   const [event, setEvent] = useState<DrillEvent | null>(null)
+  const [soldier, setSoldier] = useState<Soldier | null>(null)
   const [record, setRecord] = useState<Attendance | null | undefined>(undefined)
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -20,10 +21,12 @@ export function CheckIn() {
   useEffect(() => {
     if (!eventId || !session) return
     getDrillEvent(eventId).then(setEvent)
-    getOwnSoldierRecord(session.user.id).then((soldier) => {
-      listAttendanceForEvent(eventId).then((records) => {
-        setRecord(records.find((r) => r.soldier_id === soldier.id) ?? null)
-      })
+    // The attendance list only needs eventId, and the soldier record is only used to filter
+    // it afterward -- fetching them in parallel instead of chaining saves a round trip.
+    // The soldier record is also cached in state so check-in/undo clicks don't re-fetch it.
+    Promise.all([getOwnSoldierRecord(session.user.id), listAttendanceForEvent(eventId)]).then(([s, records]) => {
+      setSoldier(s)
+      setRecord(records.find((r) => r.soldier_id === s.id) ?? null)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, session])
@@ -33,10 +36,10 @@ export function CheckIn() {
     setSubmitting(true)
     setError(null)
     try {
-      const soldier = await getOwnSoldierRecord(session.user.id)
+      const soldierRecord = soldier ?? (await getOwnSoldierRecord(session.user.id))
       const updated = await markAttendance({
         drillEventId: eventId,
-        soldierId: soldier.id,
+        soldierId: soldierRecord.id,
         status: checkInStatus,
         reason: checkInStatus === 'late' ? reason : null,
         markedBy: session.user.id,
@@ -44,6 +47,21 @@ export function CheckIn() {
       setRecord(updated)
     } catch (err) {
       setError(errorMessage(err, 'Check-in failed'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleUndo() {
+    if (!eventId || !session) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      const soldierRecord = soldier ?? (await getOwnSoldierRecord(session.user.id))
+      await deleteAttendance({ drillEventId: eventId, soldierId: soldierRecord.id })
+      setRecord(null)
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to undo check-in'))
     } finally {
       setSubmitting(false)
     }
@@ -155,9 +173,21 @@ export function CheckIn() {
               CONFIRMED BY CADRE
             </span>
           ) : (
-            <span className="inline-block rounded-md bg-warn-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-warn-ink">
-              AWAITING CADRE CONFIRMATION
-            </span>
+            <>
+              <span className="mb-3 inline-block rounded-md bg-warn-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-warn-ink">
+                AWAITING CADRE CONFIRMATION
+              </span>
+              <div>
+                <button
+                  disabled={submitting}
+                  onClick={handleUndo}
+                  className="text-sm font-semibold text-ink-muted underline decoration-dotted hover:text-ink-dim disabled:opacity-50"
+                >
+                  Made a mistake? Undo check-in
+                </button>
+              </div>
+              {error && <p className="mt-2 text-sm text-bad-ink">{error}</p>}
+            </>
           )}
         </div>
       )}

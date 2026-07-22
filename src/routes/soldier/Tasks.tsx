@@ -3,6 +3,7 @@ import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listActiveTaskLists, listTaskItems, listOwnCompletions, reportOwnCompletion, retractOwnCompletion } from '../../lib/tasks'
 import { ProgressBar } from '../../components/ProgressBar'
 import { useAuth } from '../../hooks/useAuth'
+import { errorMessage } from '../../lib/errors'
 import type { Soldier, TaskList, TaskItem, SoldierTaskCompletion, TaskCompletionStatus } from '../../types/database'
 
 export function Tasks() {
@@ -13,6 +14,8 @@ export function Tasks() {
   const [completions, setCompletions] = useState<Record<string, SoldierTaskCompletion>>({})
   const [loading, setLoading] = useState(true)
   const [notLinked, setNotLinked] = useState(false)
+  const [pending, setPending] = useState<Set<string>>(new Set())
+  const [error, setError] = useState<string | null>(null)
 
   async function refresh() {
     if (!session) return
@@ -55,13 +58,63 @@ export function Tasks() {
     )
   }
 
+  // Optimistically flips the chip immediately so it doesn't wait on the round trip,
+  // then reconciles with the real row or rolls back on failure.
   async function handleClick(item: TaskItem, status: TaskCompletionStatus) {
-    if (!soldier || !session || status === 'verified') return
-    const updated =
-      status === 'incomplete'
-        ? await reportOwnCompletion({ soldierId: soldier.id, taskItemId: item.id, reportedBy: session.user.id })
-        : await retractOwnCompletion({ soldierId: soldier.id, taskItemId: item.id })
-    setCompletions((prev) => ({ ...prev, [item.id]: updated }))
+    if (!soldier || !session || status === 'verified' || pending.has(item.id)) return
+    const previous = completions[item.id]
+    const now = new Date().toISOString()
+    setPending((prev) => new Set(prev).add(item.id))
+    setError(null)
+    setCompletions((prev) => ({
+      ...prev,
+      [item.id]:
+        status === 'incomplete'
+          ? {
+              id: previous?.id ?? `optimistic-${item.id}`,
+              soldier_id: soldier.id,
+              task_item_id: item.id,
+              status: 'self_reported',
+              reported_by: session.user.id,
+              reported_at: now,
+              verified_by: null,
+              verified_at: null,
+              notes: previous?.notes ?? null,
+            }
+          : {
+              id: previous?.id ?? `optimistic-${item.id}`,
+              soldier_id: soldier.id,
+              task_item_id: item.id,
+              status: 'incomplete',
+              reported_by: null,
+              reported_at: null,
+              verified_by: null,
+              verified_at: null,
+              notes: previous?.notes ?? null,
+            },
+    }))
+
+    try {
+      const updated =
+        status === 'incomplete'
+          ? await reportOwnCompletion({ soldierId: soldier.id, taskItemId: item.id, reportedBy: session.user.id })
+          : await retractOwnCompletion({ soldierId: soldier.id, taskItemId: item.id })
+      setCompletions((prev) => ({ ...prev, [item.id]: updated }))
+    } catch (err) {
+      setCompletions((prev) => {
+        const next = { ...prev }
+        if (previous) next[item.id] = previous
+        else delete next[item.id]
+        return next
+      })
+      setError(errorMessage(err, 'Failed to update task status'))
+    } finally {
+      setPending((prev) => {
+        const next = new Set(prev)
+        next.delete(item.id)
+        return next
+      })
+    }
   }
 
   return (
@@ -70,6 +123,7 @@ export function Tasks() {
       <p className="mb-5 text-[13px] text-ink-muted">
         Tap a station to report it done. An admin will verify it before it counts as complete.
       </p>
+      {error && <p className="mb-4 text-sm text-bad-ink">{error}</p>}
 
       {lists.length === 0 ? (
         <p className="rounded-xl border border-line bg-panel p-6 text-center text-sm text-ink-muted">
@@ -106,8 +160,10 @@ export function Tasks() {
                         <button
                           key={item.id}
                           onClick={() => handleClick(item, status)}
-                          disabled={status === 'verified'}
+                          disabled={status === 'verified' || pending.has(item.id)}
                           className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors ${
+                            pending.has(item.id) ? 'opacity-50' : ''
+                          } ${
                             status === 'verified'
                               ? 'border-transparent bg-good-bg text-good-ink'
                               : status === 'self_reported'
