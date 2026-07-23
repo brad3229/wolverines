@@ -3,6 +3,8 @@ import { listSoldiers } from '../../lib/soldiers'
 import { listDrillEvents, formatEventDateRange } from '../../lib/drillEvents'
 import { listSutaRequests, reviewSutaRequest, markMakeupComplete } from '../../lib/sutaRequests'
 import { useAuth } from '../../hooks/useAuth'
+import { errorMessage } from '../../lib/errors'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { DrillEvent, Soldier, SutaRequest } from '../../types/database'
 
 export function Suta() {
@@ -12,15 +14,22 @@ export function Suta() {
   const [events, setEvents] = useState<DrillEvent[]>([])
   const [makeupDrafts, setMakeupDrafts] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   function refresh() {
     setLoading(true)
-    Promise.all([listSutaRequests(), listSoldiers(), listDrillEvents()]).then(([r, s, e]) => {
-      setRequests(r)
-      setSoldiers(s)
-      setEvents(e)
-      setLoading(false)
-    })
+    setError(null)
+    Promise.all([listSutaRequests(), listSoldiers(), listDrillEvents()])
+      .then(([r, s, e]) => {
+        setRequests(r)
+        setSoldiers(s)
+        setEvents(e)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(errorMessage(err, 'Failed to load SUTA requests'))
+        setLoading(false)
+      })
   }
 
   useEffect(refresh, [])
@@ -36,20 +45,33 @@ export function Suta() {
 
   async function handleReview(request: SutaRequest, approve: boolean) {
     if (!session) return
-    await reviewSutaRequest({ id: request.id, approve, reviewedBy: session.user.id })
-    refresh()
-    refreshPendingCounts()
+    try {
+      await reviewSutaRequest({ id: request.id, approve, reviewedBy: session.user.id })
+      refresh()
+      refreshPendingCounts()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to review request'))
+    }
   }
 
   async function handleMakeupComplete(request: SutaRequest) {
-    await markMakeupComplete({ id: request.id, notes: makeupDrafts[request.id] ?? '' })
-    refresh()
+    try {
+      await markMakeupComplete({ id: request.id, notes: makeupDrafts[request.id] ?? '' })
+      refresh()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to mark make-up complete'))
+    }
   }
 
-  if (loading) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (loading) return <LoadingScreen />
+
+  const today = new Date().toISOString().slice(0, 10)
+  const isOverdue = (r: SutaRequest) => !!r.requested_makeup_date && r.requested_makeup_date < today
 
   const pendingReview = requests.filter((r) => r.status === 'pending')
-  const awaitingMakeup = requests.filter((r) => r.status === 'approved' && r.makeup_status === 'pending')
+  const awaitingMakeup = requests
+    .filter((r) => r.status === 'approved' && r.makeup_status === 'pending')
+    .sort((a, b) => Number(isOverdue(b)) - Number(isOverdue(a)))
   const history = requests.filter(
     (r) => r.status === 'denied' || (r.status === 'approved' && r.makeup_status === 'completed'),
   )
@@ -57,6 +79,8 @@ export function Suta() {
   return (
     <div className="mx-auto max-w-[760px]">
       <h1 className="mb-5 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">SUTA Requests</h1>
+
+      {error && <p className="mb-4 text-sm text-bad-ink">{error}</p>}
 
       <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">PENDING REVIEW</h2>
       {pendingReview.length === 0 ? (
@@ -70,6 +94,9 @@ export function Suta() {
                   <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
                   <div className="text-xs text-ink-muted">{eventLabel(r.drill_event_id)}</div>
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.reason}&rdquo;</div>
+                  <div className="mt-1 text-xs text-ink-dim">
+                    Planned make-up: {r.requested_makeup_date ?? 'Not sure yet'}
+                  </div>
                 </div>
                 <div className="flex flex-shrink-0 gap-2">
                   <button
@@ -99,8 +126,18 @@ export function Suta() {
           {awaitingMakeup.map((r) => (
             <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5">
               <div className="mb-2.5">
-                <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</span>
+                  {isOverdue(r) && (
+                    <span className="rounded-md bg-bad-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-bad-ink">
+                      OVERDUE
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-ink-muted">Missed: {eventLabel(r.drill_event_id)}</div>
+                <div className="mt-0.5 text-xs text-ink-dim">
+                  Planned make-up: {r.requested_makeup_date ?? 'Not sure yet'}
+                </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input

@@ -4,6 +4,7 @@ import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listAttendanceForEvent, markAttendance } from '../../lib/attendance'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { Attendance, DrillEvent, Soldier } from '../../types/database'
 
 export function CheckInHome() {
@@ -18,14 +19,20 @@ export function CheckInHome() {
 
   async function refresh() {
     if (!session) return
-    const today = new Date().toISOString().slice(0, 10)
-    const [events, ownSoldier] = await Promise.all([listDrillEvents(), getOwnSoldierRecord(session.user.id)])
-    const drill = events.find((e) => e.event_date <= today && today <= e.end_date) ?? null
-    setTodayEvent(drill)
-    setSoldier(ownSoldier)
-    if (drill) {
-      const records = await listAttendanceForEvent(drill.id)
-      setRecord(records.find((r) => r.soldier_id === ownSoldier.id) ?? null)
+    setError(null)
+    try {
+      const today = new Date().toISOString().slice(0, 10)
+      const [events, ownSoldier] = await Promise.all([listDrillEvents(), getOwnSoldierRecord(session.user.id)])
+      const drill = events.find((e) => e.event_date <= today && today <= e.end_date) ?? null
+      setTodayEvent(drill)
+      setSoldier(ownSoldier)
+      if (drill) {
+        const records = await listAttendanceForEvent(drill.id)
+        setRecord(records.find((r) => r.soldier_id === ownSoldier.id) ?? null)
+      }
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to load check-in status'))
+      setTodayEvent(null)
     }
   }
 
@@ -67,7 +74,9 @@ export function CheckInHome() {
       </h1>
 
       {todayEvent === undefined ? (
-        <p className="text-sm text-ink-muted">Loading...</p>
+        <LoadingScreen />
+      ) : error && !todayEvent ? (
+        <p className="text-sm text-bad-ink">{error}</p>
       ) : todayEvent === null ? (
         <div className="rounded-xl border border-line bg-panel p-5 text-center text-sm text-ink-muted">
           No drill today. Check back closer to the weekend.

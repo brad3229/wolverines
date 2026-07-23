@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { listDrillEvents, isEventOpenForCheckIn, formatEventDateRange } from '../../lib/drillEvents'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listAttendanceForSoldier, attendanceBadge } from '../../lib/attendance'
+import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import type { Attendance, DrillEvent } from '../../types/database'
 
@@ -16,17 +17,26 @@ export function SoldierCalendar() {
   const { session } = useAuth()
   const [events, setEvents] = useState<DrillEvent[]>([])
   const [records, setRecords] = useState<Record<string, Attendance>>({})
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!session) return
-    listDrillEvents().then(setEvents)
-    getOwnSoldierRecord(session.user.id).then((soldier) => {
-      listAttendanceForSoldier(soldier.id).then((list) => {
-        const map: Record<string, Attendance> = {}
-        for (const r of list) map[r.drill_event_id] = r
-        setRecords(map)
+    setLoadError(null)
+    listDrillEvents()
+      .then(setEvents)
+      .catch((err) => setLoadError(errorMessage(err, 'Failed to load calendar')))
+    getOwnSoldierRecord(session.user.id)
+      .then((soldier) => {
+        listAttendanceForSoldier(soldier.id).then((list) => {
+          const map: Record<string, Attendance> = {}
+          for (const r of list) map[r.drill_event_id] = r
+          setRecords(map)
+        })
       })
-    })
+      .catch(() => {
+        // Not linked to a Soldier record -- the calendar still works, it just won't
+        // show attendance badges on each event; nothing to surface here.
+      })
   }, [session])
 
   const today = new Date().toISOString().slice(0, 10)
@@ -37,6 +47,7 @@ export function SoldierCalendar() {
       <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:mb-5 sm:text-[26px]">
         Calendar
       </h1>
+      {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
       <div className="flex flex-col gap-2">
         {upcoming.map((event) => {
           const { monthLabel, dayLabel } = monthDayLabel(event.event_date)

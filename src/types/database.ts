@@ -97,6 +97,7 @@ export interface SutaRequest {
   makeup_status: MakeupStatus
   makeup_notes: string | null
   makeup_completed_at: string | null
+  requested_makeup_date: string | null
 }
 
 export interface PayIssue {

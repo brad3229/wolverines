@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { LoadingScreen } from './LoadingScreen'
 import type { UserRole } from '../types/database'
 
 interface RequireRoleProps {
@@ -11,7 +12,7 @@ interface RequireRoleProps {
 export function RequireRole({ allow, children }: RequireRoleProps) {
   const { session, role, loading } = useAuth()
 
-  if (loading) return <div className="p-8 text-center text-sm text-ink-muted">Loading...</div>
+  if (loading) return <LoadingScreen />
   if (!session) return <Navigate to="/login" replace />
   if (!role || !allow.includes(role)) return <Navigate to="/login" replace />
 

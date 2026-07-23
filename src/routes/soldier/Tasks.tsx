@@ -4,6 +4,7 @@ import { listActiveTaskLists, listTaskItems, listOwnCompletions, reportOwnComple
 import { ProgressBar } from '../../components/ProgressBar'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { Soldier, TaskList, TaskItem, SoldierTaskCompletion, TaskCompletionStatus } from '../../types/database'
 
 export function Tasks() {
@@ -42,7 +43,7 @@ export function Tasks() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
-  if (loading) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (loading) return <LoadingScreen />
 
   if (notLinked || !soldier) {
     return (

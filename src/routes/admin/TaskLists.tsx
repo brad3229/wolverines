@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listTaskLists, createTaskList, listTaskItems } from '../../lib/tasks'
 import { useAuth } from '../../hooks/useAuth'
+import { errorMessage } from '../../lib/errors'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { TaskList } from '../../types/database'
 
 export function TaskLists() {
@@ -9,18 +11,25 @@ export function TaskLists() {
   const [lists, setLists] = useState<TaskList[]>([])
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
 
   function refresh() {
     setLoading(true)
-    listTaskLists().then(async (all) => {
-      setLists(all)
-      const counts = await Promise.all(all.map((l) => listTaskItems(l.id)))
-      setItemCounts(Object.fromEntries(all.map((l, i) => [l.id, counts[i].length])))
-      setLoading(false)
-    })
+    setLoadError(null)
+    listTaskLists()
+      .then(async (all) => {
+        setLists(all)
+        const counts = await Promise.all(all.map((l) => listTaskItems(l.id)))
+        setItemCounts(Object.fromEntries(all.map((l, i) => [l.id, counts[i].length])))
+        setLoading(false)
+      })
+      .catch((err) => {
+        setLoadError(errorMessage(err, 'Failed to load task lists'))
+        setLoading(false)
+      })
   }
 
   useEffect(refresh, [])
@@ -73,8 +82,10 @@ export function TaskLists() {
         </div>
       )}
 
+      {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
+
       {loading ? (
-        <p className="text-sm text-ink-muted">Loading...</p>
+        <LoadingScreen />
       ) : lists.length === 0 ? (
         <p className="rounded-xl border border-line bg-panel p-6 text-center text-sm text-ink-muted">
           No task lists yet.

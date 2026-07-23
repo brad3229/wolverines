@@ -6,7 +6,9 @@ import { listAttendanceForEvent } from '../../lib/attendance'
 import { listEditRequests, reviewEditRequest, coerceEditRequestValue, formatEditRequestValue } from '../../lib/editRequests'
 import { updateSoldier } from '../../lib/soldiers'
 import { getExpiringSoldiers } from '../../lib/expirations'
+import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { DrillEvent, EditRequest, Soldier } from '../../types/database'
 
 function monthDayLabel(dateStr: string) {
@@ -22,11 +24,13 @@ export function Dashboard() {
   const [editRequests, setEditRequests] = useState<EditRequest[]>([])
   const [lastAttendancePct, setLastAttendancePct] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   function refresh() {
     setLoading(true)
-    Promise.all([listSoldiers(), listDrillEvents(), listEditRequests()]).then(
-      ([soldierData, eventData, requestData]) => {
+    setLoadError(null)
+    Promise.all([listSoldiers(), listDrillEvents(), listEditRequests()])
+      .then(([soldierData, eventData, requestData]) => {
         setSoldiers(soldierData)
         setEvents(eventData)
         setEditRequests(requestData.filter((r) => r.status === 'pending'))
@@ -45,25 +49,32 @@ export function Dashboard() {
             setLastAttendancePct(activeCount ? Math.round((present / activeCount) * 100) : 0)
           })
         }
-      },
-    )
+      })
+      .catch((err) => {
+        setLoadError(errorMessage(err, 'Failed to load dashboard'))
+        setLoading(false)
+      })
   }
 
   useEffect(refresh, [])
 
   async function handleReview(request: EditRequest, approve: boolean) {
     if (!session) return
-    await reviewEditRequest({ id: request.id, approve, reviewedBy: session.user.id })
-    if (approve) {
-      await updateSoldier(request.soldier_id, {
-        [request.field_name]: coerceEditRequestValue(request.field_name, request.new_value),
-      })
+    try {
+      await reviewEditRequest({ id: request.id, approve, reviewedBy: session.user.id })
+      if (approve) {
+        await updateSoldier(request.soldier_id, {
+          [request.field_name]: coerceEditRequestValue(request.field_name, request.new_value),
+        })
+      }
+      refresh()
+      refreshPendingCounts()
+    } catch (err) {
+      setLoadError(errorMessage(err, 'Failed to review request'))
     }
-    refresh()
-    refreshPendingCounts()
   }
 
-  if (loading) return <p className="text-sm text-ink-muted">Loading dashboard...</p>
+  if (loading) return <LoadingScreen />
 
   const today = new Date().toISOString().slice(0, 10)
   const activeCount = soldiers.filter((s) => s.status === 'active').length
@@ -87,6 +98,8 @@ export function Dashboard() {
       <p className="mb-5 mt-1 text-[13px] text-ink-muted">
         {todayLabel} &middot; A CO 1-120 IN
       </p>
+
+      {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
       <div className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="ROSTER STRENGTH" value={String(activeCount)} />

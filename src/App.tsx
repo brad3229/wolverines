@@ -6,6 +6,7 @@ import { Layout } from './components/Layout'
 import type { NavItem } from './components/Layout'
 import { MfaChallenge } from './components/MfaChallenge'
 import { SetPassword } from './components/SetPassword'
+import { LoadingScreen } from './components/LoadingScreen'
 import { initialAuthFlowType } from './lib/authFlow'
 import {
   IconDashboard,
@@ -112,7 +113,7 @@ function App() {
   return (
     <AuthContext.Provider value={auth}>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
-        <Suspense fallback={<div className="p-6 text-sm text-ink-muted">Loading...</div>}>
+        <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Supabase auth emails (invite, magic link, password reset) redirect to the
               bare site root with the session token in the URL hash. Rendering Login here

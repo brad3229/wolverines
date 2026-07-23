@@ -3,6 +3,7 @@ import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listOwnPayIssues, submitPayIssue } from '../../lib/payIssues'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { PayIssue, PayIssueCategory, PayIssueStatus, Soldier } from '../../types/database'
 
 const CATEGORY_LABEL: Record<PayIssueCategory, string> = {
@@ -52,7 +53,7 @@ export function PayIssues() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
-  if (loading) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (loading) return <LoadingScreen />
 
   if (notLinked || !soldier) {
     return (

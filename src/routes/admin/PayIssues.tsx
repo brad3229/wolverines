@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { listSoldiers } from '../../lib/soldiers'
 import { listPayIssues, markPayIssueInProgress, resolvePayIssue } from '../../lib/payIssues'
 import { useAuth } from '../../hooks/useAuth'
+import { errorMessage } from '../../lib/errors'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { PayIssue, PayIssueCategory, Soldier } from '../../types/database'
 
 const CATEGORY_LABEL: Record<PayIssueCategory, string> = {
@@ -19,14 +21,21 @@ export function PayIssues() {
   const [soldiers, setSoldiers] = useState<Soldier[]>([])
   const [resolveDrafts, setResolveDrafts] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   function refresh() {
     setLoading(true)
-    Promise.all([listPayIssues(), listSoldiers()]).then(([i, s]) => {
-      setIssues(i)
-      setSoldiers(s)
-      setLoading(false)
-    })
+    setError(null)
+    Promise.all([listPayIssues(), listSoldiers()])
+      .then(([i, s]) => {
+        setIssues(i)
+        setSoldiers(s)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(errorMessage(err, 'Failed to load pay issues'))
+        setLoading(false)
+      })
   }
 
   useEffect(refresh, [])
@@ -37,19 +46,27 @@ export function PayIssues() {
   }
 
   async function handleStart(issue: PayIssue) {
-    await markPayIssueInProgress({ id: issue.id })
-    refresh()
-    refreshPendingCounts()
+    try {
+      await markPayIssueInProgress({ id: issue.id })
+      refresh()
+      refreshPendingCounts()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to update pay issue'))
+    }
   }
 
   async function handleResolve(issue: PayIssue) {
     if (!session) return
-    await resolvePayIssue({ id: issue.id, resolvedBy: session.user.id, notes: resolveDrafts[issue.id] ?? '' })
-    refresh()
-    refreshPendingCounts()
+    try {
+      await resolvePayIssue({ id: issue.id, resolvedBy: session.user.id, notes: resolveDrafts[issue.id] ?? '' })
+      refresh()
+      refreshPendingCounts()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to resolve pay issue'))
+    }
   }
 
-  if (loading) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (loading) return <LoadingScreen />
 
   const open = issues.filter((i) => i.status === 'open')
   const inProgress = issues.filter((i) => i.status === 'in_progress')
@@ -58,6 +75,8 @@ export function PayIssues() {
   return (
     <div className="mx-auto max-w-[760px]">
       <h1 className="mb-5 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Pay Issues</h1>
+
+      {error && <p className="mb-4 text-sm text-bad-ink">{error}</p>}
 
       <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">OPEN</h2>
       {open.length === 0 ? (

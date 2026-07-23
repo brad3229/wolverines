@@ -6,6 +6,7 @@ import { listAttendanceForEvent, markAttendance, deleteAttendance } from '../../
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { BackButton } from '../../components/BackButton'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { Attendance, DrillEvent, Soldier } from '../../types/database'
 
 export function CheckIn() {
@@ -20,14 +21,19 @@ export function CheckIn() {
 
   useEffect(() => {
     if (!eventId || !session) return
-    getDrillEvent(eventId).then(setEvent)
+    setError(null)
+    getDrillEvent(eventId)
+      .then(setEvent)
+      .catch((err) => setError(errorMessage(err, 'Failed to load event')))
     // The attendance list only needs eventId, and the soldier record is only used to filter
     // it afterward -- fetching them in parallel instead of chaining saves a round trip.
     // The soldier record is also cached in state so check-in/undo clicks don't re-fetch it.
-    Promise.all([getOwnSoldierRecord(session.user.id), listAttendanceForEvent(eventId)]).then(([s, records]) => {
-      setSoldier(s)
-      setRecord(records.find((r) => r.soldier_id === s.id) ?? null)
-    })
+    Promise.all([getOwnSoldierRecord(session.user.id), listAttendanceForEvent(eventId)])
+      .then(([s, records]) => {
+        setSoldier(s)
+        setRecord(records.find((r) => r.soldier_id === s.id) ?? null)
+      })
+      .catch((err) => setError(errorMessage(err, 'Failed to load check-in status')))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, session])
 
@@ -67,7 +73,9 @@ export function CheckIn() {
     }
   }
 
-  if (!event || record === undefined) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (!event || record === undefined) {
+    return error ? <p className="text-sm text-bad-ink">{error}</p> : <LoadingScreen />
+  }
 
   const today = new Date().toISOString().slice(0, 10)
   const isOpen = isEventOpenForCheckIn(event)

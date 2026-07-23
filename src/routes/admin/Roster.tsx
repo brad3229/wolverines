@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { listSoldiers, createSoldier } from '../../lib/soldiers'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
 import { flagForDate, ETS_WARNING_DAYS, CAC_WARNING_DAYS } from '../../lib/expirations'
+import { errorMessage } from '../../lib/errors'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { Soldier } from '../../types/database'
 
 function etsClass(s: Soldier) {
@@ -17,11 +19,14 @@ export function Roster() {
   const [search, setSearch] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   function refresh() {
     setLoading(true)
+    setLoadError(null)
     listSoldiers()
       .then(setSoldiers)
+      .catch((err) => setLoadError(errorMessage(err, 'Failed to load roster')))
       .finally(() => setLoading(false))
   }
 
@@ -77,8 +82,10 @@ export function Roster() {
         </label>
       </div>
 
+      {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
+
       {loading ? (
-        <p className="text-sm text-ink-muted">Loading roster...</p>
+        <LoadingScreen />
       ) : filtered.length === 0 ? (
         <p className="rounded-xl border border-line bg-panel p-6 text-center text-sm text-ink-muted">No Soldiers found.</p>
       ) : (

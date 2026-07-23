@@ -7,7 +7,9 @@ import { listOwnSutaRequests } from '../../lib/sutaRequests'
 import { getAttendanceHistory, attendanceBadge, listAttendanceForEvent } from '../../lib/attendance'
 import type { AttendanceHistoryEntry } from '../../lib/attendance'
 import { flagForDate, daysUntil, ETS_WARNING_DAYS, CAC_WARNING_DAYS } from '../../lib/expirations'
+import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { Attendance, DrillEvent, Soldier } from '../../types/database'
 
 function monthDayLabel(dateStr: string) {
@@ -25,41 +27,72 @@ export function Dashboard() {
   const [rate, setRate] = useState<number | null>(null)
   const [nextEventRecord, setNextEventRecord] = useState<Attendance | null>(null)
   const [loading, setLoading] = useState(true)
+  const [notLinked, setNotLinked] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!session) return
     setLoading(true)
-    getOwnSoldierRecord(session.user.id).then((s) => {
-      setSoldier(s)
-      Promise.all([
-        listDrillEvents(),
-        listOwnEditRequests(s.id),
-        listOwnSutaRequests(s.id),
-        getAttendanceHistory(s.id),
-      ]).then(([eventData, editRequests, sutaRequests, attendance]) => {
-        setEvents(eventData)
-        setPendingTotal(
-          editRequests.filter((r) => r.status === 'pending').length +
-            sutaRequests.filter((r) => r.status === 'pending').length,
-        )
-        setHistory(attendance.history)
-        setRate(attendance.rate)
+    setNotLinked(false)
+    setLoadError(null)
+    getOwnSoldierRecord(session.user.id)
+      .then((s) => {
+        setSoldier(s)
+        Promise.all([
+          listDrillEvents(),
+          listOwnEditRequests(s.id),
+          listOwnSutaRequests(s.id),
+          getAttendanceHistory(s.id),
+        ])
+          .then(([eventData, editRequests, sutaRequests, attendance]) => {
+            setEvents(eventData)
+            setPendingTotal(
+              editRequests.filter((r) => r.status === 'pending').length +
+                sutaRequests.filter((r) => r.status === 'pending').length,
+            )
+            setHistory(attendance.history)
+            setRate(attendance.rate)
 
-        const today = new Date().toISOString().slice(0, 10)
-        const next = eventData.filter((e) => e.end_date >= today)[0]
-        if (next) {
-          listAttendanceForEvent(next.id).then((records) => {
-            setNextEventRecord(records.find((r) => r.soldier_id === s.id) ?? null)
+            const today = new Date().toISOString().slice(0, 10)
+            const next = eventData.filter((e) => e.end_date >= today)[0]
+            if (next) {
+              listAttendanceForEvent(next.id)
+                .then((records) => {
+                  setNextEventRecord(records.find((r) => r.soldier_id === s.id) ?? null)
+                  setLoading(false)
+                })
+                .catch((err) => {
+                  setLoadError(errorMessage(err, 'Failed to load dashboard'))
+                  setLoading(false)
+                })
+            } else {
+              setLoading(false)
+            }
+          })
+          .catch((err) => {
+            setLoadError(errorMessage(err, 'Failed to load dashboard'))
             setLoading(false)
           })
-        } else {
-          setLoading(false)
-        }
       })
-    })
+      .catch(() => {
+        setNotLinked(true)
+        setLoading(false)
+      })
   }, [session])
 
-  if (loading || !soldier) return <p className="text-sm text-ink-muted">Loading dashboard...</p>
+  if (loading) return <LoadingScreen />
+
+  if (notLinked || !soldier) {
+    return (
+      <div className="mx-auto max-w-[760px]">
+        <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Dashboard</h1>
+        <div className="mt-5 rounded-xl border border-line bg-panel p-5 text-sm text-ink-muted">
+          Your account isn&rsquo;t linked to a Soldier record on the roster yet. Ask an admin to add you to the
+          Roster and link your account to it.
+        </div>
+      </div>
+    )
+  }
 
   const today = new Date().toISOString().slice(0, 10)
   const nextEvent = events.filter((e) => e.end_date >= today)[0]
@@ -78,6 +111,8 @@ export function Dashboard() {
     <div className="mx-auto max-w-[760px]">
       <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Dashboard</h1>
       <p className="mb-5 mt-1 text-[13px] text-ink-muted">{todayLabel} &middot; A CO 1-120 IN</p>
+
+      {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatTile

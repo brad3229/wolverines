@@ -10,6 +10,7 @@ import type { AttendanceHistoryEntry } from '../../lib/attendance'
 import { formatEventDateRange } from '../../lib/drillEvents'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
 import { BackButton } from '../../components/BackButton'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import { useAuth } from '../../hooks/useAuth'
 import type { EditRequest, Soldier, UserRole } from '../../types/database'
 
@@ -28,25 +29,31 @@ export function SoldierDetail() {
   const [roleChangeError, setRoleChangeError] = useState<string | null>(null)
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceHistoryEntry[] | null>(null)
   const [attendanceRate, setAttendanceRate] = useState<number | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   function refresh() {
     if (!id) return
-    getSoldier(id).then((s) => {
-      setSoldier(s)
-      setInviteEmail(s.personal_email ?? '')
-      if (s.profile_id) getProfileRole(s.profile_id).then(setAccountRole)
+    setLoadError(null)
+    getSoldier(id)
+      .then((s) => {
+        setSoldier(s)
+        setInviteEmail(s.personal_email ?? '')
+        if (s.profile_id) getProfileRole(s.profile_id).then(setAccountRole)
 
-      getAttendanceHistory(s.id).then(({ history, rate }) => {
-        setAttendanceHistory(history)
-        setAttendanceRate(rate)
+        getAttendanceHistory(s.id).then(({ history, rate }) => {
+          setAttendanceHistory(history)
+          setAttendanceRate(rate)
+        })
       })
-    })
-    listEditRequests().then((all) => setEditRequests(all.filter((r) => r.soldier_id === id && r.status === 'pending')))
+      .catch((err) => setLoadError(errorMessage(err, 'Failed to load Soldier')))
+    listEditRequests()
+      .then((all) => setEditRequests(all.filter((r) => r.soldier_id === id && r.status === 'pending')))
+      .catch((err) => setLoadError(errorMessage(err, 'Failed to load edit requests')))
   }
 
   useEffect(refresh, [id])
 
-  if (!soldier) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (!soldier) return loadError ? <p className="text-sm text-bad-ink">{loadError}</p> : <LoadingScreen />
 
   async function handleInvite() {
     if (!id || !inviteEmail) return
@@ -80,14 +87,18 @@ export function SoldierDetail() {
 
   async function handleReview(request: EditRequest, approve: boolean) {
     if (!session) return
-    await reviewEditRequest({ id: request.id, approve, reviewedBy: session.user.id })
-    if (approve) {
-      await updateSoldier(request.soldier_id, {
-        [request.field_name]: coerceEditRequestValue(request.field_name, request.new_value),
-      })
+    try {
+      await reviewEditRequest({ id: request.id, approve, reviewedBy: session.user.id })
+      if (approve) {
+        await updateSoldier(request.soldier_id, {
+          [request.field_name]: coerceEditRequestValue(request.field_name, request.new_value),
+        })
+      }
+      refresh()
+      refreshPendingCounts()
+    } catch (err) {
+      setLoadError(errorMessage(err, 'Failed to review request'))
     }
-    refresh()
-    refreshPendingCounts()
   }
 
   return (
@@ -96,6 +107,8 @@ export function SoldierDetail() {
       <h1 className="mb-5 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">
         {soldier.rank} {soldier.first_name} {soldier.last_name}
       </h1>
+
+      {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
       {editRequests.length > 0 && (
         <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">

@@ -3,7 +3,9 @@ import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { submitEditRequest, listOwnEditRequests, formatEditRequestValue } from '../../lib/editRequests'
 import { flagForDate, CAC_WARNING_DAYS } from '../../lib/expirations'
 import { BLOOD_TYPES } from '../../components/SoldierForm'
+import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { EditRequest, Soldier } from '../../types/database'
 
 type FieldKey =
@@ -70,18 +72,38 @@ export function Profile() {
   const [ecPhone, setEcPhone] = useState('')
   const [value, setValue] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [notLinked, setNotLinked] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   function refresh() {
     if (!session) return
-    getOwnSoldierRecord(session.user.id).then((s) => {
-      setSoldier(s)
-      listOwnEditRequests(s.id).then(setRequests)
-    })
+    setNotLinked(false)
+    setLoadError(null)
+    getOwnSoldierRecord(session.user.id)
+      .then((s) => {
+        setSoldier(s)
+        listOwnEditRequests(s.id)
+          .then(setRequests)
+          .catch((err) => setLoadError(errorMessage(err, 'Failed to load edit requests')))
+      })
+      .catch(() => setNotLinked(true))
   }
 
   useEffect(refresh, [session])
 
-  if (!soldier) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (notLinked) {
+    return (
+      <div className="mx-auto max-w-[600px]">
+        <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">My Profile</h1>
+        <div className="rounded-xl border border-line bg-panel p-5 text-sm text-ink-muted">
+          Your account isn&rsquo;t linked to a Soldier record on the roster yet. Ask an admin to add you to the
+          Roster and link your account to it.
+        </div>
+      </div>
+    )
+  }
+
+  if (!soldier) return <LoadingScreen />
 
   function startEdit(field: FieldKey) {
     if (!soldier) return
@@ -205,6 +227,8 @@ export function Profile() {
     <div className="mx-auto max-w-[600px]">
       <h1 className="mb-1 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">My Profile</h1>
       <p className="mb-5 text-[13px] text-ink-muted">Field changes require admin approval.</p>
+
+      {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
       <div className="mb-6 rounded-xl border border-line bg-panel p-1.5">
         {profileRows.map((row) => (

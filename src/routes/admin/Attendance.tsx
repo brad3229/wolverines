@@ -6,6 +6,7 @@ import { listAttendanceForEvent, markAttendance, deleteAttendance, attendanceRow
 import { EventForm, eventFormValuesToPayload } from '../../components/EventForm'
 import { AttendanceSummary } from '../../components/AttendanceSummary'
 import { BackButton } from '../../components/BackButton'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import type { Attendance, AttendanceStatus, DrillEvent, Soldier } from '../../types/database'
@@ -30,13 +31,20 @@ export function AttendancePage() {
 
   useEffect(() => {
     if (!eventId) return
-    getDrillEvent(eventId).then(setEvent)
-    listSoldiers().then((all) => setSoldiers(all.filter((s) => s.status === 'active')))
-    listAttendanceForEvent(eventId).then((list) => {
-      const map: Record<string, Attendance> = {}
-      for (const r of list) map[r.soldier_id] = r
-      setRecords(map)
-    })
+    setError(null)
+    getDrillEvent(eventId)
+      .then(setEvent)
+      .catch((err) => setError(errorMessage(err, 'Failed to load event')))
+    listSoldiers()
+      .then((all) => setSoldiers(all.filter((s) => s.status === 'active')))
+      .catch((err) => setError(errorMessage(err, 'Failed to load roster')))
+    listAttendanceForEvent(eventId)
+      .then((list) => {
+        const map: Record<string, Attendance> = {}
+        for (const r of list) map[r.soldier_id] = r
+        setRecords(map)
+      })
+      .catch((err) => setError(errorMessage(err, 'Failed to load attendance')))
   }, [eventId])
 
   async function writeStatus(soldierId: string, status: AttendanceStatus) {
@@ -115,7 +123,7 @@ export function AttendancePage() {
     }
   }
 
-  if (!event) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (!event) return error ? <p className="text-sm text-bad-ink">{error}</p> : <LoadingScreen />
 
   return (
     <div className="mx-auto max-w-[760px]">

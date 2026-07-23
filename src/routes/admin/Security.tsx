@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { enrollTotp, verifyFactor, unenrollTotp, listVerifiedTotpFactor } from '../../lib/mfa'
 import { errorMessage } from '../../lib/errors'
+import { LoadingScreen } from '../../components/LoadingScreen'
 
 export function Security() {
   const [factor, setFactor] = useState<{ id: string } | null>(null)
@@ -13,11 +14,14 @@ export function Security() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmingDisable, setConfirmingDisable] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   function refresh() {
     setLoading(true)
+    setLoadError(null)
     listVerifiedTotpFactor()
       .then(setFactor)
+      .catch((err) => setLoadError(errorMessage(err, 'Failed to load security settings')))
       .finally(() => setLoading(false))
   }
 
@@ -75,7 +79,7 @@ export function Security() {
     }
   }
 
-  if (loading) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (loading) return <LoadingScreen />
 
   return (
     <div className="mx-auto max-w-[560px]">
@@ -84,6 +88,8 @@ export function Security() {
         Add two-factor authentication to your admin account using an authenticator app (Google Authenticator, Authy,
         etc).
       </p>
+
+      {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
       {!factor && !enrolling && (
         <div className="rounded-xl border border-line bg-panel p-4 sm:p-5">

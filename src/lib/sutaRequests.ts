@@ -20,7 +20,12 @@ export async function listOwnSutaRequests(soldierId: string) {
   return data as SutaRequest[]
 }
 
-export async function submitSutaRequest(params: { soldierId: string; drillEventId: string; reason: string }) {
+export async function submitSutaRequest(params: {
+  soldierId: string
+  drillEventId: string
+  reason: string
+  requestedMakeupDate?: string | null
+}) {
   const { data, error } = await supabase
     .from('suta_requests')
     .insert({
@@ -28,6 +33,7 @@ export async function submitSutaRequest(params: { soldierId: string; drillEventI
       drill_event_id: params.drillEventId,
       reason: params.reason,
       status: 'pending',
+      requested_makeup_date: params.requestedMakeupDate || null,
     })
     .select()
     .single()

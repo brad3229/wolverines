@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listDrillEvents, createDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange } from '../../lib/drillEvents'
 import { EventForm, eventFormValuesToPayload } from '../../components/EventForm'
+import { errorMessage } from '../../lib/errors'
 import type { DrillEvent } from '../../types/database'
 
 function monthDayLabel(dateStr: string) {
@@ -13,9 +14,13 @@ function monthDayLabel(dateStr: string) {
 export function Calendar() {
   const [events, setEvents] = useState<DrillEvent[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   function refresh() {
-    listDrillEvents().then(setEvents)
+    setLoadError(null)
+    listDrillEvents()
+      .then(setEvents)
+      .catch((err) => setLoadError(errorMessage(err, 'Failed to load calendar')))
   }
 
   useEffect(refresh, [])
@@ -40,6 +45,8 @@ export function Calendar() {
           {showForm ? 'CANCEL' : '+ NEW EVENT'}
         </button>
       </div>
+
+      {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
       {showForm && (
         <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">

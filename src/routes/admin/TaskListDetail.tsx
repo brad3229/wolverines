@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { BackButton } from '../../components/BackButton'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { Soldier, TaskItem, TaskList, SoldierTaskCompletion, TaskCompletionStatus } from '../../types/database'
 
 function completionKey(soldierId: string, taskItemId: string) {
@@ -52,20 +53,25 @@ export function TaskListDetail() {
   function refresh() {
     if (!id) return
     setLoading(true)
-    Promise.all([getTaskList(id), listTaskItems(id), listSoldiers(), listCompletionsForList(id)]).then(
-      ([l, i, s, c]) => {
+    setError(null)
+    Promise.all([getTaskList(id), listTaskItems(id), listSoldiers(), listCompletionsForList(id)])
+      .then(([l, i, s, c]) => {
         setList(l)
         setItems(i)
         setSoldiers(s.filter((soldier) => soldier.status === 'active'))
         setCompletions(Object.fromEntries(c.map((row) => [completionKey(row.soldier_id, row.task_item_id), row])))
         setLoading(false)
-      },
-    )
+      })
+      .catch((err) => {
+        setError(errorMessage(err, 'Failed to load task list'))
+        setLoading(false)
+      })
   }
 
   useEffect(refresh, [id])
 
-  if (loading || !list) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (loading) return <LoadingScreen />
+  if (!list) return <p className="text-sm text-bad-ink">{error ?? 'Task list not found.'}</p>
 
   function statusFor(soldierId: string, taskItemId: string): TaskCompletionStatus {
     return completions[completionKey(soldierId, taskItemId)]?.status ?? 'incomplete'

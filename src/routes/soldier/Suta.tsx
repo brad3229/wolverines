@@ -4,6 +4,7 @@ import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listOwnSutaRequests, submitSutaRequest } from '../../lib/sutaRequests'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
+import { LoadingScreen } from '../../components/LoadingScreen'
 import type { DrillEvent, MakeupStatus, Soldier, SutaRequest, SutaStatus } from '../../types/database'
 
 const STATUS_BADGE: Record<SutaStatus, { label: string; className: string }> = {
@@ -26,6 +27,7 @@ export function Suta() {
   const [showForm, setShowForm] = useState(false)
   const [eventId, setEventId] = useState('')
   const [reason, setReason] = useState('')
+  const [makeupDate, setMakeupDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -52,7 +54,7 @@ export function Suta() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
-  if (loading) return <p className="text-sm text-ink-muted">Loading...</p>
+  if (loading) return <LoadingScreen />
 
   if (notLinked || !soldier) {
     return (
@@ -84,10 +86,16 @@ export function Suta() {
     setSubmitting(true)
     setError(null)
     try {
-      await submitSutaRequest({ soldierId: soldier.id, drillEventId: eventId, reason: reason.trim() })
+      await submitSutaRequest({
+        soldierId: soldier.id,
+        drillEventId: eventId,
+        reason: reason.trim(),
+        requestedMakeupDate: makeupDate || null,
+      })
       setShowForm(false)
       setEventId('')
       setReason('')
+      setMakeupDate('')
       refresh()
     } catch (err) {
       setError(errorMessage(err, 'Failed to submit request'))
@@ -141,6 +149,20 @@ export function Suta() {
               className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
             />
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
+              PLANNED MAKE-UP DATE (OPTIONAL)
+            </label>
+            <input
+              type="date"
+              value={makeupDate}
+              onChange={(e) => setMakeupDate(e.target.value)}
+              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-ink-muted">
+              Leave this blank if you don&rsquo;t know yet — you can let your chain of command know later.
+            </p>
+          </div>
           {error && <p className="text-sm text-bad-ink">{error}</p>}
           <div>
             <button
@@ -161,12 +183,16 @@ export function Suta() {
         <div className="flex flex-col gap-2">
           {requests.map((r) => {
             const makeupBadge = MAKEUP_BADGE[r.makeup_status]
+            const isOverdue = r.makeup_status === 'pending' && !!r.requested_makeup_date && r.requested_makeup_date < today
             return (
               <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-[180px] flex-1">
                     <div className="text-sm font-semibold">{eventLabel(r.drill_event_id)}</div>
                     <div className="mt-0.5 text-xs italic text-ink-muted">&ldquo;{r.reason}&rdquo;</div>
+                    {r.makeup_status === 'pending' && r.requested_makeup_date && (
+                      <div className="mt-1 text-xs text-ink-dim">Planned make-up: {r.requested_makeup_date}</div>
+                    )}
                     {r.makeup_status === 'completed' && r.makeup_notes && (
                       <div className="mt-1 text-xs text-ink-dim">Make-up: {r.makeup_notes}</div>
                     )}
@@ -177,10 +203,16 @@ export function Suta() {
                     >
                       {STATUS_BADGE[r.status].label}
                     </span>
-                    {makeupBadge && (
-                      <span className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${makeupBadge.className}`}>
-                        {makeupBadge.label}
+                    {isOverdue ? (
+                      <span className="rounded-md bg-bad-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-bad-ink">
+                        OVERDUE
                       </span>
+                    ) : (
+                      makeupBadge && (
+                        <span className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${makeupBadge.className}`}>
+                          {makeupBadge.label}
+                        </span>
+                      )
                     )}
                   </div>
                 </div>

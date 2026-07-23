@@ -24,25 +24,29 @@ export function AttendanceHome() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([listDrillEvents(), listSoldiers()]).then(([eventData, soldierData]) => {
-      setEvents(eventData)
-      setSoldiers(soldierData.filter((s) => s.status === 'active'))
-      const today = new Date().toISOString().slice(0, 10)
-      const defaultEvent =
-        eventData.find((e) => e.event_date <= today && today <= e.end_date) ??
-        eventData.find((e) => e.event_date > today) ??
-        eventData[0]
-      setEventId(defaultEvent?.id ?? '')
-    })
+    Promise.all([listDrillEvents(), listSoldiers()])
+      .then(([eventData, soldierData]) => {
+        setEvents(eventData)
+        setSoldiers(soldierData.filter((s) => s.status === 'active'))
+        const today = new Date().toISOString().slice(0, 10)
+        const defaultEvent =
+          eventData.find((e) => e.event_date <= today && today <= e.end_date) ??
+          eventData.find((e) => e.event_date > today) ??
+          eventData[0]
+        setEventId(defaultEvent?.id ?? '')
+      })
+      .catch((err) => setError(errorMessage(err, 'Failed to load attendance')))
   }, [])
 
   useEffect(() => {
     if (!eventId) return
-    listAttendanceForEvent(eventId).then((list) => {
-      const map: Record<string, Attendance> = {}
-      for (const r of list) map[r.soldier_id] = r
-      setRecords(map)
-    })
+    listAttendanceForEvent(eventId)
+      .then((list) => {
+        const map: Record<string, Attendance> = {}
+        for (const r of list) map[r.soldier_id] = r
+        setRecords(map)
+      })
+      .catch((err) => setError(errorMessage(err, 'Failed to load attendance records')))
   }, [eventId])
 
   async function writeStatus(soldierId: string, status: AttendanceStatus) {
@@ -121,6 +125,8 @@ export function AttendanceHome() {
         Attendance
       </h1>
 
+      {error && <p className="mb-4 text-sm text-bad-ink">{error}</p>}
+
       {events.length === 0 ? (
         <p className="text-sm text-ink-muted">No drill events scheduled yet.</p>
       ) : (
@@ -137,7 +143,6 @@ export function AttendanceHome() {
             ))}
           </select>
 
-          {error && <p className="mb-2 text-sm text-bad-ink">{error}</p>}
           <AttendanceSummary soldiers={soldiers} records={records} />
 
           <div className="flex flex-col gap-2">
