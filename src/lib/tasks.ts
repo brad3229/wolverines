@@ -184,6 +184,39 @@ export async function resetCompletion(params: { soldierId: string; taskItemId: s
   return data as SoldierTaskCompletion
 }
 
+// Records why a soldier hasn't completed a station (e.g. "waiting on medical referral").
+// Upserts a placeholder incomplete row if one doesn't exist yet purely to hold the note --
+// PostgREST's upsert only touches the columns in this payload, so status/reported/verified
+// on an existing row are left alone.
+export async function setCompletionNotes(params: { soldierId: string; taskItemId: string; notes: string | null }) {
+  const { data: existing } = await supabase
+    .from('soldier_task_completions')
+    .select('*')
+    .eq('soldier_id', params.soldierId)
+    .eq('task_item_id', params.taskItemId)
+    .maybeSingle()
+
+  const { data, error } = await supabase
+    .from('soldier_task_completions')
+    .upsert(
+      {
+        soldier_id: params.soldierId,
+        task_item_id: params.taskItemId,
+        status: existing?.status ?? 'incomplete',
+        reported_by: existing?.reported_by ?? null,
+        reported_at: existing?.reported_at ?? null,
+        verified_by: existing?.verified_by ?? null,
+        verified_at: existing?.verified_at ?? null,
+        notes: params.notes,
+      },
+      { onConflict: 'soldier_id,task_item_id' },
+    )
+    .select()
+    .single()
+  if (error) throw error
+  return data as SoldierTaskCompletion
+}
+
 export async function countPendingTaskVerifications() {
   const { count, error } = await supabase
     .from('soldier_task_completions')

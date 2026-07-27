@@ -13,6 +13,7 @@ import {
   listCompletionsForList,
   verifyCompletion,
   resetCompletion,
+  setCompletionNotes,
 } from '../../lib/tasks'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
@@ -49,6 +50,9 @@ export function TaskListDetail() {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [pendingChips, setPendingChips] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
+  const [editingNoteKey, setEditingNoteKey] = useState<string | null>(null)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
 
   function refresh() {
     if (!id) return
@@ -137,6 +141,31 @@ export function TaskListDetail() {
         next.delete(key)
         return next
       })
+    }
+  }
+
+  function openNoteEditor(soldierId: string, taskItemId: string) {
+    const key = completionKey(soldierId, taskItemId)
+    setEditingNoteKey(key)
+    setNoteDraft(completions[key]?.notes ?? '')
+  }
+
+  function closeNoteEditor() {
+    setEditingNoteKey(null)
+    setNoteDraft('')
+  }
+
+  async function handleSaveNote(soldierId: string, taskItemId: string) {
+    const key = completionKey(soldierId, taskItemId)
+    setSavingNote(true)
+    try {
+      const updated = await setCompletionNotes({ soldierId, taskItemId, notes: noteDraft.trim() || null })
+      setCompletions((prev) => ({ ...prev, [key]: updated }))
+      closeNoteEditor()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to save note'))
+    } finally {
+      setSavingNote(false)
     }
   }
 
@@ -297,24 +326,82 @@ export function TaskListDetail() {
                   </span>
                 </div>
                 <ProgressBar value={verifiedCount} max={items.length} className="mb-2.5" />
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-x-3.5 gap-y-3">
                   {items.map((item) => {
                     const status = statusFor(s.id, item.id)
+                    const key = completionKey(s.id, item.id)
+                    const hasNote = !!completions[key]?.notes
                     return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleChipClick(s.id, item.id)}
-                        disabled={pendingChips.has(completionKey(s.id, item.id))}
-                        title={CHIP_TITLE[status]}
-                        className={`rounded-md border px-2.5 py-1.5 text-[11px] font-semibold tracking-wide transition-colors ${CHIP_CLASS[status]} ${
-                          pendingChips.has(completionKey(s.id, item.id)) ? 'opacity-50' : ''
-                        }`}
-                      >
-                        {item.label}
-                      </button>
+                      <div key={item.id} className="relative">
+                        <button
+                          onClick={() => handleChipClick(s.id, item.id)}
+                          disabled={pendingChips.has(key)}
+                          title={CHIP_TITLE[status]}
+                          className={`rounded-md border px-2.5 py-1.5 text-[11px] font-semibold tracking-wide transition-colors ${CHIP_CLASS[status]} ${
+                            pendingChips.has(key) ? 'opacity-50' : ''
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                        {status === 'incomplete' && (
+                          // Visible dot stays small, but the button's own box (h-7 w-7) gives a
+                          // real ~28px tap target -- a 16px hit area is too easy to miss on a phone.
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openNoteEditor(s.id, item.id)
+                            }}
+                            title={hasNote ? completions[key]!.notes! : 'Add a note (e.g. why incomplete)'}
+                            className="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center"
+                          >
+                            <span
+                              className={`flex h-4 w-4 items-center justify-center rounded-full border text-[9px] font-bold leading-none ${
+                                hasNote
+                                  ? 'border-warn-border bg-warn-bg text-warn-ink'
+                                  : 'border-line-soft bg-neutral-bg text-ink-muted'
+                              }`}
+                            >
+                              {hasNote ? '●' : '+'}
+                            </span>
+                          </button>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
+                {editingNoteKey &&
+                  editingNoteKey.startsWith(`${s.id}:`) &&
+                  (() => {
+                    const item = items.find((i) => completionKey(s.id, i.id) === editingNoteKey)
+                    if (!item) return null
+                    return (
+                      <div className="mt-2.5 flex flex-col gap-2 rounded-lg border border-line-soft bg-surface p-3 sm:flex-row">
+                        <input
+                          autoFocus
+                          placeholder={`Why hasn't ${item.label} been completed?`}
+                          value={noteDraft}
+                          onChange={(e) => setNoteDraft(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSaveNote(s.id, item.id)}
+                          className="flex-1 rounded-md border border-line bg-panel px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                        />
+                        <div className="flex flex-shrink-0 gap-2">
+                          <button
+                            disabled={savingNote}
+                            onClick={() => handleSaveNote(s.id, item.id)}
+                            className="rounded-md bg-accent px-3.5 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
+                          >
+                            {savingNote ? 'SAVING...' : 'SAVE'}
+                          </button>
+                          <button
+                            onClick={closeNoteEditor}
+                            className="rounded-md bg-neutral-bg px-3.5 py-2 text-xs font-bold tracking-wide text-neutral-ink"
+                          >
+                            CANCEL
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })()}
               </div>
             )
           })}

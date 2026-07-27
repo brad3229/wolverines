@@ -22,7 +22,7 @@ export function Dashboard() {
   const [soldiers, setSoldiers] = useState<Soldier[]>([])
   const [events, setEvents] = useState<DrillEvent[]>([])
   const [editRequests, setEditRequests] = useState<EditRequest[]>([])
-  const [lastAttendancePct, setLastAttendancePct] = useState<number | null>(null)
+  const [lastDrillPresentCount, setLastDrillPresentCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -37,17 +37,18 @@ export function Dashboard() {
         setLoading(false)
 
         const today = new Date().toISOString().slice(0, 10)
-        const activeCount = soldierData.filter((s) => s.status === 'active').length
         const lastEvent =
           eventData.find((e) => e.event_date <= today && today <= e.end_date) ??
           [...eventData].reverse().find((e) => e.end_date < today)
         if (lastEvent) {
-          listAttendanceForEvent(lastEvent.id).then((records) => {
-            const present = records.filter(
-              (r) => !!r.confirmed_by && (r.status === 'present' || r.status === 'late'),
-            ).length
-            setLastAttendancePct(activeCount ? Math.round((present / activeCount) * 100) : 0)
-          })
+          listAttendanceForEvent(lastEvent.id)
+            .then((records) => {
+              const present = records.filter(
+                (r) => !!r.confirmed_by && (r.status === 'present' || r.status === 'late'),
+              ).length
+              setLastDrillPresentCount(present)
+            })
+            .catch((err) => setLoadError(errorMessage(err, 'Failed to load last drill attendance')))
         }
       })
       .catch((err) => {
@@ -107,7 +108,7 @@ export function Dashboard() {
         <StatTile label="PENDING REQUESTS" value={String(editRequests.length)} valueClass="text-warn-ink" />
         <StatTile
           label="LAST DRILL ATTENDANCE"
-          value={lastAttendancePct === null ? '—' : `${lastAttendancePct}%`}
+          value={lastDrillPresentCount === null ? '—' : `${lastDrillPresentCount}/${activeCount}`}
           valueClass="text-good-ink"
         />
         <StatTile
