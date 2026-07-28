@@ -111,6 +111,14 @@ export function IconTasks(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconPhone(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M5.5 4h3l1.5 4.5-2 1.5a11 11 0 0 0 5 5l1.5-2 4.5 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 3.5 6.2 2 2 0 0 1 5.5 4z" />
+    </Icon>
+  )
+}
+
 export function IconPay(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

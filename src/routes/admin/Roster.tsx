@@ -5,6 +5,7 @@ import { SoldierForm, soldierFormValuesToPayload } from '../../components/Soldie
 import { flagForDate, ETS_WARNING_DAYS, CAC_WARNING_DAYS } from '../../lib/expirations'
 import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { IconPhone } from '../../components/icons'
 import type { Soldier } from '../../types/database'
 
 function etsClass(s: Soldier) {
@@ -119,8 +120,9 @@ export function Roster() {
                 {s.phone_number && (
                   <a
                     href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
-                    className="mt-2 inline-block text-sm font-semibold text-accent-soft-ink"
+                    className="mt-2.5 flex items-center gap-2 rounded-lg bg-accent-soft px-3 py-2.5 text-base font-bold text-accent-soft-ink"
                   >
+                    <IconPhone className="h-5 w-5" />
                     {s.phone_number}
                   </a>
                 )}
@@ -171,8 +173,9 @@ export function Roster() {
                         <a
                           href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="font-semibold text-accent-soft-ink hover:underline"
+                          className="inline-flex items-center gap-1.5 font-semibold text-accent-soft-ink hover:underline"
                         >
+                          <IconPhone className="h-3.5 w-3.5" />
                           {s.phone_number}
                         </a>
                       ) : (
