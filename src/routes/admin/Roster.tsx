@@ -93,28 +93,38 @@ export function Roster() {
           {/* Card list — mobile */}
           <div className="space-y-2 sm:hidden">
             {filtered.map((s) => (
-              <Link key={s.id} to={`/admin/roster/${s.id}`} className="block rounded-xl border border-line bg-panel p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold">
-                    {s.rank} {s.last_name}, {s.first_name}
-                  </p>
-                  <div className="flex flex-shrink-0 gap-1.5">
-                    {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
-                      <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                        CAC
-                      </span>
-                    )}
-                    {!s.receives_drill_pay && (
-                      <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                        NO PAY
-                      </span>
-                    )}
+              <div key={s.id} className="rounded-xl border border-line bg-panel p-4">
+                <Link to={`/admin/roster/${s.id}`} className="block">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold">
+                      {s.rank} {s.last_name}, {s.first_name}
+                    </p>
+                    <div className="flex flex-shrink-0 gap-1.5">
+                      {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
+                        <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                          CAC
+                        </span>
+                      )}
+                      {!s.receives_drill_pay && (
+                        <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                          NO PAY
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <p className={`mt-1 text-sm ${etsClass(s) || 'text-ink-muted'}`}>
-                  ETS {s.ets_date} &middot; {s.status}
-                </p>
-              </Link>
+                  <p className={`mt-1 text-sm ${etsClass(s) || 'text-ink-muted'}`}>
+                    ETS {s.ets_date} &middot; {s.status}
+                  </p>
+                </Link>
+                {s.phone_number && (
+                  <a
+                    href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
+                    className="mt-2 inline-block text-sm font-semibold text-accent-soft-ink"
+                  >
+                    {s.phone_number}
+                  </a>
+                )}
+              </div>
             ))}
           </div>
 
@@ -127,7 +137,7 @@ export function Roster() {
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">RANK</th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">ETS DATE</th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PAY</th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">STATUS</th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PHONE</th>
                 </tr>
               </thead>
               <tbody>
@@ -156,7 +166,19 @@ export function Roster() {
                     <td className={`px-4 py-3 ${s.receives_drill_pay ? 'text-ink-dim' : 'font-semibold text-warn-ink'}`}>
                       {s.receives_drill_pay ? 'Yes' : 'No'}
                     </td>
-                    <td className="px-4 py-3 text-ink-dim">{s.status}</td>
+                    <td className="px-4 py-3 text-ink-dim">
+                      {s.phone_number ? (
+                        <a
+                          href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-semibold text-accent-soft-ink hover:underline"
+                        >
+                          {s.phone_number}
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
