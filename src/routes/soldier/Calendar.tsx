@@ -45,7 +45,7 @@ export function SoldierCalendar() {
   return (
     <div className="mx-auto max-w-[760px]">
       <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:mb-5 sm:text-[26px]">
-        Calendar
+        Drill Dates
       </h1>
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
       <div className="flex flex-col gap-2">

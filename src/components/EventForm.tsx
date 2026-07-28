@@ -118,20 +118,11 @@ export function EventForm({ initial, submitLabel, onSubmit }: EventFormProps) {
         />
       </div>
       <div>
-        <label className={labelClass}>Start time</label>
+        <label className={labelClass}>First formation</label>
         <input
           type="time"
           value={values.start_time}
           onChange={(e) => set('start_time', e.target.value)}
-          className={inputClass}
-        />
-      </div>
-      <div>
-        <label className={labelClass}>End time</label>
-        <input
-          type="time"
-          value={values.end_time}
-          onChange={(e) => set('end_time', e.target.value)}
           className={inputClass}
         />
       </div>

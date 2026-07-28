@@ -101,13 +101,10 @@ export function CheckIn() {
             <dt className="text-xs tracking-wide text-ink-muted">DATE</dt>
             <dd className="font-medium">{formatEventDateRange(event)}</dd>
           </div>
-          {(event.start_time || event.end_time) && (
+          {event.start_time && (
             <div>
-              <dt className="text-xs tracking-wide text-ink-muted">TIME</dt>
-              <dd className="font-medium">
-                {event.start_time ?? '—'}
-                {event.end_time ? ` – ${event.end_time}` : ''}
-              </dd>
+              <dt className="text-xs tracking-wide text-ink-muted">FIRST FORMATION</dt>
+              <dd className="font-medium">{event.start_time}</dd>
             </div>
           )}
           {event.location && (

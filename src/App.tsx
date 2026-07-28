@@ -61,7 +61,7 @@ function buildAdminNav(
       badge: pendingEditRequestCount,
     },
     { to: '/admin/roster', label: 'Roster', icon: <IconRoster /> },
-    { to: '/admin/calendar', label: 'Calendar', shortLabel: 'Cal', icon: <IconCalendar /> },
+    { to: '/admin/calendar', label: 'Drill Dates', shortLabel: 'Drills', icon: <IconCalendar /> },
     { to: '/admin/attendance', label: 'Attendance', shortLabel: 'Attnd', icon: <IconAttendance /> },
     { to: '/admin/suta', label: 'Review SUTA', shortLabel: 'Review', icon: <IconSuta />, badge: pendingSutaCount },
     { to: '/admin/my-suta', label: 'My SUTA', icon: <IconSuta /> },
@@ -74,7 +74,7 @@ function buildAdminNav(
 const SOLDIER_NAV: NavItem[] = [
   { to: '/soldier/dashboard', label: 'Dashboard', shortLabel: 'Dash', icon: <IconDashboard /> },
   { to: '/soldier/profile', label: 'Profile', icon: <IconProfile /> },
-  { to: '/soldier/calendar', label: 'Calendar', shortLabel: 'Cal', icon: <IconCalendar /> },
+  { to: '/soldier/calendar', label: 'Drill Dates', shortLabel: 'Drills', icon: <IconCalendar /> },
   { to: '/soldier/checkin', label: 'Check-In', icon: <IconCheckIn /> },
   { to: '/soldier/suta', label: 'SUTA', icon: <IconSuta /> },
   { to: '/soldier/pay-issues', label: 'Pay Issues', shortLabel: 'Pay', icon: <IconPay /> },

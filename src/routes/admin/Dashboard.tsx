@@ -108,7 +108,7 @@ export function Dashboard() {
         <StatTile label="PENDING REQUESTS" value={String(editRequests.length)} valueClass="text-warn-ink" />
         <StatTile
           label="LAST DRILL ATTENDANCE"
-          value={lastDrillPresentCount === null ? '—' : `${lastDrillPresentCount}/${activeCount}`}
+          value={lastDrillPresentCount === null ? '—' : String(lastDrillPresentCount)}
           valueClass="text-good-ink"
         />
         <StatTile
@@ -222,7 +222,7 @@ export function Dashboard() {
 
 function StatTile({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
-    <div className="rounded-xl border border-line bg-panel p-4">
+    <div className="rounded-xl border border-line bg-panel p-4 text-center">
       <div className="mb-1.5 text-[11px] tracking-wide text-ink-muted">{label}</div>
       <div className={`font-display text-2xl font-semibold sm:text-[30px] ${valueClass ?? ''}`}>{value}</div>
     </div>
