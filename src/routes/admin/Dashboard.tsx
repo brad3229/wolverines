@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { listSoldiers } from '../../lib/soldiers'
 import { listDrillEvents, formatEventDateRange } from '../../lib/drillEvents'
@@ -9,6 +10,7 @@ import { getExpiringSoldiers } from '../../lib/expirations'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { IconRoster, IconCalendar, IconInbox, IconAttendance, IconAlertTriangle } from '../../components/icons'
 import type { DrillEvent, EditRequest, Soldier } from '../../types/database'
 
 function monthDayLabel(dateStr: string) {
@@ -23,6 +25,7 @@ export function Dashboard() {
   const [events, setEvents] = useState<DrillEvent[]>([])
   const [editRequests, setEditRequests] = useState<EditRequest[]>([])
   const [lastDrillPresentCount, setLastDrillPresentCount] = useState<number | null>(null)
+  const [lastDrillEventId, setLastDrillEventId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -41,6 +44,7 @@ export function Dashboard() {
           eventData.find((e) => e.event_date <= today && today <= e.end_date) ??
           [...eventData].reverse().find((e) => e.end_date < today)
         if (lastEvent) {
+          setLastDrillEventId(lastEvent.id)
           listAttendanceForEvent(lastEvent.id)
             .then((records) => {
               const present = records.filter(
@@ -75,6 +79,10 @@ export function Dashboard() {
     }
   }
 
+  function scrollToSection(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   if (loading) return <LoadingScreen />
 
   const today = new Date().toISOString().slice(0, 10)
@@ -103,18 +111,33 @@ export function Dashboard() {
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
       <div className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="ROSTER STRENGTH" value={String(activeCount)} />
-        <StatTile label="NEXT DRILL" value={nextEvent ? monthDayLabel(nextEvent.event_date).monthLabel + ' ' + monthDayLabel(nextEvent.event_date).dayLabel : '—'} />
-        <StatTile label="PENDING REQUESTS" value={String(editRequests.length)} valueClass="text-warn-ink" />
+        <StatTile icon={<IconRoster />} label="ROSTER STRENGTH" value={String(activeCount)} to="/admin/roster" />
         <StatTile
+          icon={<IconCalendar />}
+          label="NEXT DRILL"
+          value={nextEvent ? monthDayLabel(nextEvent.event_date).monthLabel + ' ' + monthDayLabel(nextEvent.event_date).dayLabel : '—'}
+          to={nextEvent ? `/admin/calendar/${nextEvent.id}` : '/admin/calendar'}
+        />
+        <StatTile
+          icon={<IconInbox />}
+          label="PENDING REQUESTS"
+          value={String(editRequests.length)}
+          valueClass="text-warn-ink"
+          onClick={() => scrollToSection('pending-edit-requests')}
+        />
+        <StatTile
+          icon={<IconAttendance />}
           label="LAST DRILL ATTENDANCE"
           value={lastDrillPresentCount === null ? '—' : String(lastDrillPresentCount)}
           valueClass="text-good-ink"
+          to={lastDrillEventId ? `/admin/calendar/${lastDrillEventId}` : undefined}
         />
         <StatTile
+          icon={<IconAlertTriangle />}
           label="EXPIRING SOON"
           value={String(expiringSoldiers.length)}
           valueClass={expiringSoldiers.length > 0 ? 'text-warn-ink' : undefined}
+          onClick={() => scrollToSection('upcoming-expirations')}
         />
       </div>
 
@@ -144,7 +167,9 @@ export function Dashboard() {
         {upcomingEvents.length === 0 && <p className="text-sm text-ink-muted">No upcoming events scheduled.</p>}
       </div>
 
-      <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">UPCOMING EXPIRATIONS</h2>
+      <h2 id="upcoming-expirations" className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">
+        UPCOMING EXPIRATIONS
+      </h2>
       {expiringSoldiers.length === 0 ? (
         <p className="mb-7 py-1 text-sm text-ink-muted">Nothing expiring soon.</p>
       ) : (
@@ -183,7 +208,9 @@ export function Dashboard() {
         </div>
       )}
 
-      <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">PENDING EDIT REQUESTS</h2>
+      <h2 id="pending-edit-requests" className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">
+        PENDING EDIT REQUESTS
+      </h2>
       {editRequests.length === 0 ? (
         <p className="py-3 text-sm text-ink-muted">No pending requests.</p>
       ) : (
@@ -220,11 +247,43 @@ export function Dashboard() {
   )
 }
 
-function StatTile({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
-  return (
-    <div className="rounded-xl border border-line bg-panel p-4 text-center">
+function StatTile({
+  icon,
+  label,
+  value,
+  valueClass,
+  to,
+  onClick,
+}: {
+  icon: ReactNode
+  label: string
+  value: string
+  valueClass?: string
+  to?: string
+  onClick?: () => void
+}) {
+  const content = (
+    <>
+      <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-bg text-neutral-ink">
+        {icon}
+      </div>
       <div className="mb-1.5 text-[11px] tracking-wide text-ink-muted">{label}</div>
       <div className={`font-display text-2xl font-semibold sm:text-[30px] ${valueClass ?? ''}`}>{value}</div>
-    </div>
+    </>
+  )
+  const className =
+    'block w-full rounded-xl border border-line bg-panel p-4 text-center transition-colors hover:bg-surface-raised'
+
+  if (to) {
+    return (
+      <Link to={to} className={className}>
+        {content}
+      </Link>
+    )
+  }
+  return (
+    <button onClick={onClick} className={className}>
+      {content}
+    </button>
   )
 }

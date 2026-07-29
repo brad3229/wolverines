@@ -119,6 +119,26 @@ export function IconPhone(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconInbox(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M3.5 12.5h4.5l1.5 2.5h5l1.5-2.5h4.5" />
+      <path d="M5.5 12.5 7 5.5a2 2 0 0 1 2-1.5h6a2 2 0 0 1 2 1.5l1.5 7" />
+      <rect x="3.5" y="12.5" width="17" height="6.5" rx="1.5" />
+    </Icon>
+  )
+}
+
+export function IconAlertTriangle(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 3.5 21 19.5H3z" />
+      <line x1="12" y1="9.5" x2="12" y2="13.5" />
+      <line x1="12" y1="16.5" x2="12.01" y2="16.5" />
+    </Icon>
+  )
+}
+
 export function IconPay(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
