@@ -111,15 +111,23 @@ export function Dashboard() {
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
       <div className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile icon={<IconRoster />} label="ROSTER STRENGTH" value={String(activeCount)} to="/admin/roster" />
+        <StatTile
+          icon={<IconRoster />}
+          accent="accent"
+          label="ROSTER STRENGTH"
+          value={String(activeCount)}
+          to="/admin/roster"
+        />
         <StatTile
           icon={<IconCalendar />}
+          accent="info"
           label="NEXT DRILL"
           value={nextEvent ? monthDayLabel(nextEvent.event_date).monthLabel + ' ' + monthDayLabel(nextEvent.event_date).dayLabel : '—'}
           to={nextEvent ? `/admin/calendar/${nextEvent.id}` : '/admin/calendar'}
         />
         <StatTile
           icon={<IconInbox />}
+          accent="warn"
           label="PENDING REQUESTS"
           value={String(editRequests.length)}
           valueClass="text-warn-ink"
@@ -127,6 +135,7 @@ export function Dashboard() {
         />
         <StatTile
           icon={<IconAttendance />}
+          accent="good"
           label="LAST DRILL ATTENDANCE"
           value={lastDrillPresentCount === null ? '—' : String(lastDrillPresentCount)}
           valueClass="text-good-ink"
@@ -134,6 +143,7 @@ export function Dashboard() {
         />
         <StatTile
           icon={<IconAlertTriangle />}
+          accent="warn"
           label="EXPIRING SOON"
           value={String(expiringSoldiers.length)}
           valueClass={expiringSoldiers.length > 0 ? 'text-warn-ink' : undefined}
@@ -247,8 +257,16 @@ export function Dashboard() {
   )
 }
 
+const STAT_ACCENT = {
+  accent: { badge: 'bg-accent-soft text-accent-soft-ink', card: 'bg-accent' },
+  info: { badge: 'bg-info-bg text-info-ink', card: 'bg-info-ink' },
+  warn: { badge: 'bg-warn-bg text-warn-ink', card: 'bg-warn-ink' },
+  good: { badge: 'bg-good-bg text-good-ink', card: 'bg-good-ink' },
+} as const
+
 function StatTile({
   icon,
+  accent,
   label,
   value,
   valueClass,
@@ -256,23 +274,29 @@ function StatTile({
   onClick,
 }: {
   icon: ReactNode
+  accent: keyof typeof STAT_ACCENT
   label: string
   value: string
   valueClass?: string
   to?: string
   onClick?: () => void
 }) {
+  const { badge, card } = STAT_ACCENT[accent]
+  // The rim is a fixed-height absolutely positioned strip, not a nested flow element --
+  // that keeps it immune to the grid row stretching shorter tiles to match a taller
+  // neighbor (which previously left a gap that exposed the accent color at the bottom too).
   const content = (
     <>
-      <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-bg text-neutral-ink">
+      <div className={`absolute inset-x-0 top-0 h-2 rounded-t-xl ${card}`} />
+      <div className={`relative mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-full ${badge}`}>
         {icon}
       </div>
-      <div className="mb-1.5 text-[11px] tracking-wide text-ink-muted">{label}</div>
-      <div className={`font-display text-2xl font-semibold sm:text-[30px] ${valueClass ?? ''}`}>{value}</div>
+      <div className="relative mb-1.5 text-[11px] tracking-wide text-ink-muted">{label}</div>
+      <div className={`relative font-display text-2xl font-semibold sm:text-[30px] ${valueClass ?? ''}`}>{value}</div>
     </>
   )
   const className =
-    'block w-full rounded-xl border border-line bg-panel p-4 text-center transition-colors hover:bg-surface-raised'
+    'group relative block w-full overflow-hidden rounded-xl border border-line bg-panel p-4 pt-6 text-center shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-line-soft hover:shadow-lg'
 
   if (to) {
     return (
