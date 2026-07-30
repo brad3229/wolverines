@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { listSoldiers, createSoldier } from '../../lib/soldiers'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
 import { flagForDate, ETS_WARNING_DAYS, CAC_WARNING_DAYS } from '../../lib/expirations'
+import { formatDate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { IconPhone } from '../../components/icons'
@@ -114,7 +115,7 @@ export function Roster() {
                     </div>
                   </div>
                   <p className={`mt-1 text-sm ${etsClass(s) || 'text-ink-muted'}`}>
-                    ETS {s.ets_date} &middot; {s.status}
+                    ETS {formatDate(s.ets_date)} &middot; {s.status}
                   </p>
                 </Link>
                 {s.phone_number && (
@@ -164,7 +165,7 @@ export function Roster() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-ink-dim">{s.rank}</td>
-                    <td className={`px-4 py-3 ${etsClass(s) || 'text-ink-dim'}`}>{s.ets_date}</td>
+                    <td className={`px-4 py-3 ${etsClass(s) || 'text-ink-dim'}`}>{formatDate(s.ets_date)}</td>
                     <td className={`px-4 py-3 ${s.receives_drill_pay ? 'text-ink-dim' : 'font-semibold text-warn-ink'}`}>
                       {s.receives_drill_pay ? 'Yes' : 'No'}
                     </td>

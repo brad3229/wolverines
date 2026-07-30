@@ -4,6 +4,7 @@ import { getDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange, isEventOpenForCh
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listAttendanceForEvent, markAttendance, deleteAttendance } from '../../lib/attendance'
 import { errorMessage } from '../../lib/errors'
+import { formatDate } from '../../lib/dates'
 import { useAuth } from '../../hooks/useAuth'
 import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
@@ -157,7 +158,7 @@ export function CheckIn() {
       ) : !record ? (
         <div className="rounded-xl border border-line bg-panel p-5 text-center text-sm text-ink-muted">
           {isFuture
-            ? `Check-in opens ${event.event_date}.`
+            ? `Check-in opens ${formatDate(event.event_date)}.`
             : "This drill has passed. Contact your cadre if your attendance wasn't recorded."}
         </div>
       ) : (

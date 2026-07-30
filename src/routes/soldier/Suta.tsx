@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { listDrillEvents, formatEventDateRange, EVENT_TYPE_LABEL } from '../../lib/drillEvents'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listOwnSutaRequests, submitSutaRequest } from '../../lib/sutaRequests'
+import { formatDate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
@@ -191,7 +192,9 @@ export function Suta() {
                     <div className="text-sm font-semibold">{eventLabel(r.drill_event_id)}</div>
                     <div className="mt-0.5 text-xs italic text-ink-muted">&ldquo;{r.reason}&rdquo;</div>
                     {r.makeup_status === 'pending' && r.requested_makeup_date && (
-                      <div className="mt-1 text-xs text-ink-dim">Planned make-up: {r.requested_makeup_date}</div>
+                      <div className="mt-1 text-xs text-ink-dim">
+                        Planned make-up: {formatDate(r.requested_makeup_date)}
+                      </div>
                     )}
                     {r.makeup_status === 'completed' && r.makeup_notes && (
                       <div className="mt-1 text-xs text-ink-dim">Make-up: {r.makeup_notes}</div>

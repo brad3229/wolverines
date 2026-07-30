@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { submitEditRequest, listOwnEditRequests, formatEditRequestValue } from '../../lib/editRequests'
 import { flagForDate, CAC_WARNING_DAYS } from '../../lib/expirations'
+import { formatDate } from '../../lib/dates'
 import { BLOOD_TYPES } from '../../components/SoldierForm'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
@@ -192,8 +193,12 @@ export function Profile() {
     { key: 'name', display: `${soldier.first_name} ${soldier.last_name}`, editable: true },
     { key: 'rank', display: soldier.rank, editable: true },
     { key: 'dod_id', display: soldier.dod_id, editable: true },
-    { key: 'ets_date', display: soldier.ets_date, editable: true },
-    { key: 'last_ncoer_date', display: soldier.last_ncoer_date ?? '—', editable: soldier.is_nco },
+    { key: 'ets_date', display: formatDate(soldier.ets_date), editable: true },
+    {
+      key: 'last_ncoer_date',
+      display: soldier.last_ncoer_date ? formatDate(soldier.last_ncoer_date) : '—',
+      editable: soldier.is_nco,
+    },
     { key: 'receives_drill_pay', display: soldier.receives_drill_pay ? 'Yes' : 'No', editable: true },
   ]
 
@@ -205,7 +210,12 @@ export function Profile() {
     { key: 'mil_email', display: soldier.mil_email ?? '—', editable: true },
     { key: 'home_address', display: soldier.home_address ?? '—', editable: true },
     { key: 'blood_type', display: soldier.blood_type ?? 'Unknown', editable: true },
-    { key: 'cac_expiration_date', display: soldier.cac_expiration_date ?? '—', editable: true, flag: cacFlag },
+    {
+      key: 'cac_expiration_date',
+      display: soldier.cac_expiration_date ? formatDate(soldier.cac_expiration_date) : '—',
+      editable: true,
+      flag: cacFlag,
+    },
     {
       key: 'emergency_contact',
       display: soldier.emergency_contact_name
@@ -287,7 +297,14 @@ export function Profile() {
       </div>
 
       {editingField && (
-        <div className="mb-6 flex flex-col gap-2.5 rounded-xl border border-line bg-panel p-4">
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setEditingField(null)}
+        >
+        <div
+          className="flex w-full max-w-sm flex-col gap-2.5 rounded-xl border border-line bg-panel p-4 shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="text-sm font-semibold">Request edit: {FIELD_LABEL[editingField]}</div>
           {editingField === 'name' ? (
             <>
@@ -380,6 +397,7 @@ export function Profile() {
               CANCEL
             </button>
           </div>
+        </div>
         </div>
       )}
 

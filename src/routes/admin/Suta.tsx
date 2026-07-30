@@ -5,6 +5,7 @@ import { listSutaRequests, reviewSutaRequest, markMakeupComplete } from '../../l
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
+import { formatDate } from '../../lib/dates'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import type { DrillEvent, Soldier, SutaRequest } from '../../types/database'
 
@@ -110,7 +111,7 @@ export function Suta() {
                   <div className="text-xs text-ink-muted">{eventLabel(r.drill_event_id)}</div>
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.reason}&rdquo;</div>
                   <div className="mt-1 text-xs text-ink-dim">
-                    Planned make-up: {r.requested_makeup_date ?? 'Not sure yet'}
+                    Planned make-up: {r.requested_makeup_date ? formatDate(r.requested_makeup_date) : 'Not sure yet'}
                   </div>
                 </div>
                 <div className="flex flex-shrink-0 gap-2">
@@ -151,7 +152,7 @@ export function Suta() {
                 </div>
                 <div className="text-xs text-ink-muted">Missed: {eventLabel(r.drill_event_id)}</div>
                 <div className="mt-0.5 text-xs text-ink-dim">
-                  Planned make-up: {r.requested_makeup_date ?? 'Not sure yet'}
+                  Planned make-up: {r.requested_makeup_date ? formatDate(r.requested_makeup_date) : 'Not sure yet'}
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">

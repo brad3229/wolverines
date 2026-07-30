@@ -7,6 +7,7 @@ import { listOwnSutaRequests } from '../../lib/sutaRequests'
 import { getAttendanceHistory, attendanceBadge, listAttendanceForEvent } from '../../lib/attendance'
 import type { AttendanceHistoryEntry } from '../../lib/attendance'
 import { flagForDate, daysUntil, ETS_WARNING_DAYS, CAC_WARNING_DAYS } from '../../lib/expirations'
+import { formatDate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
@@ -136,13 +137,13 @@ export function Dashboard() {
           <div className="text-sm font-semibold text-warn-ink">Action needed</div>
           {etsFlag && (
             <p className="text-sm text-ink-dim">
-              Your ETS date is {soldier.ets_date} (
+              Your ETS date is {formatDate(soldier.ets_date)} (
               {etsFlag === 'expired' ? 'past due' : `in ${daysUntil(soldier.ets_date)} days`}).
             </p>
           )}
           {cacFlag && soldier.cac_expiration_date && (
             <p className="text-sm text-ink-dim">
-              Your CAC {cacFlag === 'expired' ? 'expired' : 'expires'} {soldier.cac_expiration_date} (
+              Your CAC {cacFlag === 'expired' ? 'expired' : 'expires'} {formatDate(soldier.cac_expiration_date)} (
               {cacFlag === 'expired'
                 ? `${Math.abs(daysUntil(soldier.cac_expiration_date))} days ago`
                 : `in ${daysUntil(soldier.cac_expiration_date)} days`}

@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { formatDate } from './dates'
 import type { DrillEvent, DrillEventType } from '../types/database'
 
 export const EVENT_TYPE_LABEL: Record<DrillEventType, string> = {
@@ -7,7 +8,9 @@ export const EVENT_TYPE_LABEL: Record<DrillEventType, string> = {
 }
 
 export function formatEventDateRange(event: DrillEvent) {
-  return event.end_date === event.event_date ? event.event_date : `${event.event_date} – ${event.end_date}`
+  return event.end_date === event.event_date
+    ? formatDate(event.event_date)
+    : `${formatDate(event.event_date)} – ${formatDate(event.end_date)}`
 }
 
 export async function listDrillEvents() {
