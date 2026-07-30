@@ -109,7 +109,7 @@ export function Roster() {
                       )}
                       {!s.receives_drill_pay && (
                         <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                          NO PAY
+                          DO NOT PAY
                         </span>
                       )}
                     </div>
@@ -139,7 +139,7 @@ export function Roster() {
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">NAME</th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">RANK</th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">ETS DATE</th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PAY</th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PAY-OUT</th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PHONE</th>
                 </tr>
               </thead>
