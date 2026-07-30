@@ -25,7 +25,7 @@ export function Tasks() {
     try {
       const s = await getOwnSoldierRecord(session.user.id)
       setSoldier(s)
-      const activeLists = await listActiveTaskLists()
+      const activeLists = await listActiveTaskLists(s.id)
       setLists(activeLists)
       const itemLists = await Promise.all(activeLists.map((l) => listTaskItems(l.id)))
       setItemsByList(Object.fromEntries(activeLists.map((l, i) => [l.id, itemLists[i]])))

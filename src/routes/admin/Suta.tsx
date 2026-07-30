@@ -4,6 +4,7 @@ import { listDrillEvents, formatEventDateRange } from '../../lib/drillEvents'
 import { listSutaRequests, reviewSutaRequest, markMakeupComplete } from '../../lib/sutaRequests'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
+import { notify } from '../../lib/notifications'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import type { DrillEvent, Soldier, SutaRequest } from '../../types/database'
 
@@ -47,6 +48,13 @@ export function Suta() {
     if (!session) return
     try {
       await reviewSutaRequest({ id: request.id, approve, reviewedBy: session.user.id })
+      const soldier = soldiers.find((s) => s.id === request.soldier_id)
+      notify({
+        profileId: soldier?.profile_id,
+        title: approve ? 'SUTA request approved' : 'SUTA request denied',
+        body: `${eventLabel(request.drill_event_id)}${approve ? ' — a make-up is still required.' : ''}`,
+        link: '/soldier/suta',
+      })
       refresh()
       refreshPendingCounts()
     } catch (err) {
@@ -57,6 +65,13 @@ export function Suta() {
   async function handleMakeupComplete(request: SutaRequest) {
     try {
       await markMakeupComplete({ id: request.id, notes: makeupDrafts[request.id] ?? '' })
+      const soldier = soldiers.find((s) => s.id === request.soldier_id)
+      notify({
+        profileId: soldier?.profile_id,
+        title: 'SUTA make-up marked complete',
+        body: eventLabel(request.drill_event_id),
+        link: '/soldier/suta',
+      })
       refresh()
     } catch (err) {
       setError(errorMessage(err, 'Failed to mark make-up complete'))

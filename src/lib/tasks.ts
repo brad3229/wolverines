@@ -7,14 +7,17 @@ export async function listTaskLists() {
   return data as TaskList[]
 }
 
-export async function listActiveTaskLists() {
-  const { data, error } = await supabase
-    .from('task_lists')
-    .select('*')
-    .eq('active', true)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data as TaskList[]
+// Active lists visible to a specific Soldier -- platoon-wide lists (assigned_to_all) plus
+// any list they've been individually/group-assigned to via task_list_assignments.
+export async function listActiveTaskLists(soldierId: string) {
+  const [{ data: lists, error: listsError }, { data: assignments, error: assignmentsError }] = await Promise.all([
+    supabase.from('task_lists').select('*').eq('active', true).order('created_at', { ascending: false }),
+    supabase.from('task_list_assignments').select('task_list_id').eq('soldier_id', soldierId),
+  ])
+  if (listsError) throw listsError
+  if (assignmentsError) throw assignmentsError
+  const assignedListIds = new Set((assignments ?? []).map((a) => a.task_list_id))
+  return (lists as TaskList[]).filter((l) => l.assigned_to_all || assignedListIds.has(l.id))
 }
 
 export async function getTaskList(id: string) {
@@ -23,20 +26,58 @@ export async function getTaskList(id: string) {
   return data as TaskList
 }
 
-export async function createTaskList(params: { name: string; description: string | null; createdBy: string }) {
+export async function createTaskList(params: {
+  name: string
+  description: string | null
+  createdBy: string
+  assignedToAll: boolean
+  soldierIds?: string[]
+}) {
   const { data, error } = await supabase
     .from('task_lists')
-    .insert({ name: params.name, description: params.description, created_by: params.createdBy })
+    .insert({
+      name: params.name,
+      description: params.description,
+      created_by: params.createdBy,
+      assigned_to_all: params.assignedToAll,
+    })
     .select()
     .single()
+  if (error) throw error
+  if (!params.assignedToAll && params.soldierIds?.length) {
+    await setTaskListAssignments(data.id, params.soldierIds)
+  }
+  return data as TaskList
+}
+
+export async function updateTaskList(
+  id: string,
+  updates: Partial<Pick<TaskList, 'name' | 'description' | 'active' | 'assigned_to_all'>>,
+) {
+  const { data, error } = await supabase.from('task_lists').update(updates).eq('id', id).select().single()
   if (error) throw error
   return data as TaskList
 }
 
-export async function updateTaskList(id: string, updates: Partial<Pick<TaskList, 'name' | 'description' | 'active'>>) {
-  const { data, error } = await supabase.from('task_lists').update(updates).eq('id', id).select().single()
+export async function listAssignedSoldierIds(taskListId: string) {
+  const { data, error } = await supabase
+    .from('task_list_assignments')
+    .select('soldier_id')
+    .eq('task_list_id', taskListId)
   if (error) throw error
-  return data as TaskList
+  return data.map((row) => row.soldier_id) as string[]
+}
+
+// Replaces the full assignment set for a list -- simplest correct behavior for a "pick
+// exactly these soldiers" UI, rather than diffing adds/removes.
+export async function setTaskListAssignments(taskListId: string, soldierIds: string[]) {
+  const { error: deleteError } = await supabase.from('task_list_assignments').delete().eq('task_list_id', taskListId)
+  if (deleteError) throw deleteError
+  if (soldierIds.length === 0) return
+  const { error: insertError } = await supabase
+    .from('task_list_assignments')
+    .insert(soldierIds.map((soldierId) => ({ task_list_id: taskListId, soldier_id: soldierId })))
+  if (insertError) throw insertError
 }
 
 export async function deleteTaskList(id: string) {

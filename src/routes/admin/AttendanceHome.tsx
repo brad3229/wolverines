@@ -5,6 +5,7 @@ import { listAttendanceForEvent, markAttendance, deleteAttendance, attendanceRow
 import { AttendanceSummary } from '../../components/AttendanceSummary'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
+import { notify } from '../../lib/notifications'
 import type { Attendance, AttendanceStatus, DrillEvent, Soldier } from '../../types/database'
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; activeClass: string }[] = [
@@ -101,6 +102,19 @@ export function AttendanceHome() {
       } else {
         const updated = await writeStatus(soldierId, status)
         setRecords((prev) => ({ ...prev, [soldierId]: updated }))
+        // Only notify when cadre is confirming a Soldier's own unconfirmed self-report --
+        // not for every routine roll-call mark, which would be noisy.
+        const wasUnconfirmedSelfReport = !!previous && !previous.confirmed_by
+        if (wasUnconfirmedSelfReport) {
+          const targetSoldier = soldiers.find((s) => s.id === soldierId)
+          const currentEvent = events.find((e) => e.id === eventId)
+          notify({
+            profileId: targetSoldier?.profile_id,
+            title: 'Check-in confirmed',
+            body: `${currentEvent?.title ?? 'Drill'} — marked ${status}`,
+            link: '/soldier/calendar',
+          })
+        }
       }
     } catch (err) {
       setRecords((prev) => {

@@ -119,6 +119,7 @@ export interface TaskList {
   active: boolean
   created_by: string | null
   created_at: string
+  assigned_to_all: boolean
 }
 
 export interface TaskItem {
@@ -126,6 +127,13 @@ export interface TaskItem {
   task_list_id: string
   label: string
   sort_order: number
+  created_at: string
+}
+
+export interface TaskListAssignment {
+  id: string
+  task_list_id: string
+  soldier_id: string
   created_at: string
 }
 
@@ -139,4 +147,14 @@ export interface SoldierTaskCompletion {
   verified_by: string | null
   verified_at: string | null
   notes: string | null
+}
+
+export interface Notification {
+  id: string
+  profile_id: string
+  title: string
+  body: string
+  link: string | null
+  read: boolean
+  created_at: string
 }

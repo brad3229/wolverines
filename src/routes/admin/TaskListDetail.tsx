@@ -14,9 +14,12 @@ import {
   verifyCompletion,
   resetCompletion,
   setCompletionNotes,
+  listAssignedSoldierIds,
+  setTaskListAssignments,
 } from '../../lib/tasks'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
+import { notify } from '../../lib/notifications'
 import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import type { Soldier, TaskItem, TaskList, SoldierTaskCompletion, TaskCompletionStatus } from '../../types/database'
@@ -43,7 +46,8 @@ export function TaskListDetail() {
   const { session, refreshPendingCounts } = useAuth()
   const [list, setList] = useState<TaskList | null>(null)
   const [items, setItems] = useState<TaskItem[]>([])
-  const [soldiers, setSoldiers] = useState<Soldier[]>([])
+  const [allSoldiers, setAllSoldiers] = useState<Soldier[]>([])
+  const [assignedSoldierIds, setAssignedSoldierIds] = useState<Set<string>>(new Set())
   const [completions, setCompletions] = useState<Record<string, SoldierTaskCompletion>>({})
   const [loading, setLoading] = useState(true)
   const [newItemLabel, setNewItemLabel] = useState('')
@@ -53,17 +57,24 @@ export function TaskListDetail() {
   const [editingNoteKey, setEditingNoteKey] = useState<string | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  const [editingAssignment, setEditingAssignment] = useState(false)
+  const [assignScope, setAssignScope] = useState<'all' | 'specific'>('all')
+  const [selectedSoldierIds, setSelectedSoldierIds] = useState<Set<string>>(new Set())
+  const [savingAssignment, setSavingAssignment] = useState(false)
 
   function refresh() {
     if (!id) return
     setLoading(true)
     setError(null)
-    Promise.all([getTaskList(id), listTaskItems(id), listSoldiers(), listCompletionsForList(id)])
-      .then(([l, i, s, c]) => {
+    Promise.all([getTaskList(id), listTaskItems(id), listSoldiers(), listCompletionsForList(id), listAssignedSoldierIds(id)])
+      .then(([l, i, s, c, assignedIds]) => {
         setList(l)
         setItems(i)
-        setSoldiers(s.filter((soldier) => soldier.status === 'active'))
+        setAllSoldiers(s.filter((soldier) => soldier.status === 'active'))
         setCompletions(Object.fromEntries(c.map((row) => [completionKey(row.soldier_id, row.task_item_id), row])))
+        setAssignedSoldierIds(new Set(assignedIds))
+        setAssignScope(l.assigned_to_all ? 'all' : 'specific')
+        setSelectedSoldierIds(new Set(assignedIds))
         setLoading(false)
       })
       .catch((err) => {
@@ -76,6 +87,8 @@ export function TaskListDetail() {
 
   if (loading) return <LoadingScreen />
   if (!list) return <p className="text-sm text-bad-ink">{error ?? 'Task list not found.'}</p>
+
+  const soldiers = list.assigned_to_all ? allSoldiers : allSoldiers.filter((s) => assignedSoldierIds.has(s.id))
 
   function statusFor(soldierId: string, taskItemId: string): TaskCompletionStatus {
     return completions[completionKey(soldierId, taskItemId)]?.status ?? 'incomplete'
@@ -126,6 +139,14 @@ export function TaskListDetail() {
           ? await resetCompletion({ soldierId, taskItemId })
           : await verifyCompletion({ soldierId, taskItemId, verifiedBy: session.user.id })
       setCompletions((prev) => ({ ...prev, [key]: updated }))
+      const item = items.find((i) => i.id === taskItemId)
+      const targetSoldier = allSoldiers.find((s) => s.id === soldierId)
+      notify({
+        profileId: targetSoldier?.profile_id,
+        title: current === 'verified' ? 'Task station reset' : 'Task station verified',
+        body: `${list?.name ?? 'Task list'} — ${item?.label ?? 'Station'}`,
+        link: '/soldier/tasks',
+      })
       refreshPendingCounts()
     } catch (err) {
       setCompletions((prev) => {
@@ -166,6 +187,44 @@ export function TaskListDetail() {
       setError(errorMessage(err, 'Failed to save note'))
     } finally {
       setSavingNote(false)
+    }
+  }
+
+  function toggleSelectedSoldier(soldierId: string) {
+    setSelectedSoldierIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(soldierId)) next.delete(soldierId)
+      else next.add(soldierId)
+      return next
+    })
+  }
+
+  function cancelEditingAssignment() {
+    if (!list) return
+    setEditingAssignment(false)
+    setAssignScope(list.assigned_to_all ? 'all' : 'specific')
+    setSelectedSoldierIds(new Set(assignedSoldierIds))
+  }
+
+  async function handleSaveAssignment() {
+    if (!list) return
+    setSavingAssignment(true)
+    setError(null)
+    try {
+      const assignedToAll = assignScope === 'all'
+      const updated = await updateTaskList(list.id, { assigned_to_all: assignedToAll })
+      if (!assignedToAll) {
+        await setTaskListAssignments(list.id, Array.from(selectedSoldierIds))
+        setAssignedSoldierIds(new Set(selectedSoldierIds))
+      } else {
+        setAssignedSoldierIds(new Set())
+      }
+      setList(updated)
+      setEditingAssignment(false)
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to update assignment'))
+    } finally {
+      setSavingAssignment(false)
     }
   }
 
@@ -252,6 +311,91 @@ export function TaskListDetail() {
       </div>
 
       <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="font-display text-[15px] font-semibold tracking-wide text-ink-dim">ASSIGNMENT</h2>
+          {!editingAssignment && (
+            <button
+              onClick={() => setEditingAssignment(true)}
+              className="text-xs font-semibold text-accent-soft-ink"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+        {!editingAssignment ? (
+          <p className="text-sm text-ink-dim">
+            {list.assigned_to_all
+              ? 'Whole platoon — every active Soldier'
+              : `${assignedSoldierIds.size} soldier${assignedSoldierIds.size === 1 ? '' : 's'} specifically assigned`}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setAssignScope('all')}
+                className={`flex-1 rounded-md border px-3 py-2 text-xs font-bold tracking-wide ${
+                  assignScope === 'all'
+                    ? 'border-accent bg-accent-soft text-accent-soft-ink'
+                    : 'border-line bg-neutral-bg text-ink-muted'
+                }`}
+              >
+                WHOLE PLATOON
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssignScope('specific')}
+                className={`flex-1 rounded-md border px-3 py-2 text-xs font-bold tracking-wide ${
+                  assignScope === 'specific'
+                    ? 'border-accent bg-accent-soft text-accent-soft-ink'
+                    : 'border-line bg-neutral-bg text-ink-muted'
+                }`}
+              >
+                SPECIFIC SOLDIERS
+              </button>
+            </div>
+            {assignScope === 'specific' && (
+              <div className="max-h-48 overflow-y-auto rounded-md border border-line bg-surface p-2">
+                {allSoldiers.length === 0 ? (
+                  <p className="p-2 text-sm text-ink-muted">No active Soldiers on the roster.</p>
+                ) : (
+                  allSoldiers.map((s) => (
+                    <label
+                      key={s.id}
+                      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink hover:bg-surface-raised"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedSoldierIds.has(s.id)}
+                        onChange={() => toggleSelectedSoldier(s.id)}
+                        className="h-4 w-4 accent-accent"
+                      />
+                      {s.rank} {s.last_name}, {s.first_name}
+                    </label>
+                  ))
+                )}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                disabled={savingAssignment || (assignScope === 'specific' && selectedSoldierIds.size === 0)}
+                onClick={handleSaveAssignment}
+                className="rounded-md bg-accent px-3.5 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
+              >
+                {savingAssignment ? 'SAVING...' : 'SAVE'}
+              </button>
+              <button
+                onClick={cancelEditingAssignment}
+                className="rounded-md bg-neutral-bg px-3.5 py-2 text-xs font-bold tracking-wide text-neutral-ink"
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">
         <h2 className="mb-3 font-display text-[15px] font-semibold tracking-wide text-ink-dim">STATIONS</h2>
         {items.length === 0 && <p className="mb-3 text-sm text-ink-muted">No stations yet — add one below.</p>}
         <div className="mb-3 flex flex-col gap-1.5">
@@ -306,7 +450,11 @@ export function TaskListDetail() {
       {items.length === 0 ? (
         <p className="text-sm text-ink-muted">Add stations above to start tracking progress.</p>
       ) : soldiers.length === 0 ? (
-        <p className="text-sm text-ink-muted">No active Soldiers on the roster.</p>
+        <p className="text-sm text-ink-muted">
+          {list.assigned_to_all
+            ? 'No active Soldiers on the roster.'
+            : 'No Soldiers assigned to this list yet — use Edit above to assign some.'}
+        </p>
       ) : (
         <div className="flex flex-col gap-2">
           {soldiers.map((s) => {

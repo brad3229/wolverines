@@ -5,6 +5,7 @@ import { inviteSoldierAccount, setUserRole } from '../../lib/adminApi'
 import { getProfileRole } from '../../lib/profiles'
 import { errorMessage } from '../../lib/errors'
 import { listEditRequests, reviewEditRequest, coerceEditRequestValue, formatEditRequestValue } from '../../lib/editRequests'
+import { notify } from '../../lib/notifications'
 import { getAttendanceHistory, attendanceBadge } from '../../lib/attendance'
 import type { AttendanceHistoryEntry } from '../../lib/attendance'
 import { formatEventDateRange } from '../../lib/drillEvents'
@@ -94,6 +95,12 @@ export function SoldierDetail() {
           [request.field_name]: coerceEditRequestValue(request.field_name, request.new_value),
         })
       }
+      notify({
+        profileId: soldier?.profile_id,
+        title: approve ? 'Profile edit approved' : 'Profile edit rejected',
+        body: `${request.field_name}: ${formatEditRequestValue(request.field_name, request.new_value)}`,
+        link: '/soldier/profile',
+      })
       refresh()
       refreshPendingCounts()
     } catch (err) {

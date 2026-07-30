@@ -3,6 +3,7 @@ import { listSoldiers } from '../../lib/soldiers'
 import { listPayIssues, markPayIssueInProgress, resolvePayIssue } from '../../lib/payIssues'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
+import { notify } from '../../lib/notifications'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import type { PayIssue, PayIssueCategory, Soldier } from '../../types/database'
 
@@ -48,6 +49,13 @@ export function PayIssues() {
   async function handleStart(issue: PayIssue) {
     try {
       await markPayIssueInProgress({ id: issue.id })
+      const soldier = soldiers.find((s) => s.id === issue.soldier_id)
+      notify({
+        profileId: soldier?.profile_id,
+        title: 'Pay issue in progress',
+        body: CATEGORY_LABEL[issue.category],
+        link: '/soldier/pay-issues',
+      })
       refresh()
       refreshPendingCounts()
     } catch (err) {
@@ -59,6 +67,13 @@ export function PayIssues() {
     if (!session) return
     try {
       await resolvePayIssue({ id: issue.id, resolvedBy: session.user.id, notes: resolveDrafts[issue.id] ?? '' })
+      const soldier = soldiers.find((s) => s.id === issue.soldier_id)
+      notify({
+        profileId: soldier?.profile_id,
+        title: 'Pay issue resolved',
+        body: CATEGORY_LABEL[issue.category],
+        link: '/soldier/pay-issues',
+      })
       refresh()
       refreshPendingCounts()
     } catch (err) {

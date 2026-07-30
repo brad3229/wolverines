@@ -119,6 +119,15 @@ export function IconPhone(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconBell(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M6 10a6 6 0 0 1 12 0v4.5l1.5 3h-15l1.5-3z" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </Icon>
+  )
+}
+
 export function IconInbox(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

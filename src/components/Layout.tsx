@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { NotificationBell } from './NotificationBell'
 
 export interface NavItem {
   to: string
@@ -59,6 +60,7 @@ export function Layout({ navItems, children, mobileNav = 'tabs' }: LayoutProps) 
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-2">
+          <NotificationBell />
           <button
             onClick={() => supabase.auth.signOut()}
             className={`rounded-md bg-neutral-bg px-3 py-1.5 text-xs font-semibold tracking-wide text-neutral-ink transition-colors hover:bg-line ${
