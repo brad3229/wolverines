@@ -1,25 +1,18 @@
 import { supabase } from './supabaseClient'
 import type { Notification } from '../types/database'
 
-export async function listOwnNotifications(profileId: string) {
+// Once read, a notification disappears from the list for good -- so this only ever
+// needs to fetch the unread ones.
+export async function listUnreadNotifications(profileId: string) {
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
     .eq('profile_id', profileId)
+    .eq('read', false)
     .order('created_at', { ascending: false })
     .limit(50)
   if (error) throw error
   return data as Notification[]
-}
-
-export async function countUnreadNotifications(profileId: string) {
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('profile_id', profileId)
-    .eq('read', false)
-  if (error) throw error
-  return count ?? 0
 }
 
 export async function markNotificationRead(id: string) {

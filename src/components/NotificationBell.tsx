@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { listOwnNotifications, markNotificationRead, markAllNotificationsRead } from '../lib/notifications'
+import { listUnreadNotifications, markNotificationRead, markAllNotificationsRead } from '../lib/notifications'
 import { IconBell } from './icons'
 import type { Notification } from '../types/database'
 
@@ -26,7 +26,7 @@ export function NotificationBell() {
 
   useEffect(() => {
     if (!session) return
-    listOwnNotifications(session.user.id).then(setNotifications)
+    listUnreadNotifications(session.user.id).then(setNotifications)
   }, [session])
 
   useEffect(() => {
@@ -38,20 +38,20 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [open])
 
-  const unreadCount = notifications.filter((n) => !n.read).length
+  const unreadCount = notifications.length
 
+  // Read notifications disappear from the list immediately -- they're gone for good,
+  // not just dimmed/marked, since there's nothing left to act on once you've seen them.
   async function handleSelect(n: Notification) {
     setOpen(false)
-    if (!n.read) {
-      setNotifications((prev) => prev.map((row) => (row.id === n.id ? { ...row, read: true } : row)))
-      markNotificationRead(n.id).catch(() => {})
-    }
+    setNotifications((prev) => prev.filter((row) => row.id !== n.id))
+    markNotificationRead(n.id).catch(() => {})
     if (n.link) navigate(n.link)
   }
 
   async function handleMarkAllRead() {
     if (!session) return
-    setNotifications((prev) => prev.map((row) => ({ ...row, read: true })))
+    setNotifications([])
     markAllNotificationsRead(session.user.id).catch(() => {})
   }
 
@@ -86,19 +86,17 @@ export function NotificationBell() {
           </div>
           <div className="overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="p-4 text-center text-sm text-ink-muted">No notifications yet.</p>
+              <p className="p-4 text-center text-sm text-ink-muted">Nothing new — you're all caught up.</p>
             ) : (
               notifications.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => handleSelect(n)}
-                  className={`flex w-full flex-col gap-0.5 border-b border-line-soft px-3.5 py-2.5 text-left last:border-0 hover:bg-surface ${
-                    n.read ? '' : 'bg-accent-soft/10'
-                  }`}
+                  className="flex w-full flex-col gap-0.5 border-b border-line-soft bg-accent-soft/10 px-3.5 py-2.5 text-left last:border-0 hover:bg-surface"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-[13px] font-semibold">{n.title}</span>
-                    {!n.read && <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent" />}
+                    <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent" />
                   </div>
                   <span className="text-xs text-ink-muted">{n.body}</span>
                   <span className="text-[10px] text-ink-faint">{timeAgo(n.created_at)}</span>
