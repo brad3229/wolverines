@@ -230,35 +230,58 @@ export function TaskListDetail() {
 
   async function handleToggleActive() {
     if (!list) return
-    const updated = await updateTaskList(list.id, { active: !list.active })
-    setList(updated)
+    try {
+      const updated = await updateTaskList(list.id, { active: !list.active })
+      setList(updated)
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to update task list'))
+    }
   }
 
   async function handleDelete() {
     if (!list) return
-    await deleteTaskList(list.id)
-    navigate('/admin/tasks')
+    try {
+      await deleteTaskList(list.id)
+      navigate('/admin/tasks')
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to delete task list'))
+      setConfirmingDelete(false)
+    }
   }
 
   async function handleAddItem() {
     if (!list || !newItemLabel.trim()) return
-    await createTaskItem({ taskListId: list.id, label: newItemLabel.trim(), sortOrder: items.length })
-    setNewItemLabel('')
-    refresh()
+    try {
+      await createTaskItem({ taskListId: list.id, label: newItemLabel.trim(), sortOrder: items.length })
+      setNewItemLabel('')
+      refresh()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to add station'))
+    }
   }
 
   async function handleRemoveItem(itemId: string) {
-    await deleteTaskItem(itemId)
-    refresh()
+    try {
+      await deleteTaskItem(itemId)
+      refresh()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to remove station'))
+    }
   }
 
   async function handleMoveItem(index: number, direction: -1 | 1) {
     const target = index + direction
     if (target < 0 || target >= items.length) return
+    const previous = items
     const reordered = [...items]
     ;[reordered[index], reordered[target]] = [reordered[target], reordered[index]]
     setItems(reordered)
-    await reorderTaskItems(reordered.map((i) => i.id))
+    try {
+      await reorderTaskItems(reordered.map((i) => i.id))
+    } catch (err) {
+      setItems(previous)
+      setError(errorMessage(err, 'Failed to reorder stations'))
+    }
   }
 
   return (
@@ -309,6 +332,8 @@ export function TaskListDetail() {
           )}
         </div>
       </div>
+
+      {error && <p className="mb-4 text-sm text-bad-ink">{error}</p>}
 
       <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -446,7 +471,6 @@ export function TaskListDetail() {
       </div>
 
       <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">SOLDIER PROGRESS</h2>
-      {error && <p className="mb-2 text-sm text-bad-ink">{error}</p>}
       {items.length === 0 ? (
         <p className="text-sm text-ink-muted">Add stations above to start tracking progress.</p>
       ) : soldiers.length === 0 ? (

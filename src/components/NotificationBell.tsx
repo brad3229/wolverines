@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { listUnreadNotifications, markNotificationRead, markAllNotificationsRead } from '../lib/notifications'
+import { markNotificationRead, markAllNotificationsRead } from '../lib/notifications'
 import { IconBell } from './icons'
 import type { Notification } from '../types/database'
 
@@ -18,16 +18,10 @@ function timeAgo(dateStr: string) {
 }
 
 export function NotificationBell() {
-  const { session } = useAuth()
+  const { session, notifications, notificationsError, removeNotification, clearNotifications } = useAuth()
   const navigate = useNavigate()
-  const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!session) return
-    listUnreadNotifications(session.user.id).then(setNotifications)
-  }, [session])
 
   useEffect(() => {
     if (!open) return
@@ -44,14 +38,14 @@ export function NotificationBell() {
   // not just dimmed/marked, since there's nothing left to act on once you've seen them.
   async function handleSelect(n: Notification) {
     setOpen(false)
-    setNotifications((prev) => prev.filter((row) => row.id !== n.id))
+    removeNotification(n.id)
     markNotificationRead(n.id).catch(() => {})
     if (n.link) navigate(n.link)
   }
 
   async function handleMarkAllRead() {
     if (!session) return
-    setNotifications([])
+    clearNotifications()
     markAllNotificationsRead(session.user.id).catch(() => {})
   }
 
@@ -85,7 +79,9 @@ export function NotificationBell() {
             )}
           </div>
           <div className="overflow-y-auto">
-            {notifications.length === 0 ? (
+            {notificationsError ? (
+              <p className="p-4 text-center text-sm text-bad-ink">Couldn&rsquo;t load notifications.</p>
+            ) : notifications.length === 0 ? (
               <p className="p-4 text-center text-sm text-ink-muted">Nothing new — you're all caught up.</p>
             ) : (
               notifications.map((n) => (

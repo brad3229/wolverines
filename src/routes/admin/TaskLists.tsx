@@ -20,6 +20,8 @@ export function TaskLists() {
   const [description, setDescription] = useState('')
   const [assignScope, setAssignScope] = useState<'all' | 'specific'>('all')
   const [selectedSoldierIds, setSelectedSoldierIds] = useState<Set<string>>(new Set())
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
   function refresh() {
     setLoading(true)
@@ -64,19 +66,27 @@ export function TaskLists() {
 
   async function handleCreate() {
     if (!session || !name.trim()) return
-    await createTaskList({
-      name: name.trim(),
-      description: description.trim() || null,
-      createdBy: session.user.id,
-      assignedToAll: assignScope === 'all',
-      soldierIds: assignScope === 'specific' ? Array.from(selectedSoldierIds) : undefined,
-    })
-    setName('')
-    setDescription('')
-    setAssignScope('all')
-    setSelectedSoldierIds(new Set())
-    setShowAddForm(false)
-    refresh()
+    setCreating(true)
+    setCreateError(null)
+    try {
+      await createTaskList({
+        name: name.trim(),
+        description: description.trim() || null,
+        createdBy: session.user.id,
+        assignedToAll: assignScope === 'all',
+        soldierIds: assignScope === 'specific' ? Array.from(selectedSoldierIds) : undefined,
+      })
+      setName('')
+      setDescription('')
+      setAssignScope('all')
+      setSelectedSoldierIds(new Set())
+      setShowAddForm(false)
+      refresh()
+    } catch (err) {
+      setCreateError(errorMessage(err, 'Failed to create task list'))
+    } finally {
+      setCreating(false)
+    }
   }
 
   return (
@@ -160,12 +170,14 @@ export function TaskLists() {
             </div>
           )}
 
+          {createError && <p className="text-sm text-bad-ink">{createError}</p>}
+
           <button
             onClick={handleCreate}
-            disabled={!name.trim() || (assignScope === 'specific' && selectedSoldierIds.size === 0)}
+            disabled={creating || !name.trim() || (assignScope === 'specific' && selectedSoldierIds.size === 0)}
             className="self-start rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
           >
-            CREATE
+            {creating ? 'CREATING...' : 'CREATE'}
           </button>
         </div>
       )}

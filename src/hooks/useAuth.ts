@@ -5,7 +5,8 @@ import { listSutaRequests } from '../lib/sutaRequests'
 import { listEditRequests } from '../lib/editRequests'
 import { listPayIssues } from '../lib/payIssues'
 import { countPendingTaskVerifications } from '../lib/tasks'
-import type { UserRole } from '../types/database'
+import { listUnreadNotifications } from '../lib/notifications'
+import type { UserRole, Notification } from '../types/database'
 
 interface AuthState {
   session: Session | null
@@ -19,6 +20,11 @@ interface AuthState {
   pendingPayIssueCount: number
   pendingTaskVerificationCount: number
   refreshPendingCounts: () => void
+  notifications: Notification[]
+  notificationsError: boolean
+  refreshNotifications: () => void
+  removeNotification: (id: string) => void
+  clearNotifications: () => void
 }
 
 export const AuthContext = createContext<AuthState>({
@@ -33,6 +39,11 @@ export const AuthContext = createContext<AuthState>({
   pendingPayIssueCount: 0,
   pendingTaskVerificationCount: 0,
   refreshPendingCounts: () => {},
+  notifications: [],
+  notificationsError: false,
+  refreshNotifications: () => {},
+  removeNotification: () => {},
+  clearNotifications: () => {},
 })
 
 export function useAuthState(): AuthState {
@@ -49,6 +60,8 @@ export function useAuthState(): AuthState {
   const [pendingEditRequestCount, setPendingEditRequestCount] = useState(0)
   const [pendingPayIssueCount, setPendingPayIssueCount] = useState(0)
   const [pendingTaskVerificationCount, setPendingTaskVerificationCount] = useState(0)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [notificationsError, setNotificationsError] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -149,6 +162,31 @@ export function useAuthState(): AuthState {
   // refreshPendingCounts() themselves afterward so the badges don't wait for a full reload to catch up.
   useEffect(refreshPendingCounts, [refreshPendingCounts])
 
+  // Lives here (not in NotificationBell) so it's fetched once per session instead of on
+  // every navigation -- Layout, and everything inside it, remounts per route since it's
+  // instantiated per <Route> rather than via a persistent <Outlet>.
+  const refreshNotifications = useCallback(() => {
+    if (!session) {
+      setNotifications([])
+      setNotificationsError(false)
+      return
+    }
+    setNotificationsError(false)
+    listUnreadNotifications(session.user.id)
+      .then(setNotifications)
+      .catch(() => setNotificationsError(true))
+  }, [session])
+
+  useEffect(refreshNotifications, [refreshNotifications])
+
+  const removeNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
+  }, [])
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([])
+  }, [])
+
   return {
     session,
     role,
@@ -161,6 +199,11 @@ export function useAuthState(): AuthState {
     pendingPayIssueCount,
     pendingTaskVerificationCount,
     refreshPendingCounts,
+    notifications,
+    notificationsError,
+    refreshNotifications,
+    removeNotification,
+    clearNotifications,
   }
 }
 

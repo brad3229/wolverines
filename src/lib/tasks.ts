@@ -69,15 +69,41 @@ export async function listAssignedSoldierIds(taskListId: string) {
 }
 
 // Replaces the full assignment set for a list -- simplest correct behavior for a "pick
-// exactly these soldiers" UI, rather than diffing adds/removes.
+// exactly these soldiers" UI, rather than diffing adds/removes. Any soldier dropped from
+// the set also has their completion rows for this list's stations cleared, so stale
+// progress doesn't silently reappear if they're ever re-assigned later.
 export async function setTaskListAssignments(taskListId: string, soldierIds: string[]) {
+  const { data: existing, error: existingError } = await supabase
+    .from('task_list_assignments')
+    .select('soldier_id')
+    .eq('task_list_id', taskListId)
+  if (existingError) throw existingError
+  const newIds = new Set(soldierIds)
+  const removedIds = (existing ?? []).map((row) => row.soldier_id).filter((id) => !newIds.has(id))
+
   const { error: deleteError } = await supabase.from('task_list_assignments').delete().eq('task_list_id', taskListId)
   if (deleteError) throw deleteError
-  if (soldierIds.length === 0) return
-  const { error: insertError } = await supabase
-    .from('task_list_assignments')
-    .insert(soldierIds.map((soldierId) => ({ task_list_id: taskListId, soldier_id: soldierId })))
-  if (insertError) throw insertError
+  if (soldierIds.length > 0) {
+    const { error: insertError } = await supabase
+      .from('task_list_assignments')
+      .insert(soldierIds.map((soldierId) => ({ task_list_id: taskListId, soldier_id: soldierId })))
+    if (insertError) throw insertError
+  }
+
+  if (removedIds.length > 0) {
+    const items = await listTaskItems(taskListId)
+    if (items.length > 0) {
+      const { error: cleanupError } = await supabase
+        .from('soldier_task_completions')
+        .delete()
+        .in('soldier_id', removedIds)
+        .in(
+          'task_item_id',
+          items.map((i) => i.id),
+        )
+      if (cleanupError) throw cleanupError
+    }
+  }
 }
 
 export async function deleteTaskList(id: string) {

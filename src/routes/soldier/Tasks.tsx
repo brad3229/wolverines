@@ -141,7 +141,14 @@ export function Tasks() {
               <div key={list.id} className="rounded-xl border border-line bg-panel p-4 sm:p-5">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <div className="text-sm font-semibold">{list.name}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold">{list.name}</span>
+                      {!list.assigned_to_all && (
+                        <span className="flex-shrink-0 rounded-md bg-info-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-info-ink">
+                          ASSIGNED TO YOU
+                        </span>
+                      )}
+                    </div>
                     {list.description && <div className="text-xs text-ink-muted">{list.description}</div>}
                   </div>
                   <span
