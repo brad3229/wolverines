@@ -9,11 +9,59 @@ import { notify } from '../../lib/notifications'
 import { getAttendanceHistory, attendanceBadge } from '../../lib/attendance'
 import type { AttendanceHistoryEntry } from '../../lib/attendance'
 import { formatEventDateRange } from '../../lib/drillEvents'
+import { listOwnSutaRequests } from '../../lib/sutaRequests'
+import { listOwnGearRequests } from '../../lib/gearRequests'
+import { listOwnPayIssues } from '../../lib/payIssues'
+import { listActiveTaskLists, listTaskItems, listOwnCompletions } from '../../lib/tasks'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
 import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { IconAttendance, IconSuta, IconGear, IconPay, IconTasks, IconNote } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
 import type { EditRequest, Soldier, UserRole } from '../../types/database'
+
+interface ReadinessSnapshot {
+  sutaPending: number
+  sutaOverdue: number
+  gearOpen: number
+  payOpen: number
+  tasksTotal: number
+  tasksVerified: number
+}
+
+const READINESS_TONE_CLASS: Record<'good' | 'warn' | 'bad' | 'neutral', string> = {
+  good: 'text-good-ink',
+  warn: 'text-warn-ink',
+  bad: 'text-bad-ink',
+  neutral: 'text-ink-muted',
+}
+
+async function loadReadinessSnapshot(soldierId: string): Promise<ReadinessSnapshot> {
+  const today = new Date().toISOString().slice(0, 10)
+  const [sutaRequests, gearRequests, payIssues, taskLists, completions] = await Promise.all([
+    listOwnSutaRequests(soldierId),
+    listOwnGearRequests(soldierId),
+    listOwnPayIssues(soldierId),
+    listActiveTaskLists(soldierId),
+    listOwnCompletions(soldierId),
+  ])
+  const items = (await Promise.all(taskLists.map((l) => listTaskItems(l.id)))).flat()
+  const verifiedIds = new Set(completions.filter((c) => c.status === 'verified').map((c) => c.task_item_id))
+  return {
+    sutaPending: sutaRequests.filter((r) => r.status === 'pending').length,
+    sutaOverdue: sutaRequests.filter(
+      (r) =>
+        r.status === 'approved' &&
+        r.makeup_status === 'pending' &&
+        !!r.requested_makeup_date &&
+        r.requested_makeup_date < today,
+    ).length,
+    gearOpen: gearRequests.filter((r) => r.status !== 'resolved').length,
+    payOpen: payIssues.filter((i) => i.status !== 'resolved').length,
+    tasksTotal: items.length,
+    tasksVerified: items.filter((i) => verifiedIds.has(i.id)).length,
+  }
+}
 
 export function SoldierDetail() {
   const { id } = useParams<{ id: string }>()
@@ -30,7 +78,9 @@ export function SoldierDetail() {
   const [roleChangeError, setRoleChangeError] = useState<string | null>(null)
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceHistoryEntry[] | null>(null)
   const [attendanceRate, setAttendanceRate] = useState<number | null>(null)
+  const [readiness, setReadiness] = useState<ReadinessSnapshot | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [noteModal, setNoteModal] = useState<{ name: string; reason: string } | null>(null)
 
   function refresh() {
     if (!id) return
@@ -45,6 +95,10 @@ export function SoldierDetail() {
           setAttendanceHistory(history)
           setAttendanceRate(rate)
         })
+
+        loadReadinessSnapshot(s.id)
+          .then(setReadiness)
+          .catch(() => setReadiness(null))
       })
       .catch((err) => setLoadError(errorMessage(err, 'Failed to load Soldier')))
     listEditRequests()
@@ -116,6 +170,77 @@ export function SoldierDetail() {
       </h1>
 
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
+
+      <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">
+        <h2 className="mb-3 font-display text-[15px] font-semibold tracking-wide text-ink-dim">READINESS</h2>
+        {!readiness ? (
+          <p className="text-sm text-ink-muted">Loading...</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            {[
+              {
+                key: 'attendance',
+                icon: <IconAttendance />,
+                label: 'ATTENDANCE',
+                value: attendanceRate !== null ? `${attendanceRate}%` : '—',
+                tone:
+                  attendanceRate === null ? 'neutral' : attendanceRate >= 80 ? 'good' : attendanceRate >= 60 ? 'warn' : 'bad',
+              },
+              {
+                key: 'suta',
+                icon: <IconSuta />,
+                label: 'SUTA',
+                value:
+                  readiness.sutaOverdue > 0
+                    ? `${readiness.sutaOverdue} OVERDUE`
+                    : readiness.sutaPending > 0
+                      ? `${readiness.sutaPending} PENDING`
+                      : 'ALL GOOD',
+                tone: readiness.sutaOverdue > 0 ? 'bad' : readiness.sutaPending > 0 ? 'warn' : 'good',
+              },
+              {
+                key: 'gear',
+                icon: <IconGear />,
+                label: 'GEAR',
+                value: readiness.gearOpen > 0 ? `${readiness.gearOpen} OPEN` : 'ALL GOOD',
+                tone: readiness.gearOpen > 0 ? 'warn' : 'good',
+              },
+              {
+                key: 'pay',
+                icon: <IconPay />,
+                label: 'PAY',
+                value: readiness.payOpen > 0 ? `${readiness.payOpen} OPEN` : 'ALL GOOD',
+                tone: readiness.payOpen > 0 ? 'warn' : 'good',
+              },
+              {
+                key: 'tasks',
+                icon: <IconTasks />,
+                label: 'TASKS',
+                value: readiness.tasksTotal === 0 ? '—' : `${readiness.tasksVerified}/${readiness.tasksTotal}`,
+                tone:
+                  readiness.tasksTotal === 0
+                    ? 'neutral'
+                    : readiness.tasksVerified === readiness.tasksTotal
+                      ? 'good'
+                      : 'warn',
+              },
+            ].map((tile) => (
+              <div
+                key={tile.key}
+                className="flex flex-col items-center gap-1.5 rounded-lg border border-line-soft px-3 py-3 text-center"
+              >
+                <span className={READINESS_TONE_CLASS[tile.tone as keyof typeof READINESS_TONE_CLASS]}>{tile.icon}</span>
+                <span className="text-[10px] font-bold tracking-wide text-ink-dim">{tile.label}</span>
+                <span
+                  className={`font-display text-sm font-semibold ${READINESS_TONE_CLASS[tile.tone as keyof typeof READINESS_TONE_CLASS]}`}
+                >
+                  {tile.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {editRequests.length > 0 && (
         <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">
@@ -308,7 +433,18 @@ export function SoldierDetail() {
                   className="flex items-center justify-between gap-3 rounded-lg border border-line-soft px-3 py-2.5"
                 >
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{event.title}</div>
+                    <div className="flex items-center gap-1.5 truncate text-sm font-medium">
+                      {event.title}
+                      {record?.reason && (
+                        <button
+                          onClick={() => setNoteModal({ name: event.title, reason: record.reason as string })}
+                          title="View comment"
+                          className="flex-shrink-0 text-info-ink"
+                        >
+                          <IconNote className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                     <div className="text-xs text-ink-muted">{formatEventDateRange(event)}</div>
                   </div>
                   <span
@@ -335,6 +471,27 @@ export function SoldierDetail() {
           }}
         />
       </div>
+
+      {noteModal && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setNoteModal(null)}
+        >
+          <div
+            className="flex w-full max-w-sm flex-col gap-2.5 rounded-xl border border-line bg-panel p-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-semibold">{noteModal.name}</div>
+            <p className="text-sm text-ink-dim">{noteModal.reason}</p>
+            <button
+              onClick={() => setNoteModal(null)}
+              className="self-end rounded-md bg-neutral-bg px-3.5 py-2 text-xs font-bold tracking-wide text-neutral-ink"
+            >
+              CLOSE
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

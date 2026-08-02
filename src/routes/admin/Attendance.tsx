@@ -7,6 +7,7 @@ import { EventForm, eventFormValuesToPayload } from '../../components/EventForm'
 import { AttendanceSummary } from '../../components/AttendanceSummary'
 import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { IconNote } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
@@ -29,6 +30,7 @@ export function AttendancePage() {
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({})
   const [pending, setPending] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
+  const [noteModal, setNoteModal] = useState<{ name: string; reason: string } | null>(null)
 
   useEffect(() => {
     if (!eventId) return
@@ -62,8 +64,26 @@ export function AttendancePage() {
   }
 
   async function setStatus(soldierId: string, status: AttendanceStatus) {
-    const updated = await writeStatus(soldierId, status)
-    setRecords((prev) => ({ ...prev, [soldierId]: updated }))
+    if (pending.has(soldierId)) return
+    setPending((prev) => new Set(prev).add(soldierId))
+    setError(null)
+    try {
+      const updated = await writeStatus(soldierId, status)
+      setRecords((prev) => ({ ...prev, [soldierId]: updated }))
+      setReasonDrafts((prev) => {
+        const next = { ...prev }
+        delete next[soldierId]
+        return next
+      })
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to save reason'))
+    } finally {
+      setPending((prev) => {
+        const next = new Set(prev)
+        next.delete(soldierId)
+        return next
+      })
+    }
   }
 
   // Clicking the already-active status again clears it, in case it was a mis-click.
@@ -212,6 +232,17 @@ export function AttendancePage() {
                       SELF-REPORTED
                     </span>
                   )}
+                  {record?.reason && (
+                    <button
+                      onClick={() =>
+                        setNoteModal({ name: `${soldier.rank} ${soldier.last_name}`, reason: record.reason as string })
+                      }
+                      title="View comment"
+                      className="text-info-ink"
+                    >
+                      <IconNote className="h-4 w-4" />
+                    </button>
+                  )}
                 </span>
                 <div className="grid grid-cols-4 gap-1.5 sm:flex">
                   {STATUS_OPTIONS.map((opt) => (
@@ -231,16 +262,17 @@ export function AttendancePage() {
               {needsReason && (
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <input
-                    placeholder="Reason (e.g. traffic, appointment)"
-                    value={reasonDrafts[soldier.id] ?? record?.reason ?? ''}
+                    placeholder={record?.reason ? 'Add or replace comment' : 'Reason (e.g. traffic, appointment)'}
+                    value={reasonDrafts[soldier.id] ?? ''}
                     onChange={(e) => setReasonDrafts((prev) => ({ ...prev, [soldier.id]: e.target.value }))}
                     className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                   <button
                     onClick={() => setStatus(soldier.id, record.status)}
-                    className="rounded-md bg-neutral-bg px-3 py-2 text-xs font-semibold text-neutral-ink"
+                    disabled={pending.has(soldier.id)}
+                    className="rounded-md bg-neutral-bg px-3 py-2 text-xs font-semibold text-neutral-ink disabled:opacity-50"
                   >
-                    Save reason
+                    {pending.has(soldier.id) ? 'Saving...' : 'Save reason'}
                   </button>
                 </div>
               )}
@@ -249,6 +281,27 @@ export function AttendancePage() {
         })}
         {soldiers.length === 0 && <p className="text-sm text-ink-muted">No active Soldiers on the roster.</p>}
       </div>
+
+      {noteModal && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setNoteModal(null)}
+        >
+          <div
+            className="flex w-full max-w-sm flex-col gap-2.5 rounded-xl border border-line bg-panel p-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-semibold">{noteModal.name}</div>
+            <p className="text-sm text-ink-dim">{noteModal.reason}</p>
+            <button
+              onClick={() => setNoteModal(null)}
+              className="self-end rounded-md bg-neutral-bg px-3.5 py-2 text-xs font-bold tracking-wide text-neutral-ink"
+            >
+              CLOSE
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

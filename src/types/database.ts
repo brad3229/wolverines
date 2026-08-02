@@ -14,6 +14,8 @@ export type PayIssueCategory =
   | 'other'
 export type PayIssueStatus = 'open' | 'in_progress' | 'resolved'
 export type TaskCompletionStatus = 'incomplete' | 'self_reported' | 'verified'
+export type GearRequestCategory = 'initial_issue' | 'missing_lost' | 'damaged' | 'wrong_size' | 'other'
+export type GearRequestStatus = 'open' | 'in_progress' | 'resolved'
 
 export interface Profile {
   id: string
@@ -106,6 +108,18 @@ export interface PayIssue {
   category: PayIssueCategory
   description: string
   status: PayIssueStatus
+  reported_at: string
+  resolved_by: string | null
+  resolved_at: string | null
+  resolution_notes: string | null
+}
+
+export interface GearRequest {
+  id: string
+  soldier_id: string
+  category: GearRequestCategory
+  description: string
+  status: GearRequestStatus
   reported_at: string
   resolved_by: string | null
   resolved_at: string | null

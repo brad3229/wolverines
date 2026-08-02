@@ -29,12 +29,19 @@ export function IconDashboard(props: SVGProps<SVGSVGElement>) {
 export function IconRoster(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
-      <line x1="8" y1="6" x2="21" y2="6" />
-      <line x1="8" y1="12" x2="21" y2="12" />
-      <line x1="8" y1="18" x2="21" y2="18" />
-      <line x1="3" y1="6" x2="3.01" y2="6" />
-      <line x1="3" y1="12" x2="3.01" y2="12" />
-      <line x1="3" y1="18" x2="3.01" y2="18" />
+      {/* Back-left soldier: helmet dome peeking out, shoulder tucked behind center figure */}
+      <path d="M2.5 20.5v-1.5a3 3 0 0 1 3-3h1" />
+      <path d="M3.5 11.75a2.5 2.5 0 0 1 5 0" strokeLinecap="butt" />
+      <path d="M3.5 11.75v.5a2.5 2.5 0 0 0 1.2 2.13" />
+      {/* Back-right soldier, mirrored */}
+      <path d="M21.5 20.5v-1.5a3 3 0 0 0-3-3h-1" />
+      <path d="M20.5 11.75a2.5 2.5 0 0 0-5 0" strokeLinecap="butt" />
+      <path d="M20.5 11.75v.5a2.5 2.5 0 0 1-1.2 2.13" />
+      {/* Front-center soldier: helmet dome + brim, face, shoulders */}
+      <path d="M7.5 10.5a4.5 4.5 0 0 1 9 0" strokeLinecap="butt" />
+      <path d="M7 10.5h10" />
+      <path d="M8.5 10.5v.5a3.5 3.5 0 0 0 7 0v-.5" />
+      <path d="M7.5 21v-2.5a4.5 4.5 0 0 1 9 0V21" />
     </Icon>
   )
 }
@@ -138,12 +145,35 @@ export function IconInbox(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconGear(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M7.5 8V5.5A2.5 2.5 0 0 1 10 3h4a2.5 2.5 0 0 1 2.5 2.5V8" />
+      <rect x="5" y="8" width="14" height="13" rx="2.5" />
+      <rect x="9" y="8" width="6" height="4" rx="1" />
+      <line x1="9" y1="16" x2="15" y2="16" />
+    </Icon>
+  )
+}
+
 export function IconAlertTriangle(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
       <path d="M12 3.5 21 19.5H3z" />
       <line x1="12" y1="9.5" x2="12" y2="13.5" />
       <line x1="12" y1="16.5" x2="12.01" y2="16.5" />
+    </Icon>
+  )
+}
+
+export function IconNote(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M6 3.5h9l3 3v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1z" />
+      <path d="M15 3.5v3a1 1 0 0 0 1 1h3" />
+      <line x1="8" y1="11" x2="16" y2="11" />
+      <line x1="8" y1="14.5" x2="16" y2="14.5" />
+      <line x1="8" y1="18" x2="13" y2="18" />
     </Icon>
   )
 }

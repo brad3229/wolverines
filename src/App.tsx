@@ -19,6 +19,7 @@ import {
   IconPay,
   IconSecurity,
   IconTasks,
+  IconGear,
 } from './components/icons'
 import { Login } from './routes/Login'
 
@@ -32,6 +33,9 @@ const AttendancePage = lazy(() => import('./routes/admin/Attendance').then((m) =
 const AttendanceHome = lazy(() => import('./routes/admin/AttendanceHome').then((m) => ({ default: m.AttendanceHome })))
 const AdminSuta = lazy(() => import('./routes/admin/Suta').then((m) => ({ default: m.Suta })))
 const AdminPayIssues = lazy(() => import('./routes/admin/PayIssues').then((m) => ({ default: m.PayIssues })))
+const AdminGearRequests = lazy(() =>
+  import('./routes/admin/GearRequests').then((m) => ({ default: m.GearRequests })),
+)
 const Security = lazy(() => import('./routes/admin/Security').then((m) => ({ default: m.Security })))
 const AdminTaskLists = lazy(() => import('./routes/admin/TaskLists').then((m) => ({ default: m.TaskLists })))
 const AdminTaskListDetail = lazy(() =>
@@ -44,6 +48,9 @@ const CheckIn = lazy(() => import('./routes/soldier/CheckIn').then((m) => ({ def
 const CheckInHome = lazy(() => import('./routes/soldier/CheckInHome').then((m) => ({ default: m.CheckInHome })))
 const SoldierSuta = lazy(() => import('./routes/soldier/Suta').then((m) => ({ default: m.Suta })))
 const SoldierPayIssues = lazy(() => import('./routes/soldier/PayIssues').then((m) => ({ default: m.PayIssues })))
+const SoldierGearRequests = lazy(() =>
+  import('./routes/soldier/GearRequests').then((m) => ({ default: m.GearRequests })),
+)
 const SoldierTasks = lazy(() => import('./routes/soldier/Tasks').then((m) => ({ default: m.Tasks })))
 
 function buildAdminNav(
@@ -51,6 +58,7 @@ function buildAdminNav(
   pendingEditRequestCount: number,
   pendingPayIssueCount: number,
   pendingTaskVerificationCount: number,
+  pendingGearRequestCount: number,
 ): NavItem[] {
   return [
     {
@@ -66,6 +74,13 @@ function buildAdminNav(
     { to: '/admin/suta', label: 'Review SUTA', shortLabel: 'Review', icon: <IconSuta />, badge: pendingSutaCount },
     { to: '/admin/my-suta', label: 'My SUTA', icon: <IconSuta /> },
     { to: '/admin/pay-issues', label: 'Pay Issues', shortLabel: 'Pay', icon: <IconPay />, badge: pendingPayIssueCount },
+    {
+      to: '/admin/gear-requests',
+      label: 'Gear Requests',
+      shortLabel: 'Gear',
+      icon: <IconGear />,
+      badge: pendingGearRequestCount,
+    },
     { to: '/admin/tasks', label: 'Tasks', icon: <IconTasks />, badge: pendingTaskVerificationCount },
     { to: '/admin/security', label: 'Security', shortLabel: 'Sec', icon: <IconSecurity /> },
   ]
@@ -78,6 +93,7 @@ const SOLDIER_NAV: NavItem[] = [
   { to: '/soldier/checkin', label: 'Check-In', icon: <IconCheckIn /> },
   { to: '/soldier/suta', label: 'SUTA', icon: <IconSuta /> },
   { to: '/soldier/pay-issues', label: 'Pay Issues', shortLabel: 'Pay', icon: <IconPay /> },
+  { to: '/soldier/gear-requests', label: 'Gear Requests', shortLabel: 'Gear', icon: <IconGear /> },
   { to: '/soldier/tasks', label: 'Tasks', icon: <IconTasks /> },
 ]
 
@@ -89,6 +105,7 @@ function App() {
     auth.pendingEditRequestCount,
     auth.pendingPayIssueCount,
     auth.pendingTaskVerificationCount,
+    auth.pendingGearRequestCount,
   )
 
   const needsPasswordSetup =
@@ -213,6 +230,16 @@ function App() {
             }
           />
           <Route
+            path="/admin/gear-requests"
+            element={
+              <RequireRole allow={['admin']}>
+                <Layout navItems={adminNav} mobileNav="menu">
+                  <AdminGearRequests />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
             path="/admin/tasks"
             element={
               <RequireRole allow={['admin']}>
@@ -309,6 +336,16 @@ function App() {
               <RequireRole allow={['soldier']}>
                 <Layout navItems={SOLDIER_NAV}>
                   <SoldierPayIssues />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/soldier/gear-requests"
+            element={
+              <RequireRole allow={['soldier']}>
+                <Layout navItems={SOLDIER_NAV}>
+                  <SoldierGearRequests />
                 </Layout>
               </RequireRole>
             }

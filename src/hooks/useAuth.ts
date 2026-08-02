@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { listSutaRequests } from '../lib/sutaRequests'
 import { listEditRequests } from '../lib/editRequests'
 import { listPayIssues } from '../lib/payIssues'
+import { listGearRequests } from '../lib/gearRequests'
 import { countPendingTaskVerifications } from '../lib/tasks'
 import { listUnreadNotifications } from '../lib/notifications'
 import type { UserRole, Notification } from '../types/database'
@@ -19,6 +20,7 @@ interface AuthState {
   pendingEditRequestCount: number
   pendingPayIssueCount: number
   pendingTaskVerificationCount: number
+  pendingGearRequestCount: number
   refreshPendingCounts: () => void
   notifications: Notification[]
   notificationsError: boolean
@@ -38,6 +40,7 @@ export const AuthContext = createContext<AuthState>({
   pendingEditRequestCount: 0,
   pendingPayIssueCount: 0,
   pendingTaskVerificationCount: 0,
+  pendingGearRequestCount: 0,
   refreshPendingCounts: () => {},
   notifications: [],
   notificationsError: false,
@@ -60,6 +63,7 @@ export function useAuthState(): AuthState {
   const [pendingEditRequestCount, setPendingEditRequestCount] = useState(0)
   const [pendingPayIssueCount, setPendingPayIssueCount] = useState(0)
   const [pendingTaskVerificationCount, setPendingTaskVerificationCount] = useState(0)
+  const [pendingGearRequestCount, setPendingGearRequestCount] = useState(0)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [notificationsError, setNotificationsError] = useState(false)
 
@@ -149,12 +153,14 @@ export function useAuthState(): AuthState {
       setPendingEditRequestCount(0)
       setPendingPayIssueCount(0)
       setPendingTaskVerificationCount(0)
+      setPendingGearRequestCount(0)
       return
     }
     listSutaRequests().then((all) => setPendingSutaCount(all.filter((r) => r.status === 'pending').length))
     listEditRequests().then((all) => setPendingEditRequestCount(all.filter((r) => r.status === 'pending').length))
     listPayIssues().then((all) => setPendingPayIssueCount(all.filter((i) => i.status === 'open').length))
     countPendingTaskVerifications().then(setPendingTaskVerificationCount)
+    listGearRequests().then((all) => setPendingGearRequestCount(all.filter((r) => r.status === 'open').length))
   }, [role])
 
   // Drives the "Review SUTA", "Dashboard", and "Pay Issues" nav badges -- re-fetched whenever
@@ -198,6 +204,7 @@ export function useAuthState(): AuthState {
     pendingEditRequestCount,
     pendingPayIssueCount,
     pendingTaskVerificationCount,
+    pendingGearRequestCount,
     refreshPendingCounts,
     notifications,
     notificationsError,
