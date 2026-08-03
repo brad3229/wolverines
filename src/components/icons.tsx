@@ -178,6 +178,17 @@ export function IconNote(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconEvaluation(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="4" y="3" width="13" height="18" rx="1.5" />
+      <line x1="7.5" y1="7.5" x2="13.5" y2="7.5" />
+      <line x1="7.5" y1="11" x2="13.5" y2="11" />
+      <path d="M17.5 14.5l1.1 2.2 2.4.35-1.75 1.7.4 2.4-2.15-1.15-2.15 1.15.4-2.4-1.75-1.7 2.4-.35z" />
+    </Icon>
+  )
+}
+
 export function IconPay(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

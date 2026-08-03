@@ -36,6 +36,7 @@ const AdminPayIssues = lazy(() => import('./routes/admin/PayIssues').then((m) =>
 const AdminGearRequests = lazy(() =>
   import('./routes/admin/GearRequests').then((m) => ({ default: m.GearRequests })),
 )
+const AdminNcoer = lazy(() => import('./routes/admin/Ncoer').then((m) => ({ default: m.Ncoer })))
 const Security = lazy(() => import('./routes/admin/Security').then((m) => ({ default: m.Security })))
 const AdminTaskLists = lazy(() => import('./routes/admin/TaskLists').then((m) => ({ default: m.TaskLists })))
 const AdminTaskListDetail = lazy(() =>
@@ -235,6 +236,16 @@ function App() {
               <RequireRole allow={['admin']}>
                 <Layout navItems={adminNav} mobileNav="menu">
                   <AdminGearRequests />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/admin/ncoer"
+            element={
+              <RequireRole allow={['admin']}>
+                <Layout navItems={adminNav} mobileNav="menu">
+                  <AdminNcoer />
                 </Layout>
               </RequireRole>
             }

@@ -11,7 +11,7 @@ import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
-import { IconRoster, IconCalendar, IconInbox, IconAttendance, IconAlertTriangle } from '../../components/icons'
+import { IconRoster, IconCalendar, IconInbox, IconAttendance, IconAlertTriangle, IconEvaluation } from '../../components/icons'
 import type { DrillEvent, EditRequest, Soldier } from '../../types/database'
 
 function monthDayLabel(dateStr: string) {
@@ -98,6 +98,7 @@ export function Dashboard() {
   const upcomingEvents = events.filter((e) => e.end_date >= today).slice(0, 3)
   const nextEvent = upcomingEvents[0]
   const expiringSoldiers = getExpiringSoldiers(soldiers)
+  const ncoerDueCount = expiringSoldiers.filter((s) => s.ncoerFlag !== null).length
   const soldierName = (id: string) => {
     const s = soldiers.find((s) => s.id === id)
     return s ? `${s.rank} ${s.last_name}, ${s.first_name}` : 'Unknown Soldier'
@@ -157,6 +158,14 @@ export function Dashboard() {
           valueClass={expiringSoldiers.length > 0 ? 'text-warn-ink' : undefined}
           onClick={() => scrollToSection('upcoming-expirations')}
         />
+        <StatTile
+          icon={<IconEvaluation />}
+          accent="warn"
+          label="NCOER DUE"
+          value={String(ncoerDueCount)}
+          valueClass={ncoerDueCount > 0 ? 'text-warn-ink' : undefined}
+          to="/admin/ncoer"
+        />
       </div>
 
       <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">UPCOMING EVENTS</h2>
@@ -192,7 +201,7 @@ export function Dashboard() {
         <p className="mb-7 py-1 text-sm text-ink-muted">Nothing expiring soon.</p>
       ) : (
         <div className="mb-7 flex flex-col gap-2">
-          {expiringSoldiers.map(({ soldier, etsFlag, etsDays, cacFlag, cacDays }) => (
+          {expiringSoldiers.map(({ soldier, etsFlag, etsDays, cacFlag, cacDays, ncoerFlag, ncoerDays }) => (
             <Link
               key={soldier.id}
               to={`/admin/roster/${soldier.id}`}
@@ -218,6 +227,15 @@ export function Dashboard() {
                     }`}
                   >
                     {cacFlag === 'expired' ? `CAC ${Math.abs(cacDays!)}D EXPIRED` : `CAC IN ${cacDays}D`}
+                  </span>
+                )}
+                {ncoerFlag && (
+                  <span
+                    className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
+                      ncoerFlag === 'expired' ? 'bg-bad-bg text-bad-ink' : 'bg-warn-bg text-warn-ink'
+                    }`}
+                  >
+                    {ncoerFlag === 'expired' ? `NCOER ${Math.abs(ncoerDays!)}D OVERDUE` : `NCOER DUE IN ${ncoerDays}D`}
                   </span>
                 )}
               </div>

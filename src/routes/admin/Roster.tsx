@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listSoldiers, createSoldier } from '../../lib/soldiers'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
-import { flagForDate, ETS_WARNING_DAYS, CAC_WARNING_DAYS } from '../../lib/expirations'
+import { flagForDate, ncoerDueDate, ETS_WARNING_DAYS, CAC_WARNING_DAYS, NCOER_WARNING_DAYS } from '../../lib/expirations'
 import { formatDate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
@@ -12,6 +12,11 @@ import type { Soldier } from '../../types/database'
 function etsClass(s: Soldier) {
   const flag = flagForDate(s.ets_date, ETS_WARNING_DAYS)
   return flag === 'expired' ? 'font-semibold text-bad-ink' : flag === 'soon' ? 'font-semibold text-warn-ink' : ''
+}
+
+function ncoerFlag(s: Soldier) {
+  if (!s.is_nco || !s.last_ncoer_date) return null
+  return flagForDate(ncoerDueDate(s.last_ncoer_date), NCOER_WARNING_DAYS)
 }
 
 export function Roster() {
@@ -107,6 +112,11 @@ export function Roster() {
                           CAC
                         </span>
                       )}
+                      {ncoerFlag(s) && (
+                        <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                          NCOER
+                        </span>
+                      )}
                       {!s.receives_drill_pay && (
                         <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
                           DO NOT PAY
@@ -160,6 +170,11 @@ export function Roster() {
                         {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
                           <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
                             CAC
+                          </span>
+                        )}
+                        {ncoerFlag(s) && (
+                          <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
+                            NCOER
                           </span>
                         )}
                       </span>
