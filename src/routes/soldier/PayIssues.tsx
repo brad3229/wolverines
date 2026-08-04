@@ -58,9 +58,6 @@ export function PayIssues() {
   if (notLinked || !soldier) {
     return (
       <div className="mx-auto max-w-[560px]">
-        <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:mb-5 sm:text-[26px]">
-          Pay Issues
-        </h1>
         <div className="rounded-xl border border-line bg-panel p-5 text-sm text-ink-muted">
           Your account isn&rsquo;t linked to a Soldier record on the roster, so you can&rsquo;t report a pay issue.{' '}
           {role === 'admin'
@@ -90,8 +87,7 @@ export function PayIssues() {
 
   return (
     <div className="mx-auto max-w-[640px]">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-        <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Pay Issues</h1>
+      <div className="mb-4 flex justify-end sm:mb-5">
         <button
           onClick={() => setShowForm((v) => !v)}
           className="flex-shrink-0 rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink"

@@ -95,7 +95,6 @@ export function Profile() {
   if (notLinked) {
     return (
       <div className="mx-auto max-w-[600px]">
-        <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">My Profile</h1>
         <div className="rounded-xl border border-line bg-panel p-5 text-sm text-ink-muted">
           Your account isn&rsquo;t linked to a Soldier record on the roster yet. Ask an admin to add you to the
           Roster and link your account to it.
@@ -235,7 +234,6 @@ export function Profile() {
 
   return (
     <div className="mx-auto max-w-[600px]">
-      <h1 className="mb-1 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">My Profile</h1>
       <p className="mb-5 text-[13px] text-ink-muted">Field changes require admin approval.</p>
 
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}

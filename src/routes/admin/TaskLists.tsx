@@ -92,10 +92,7 @@ export function TaskLists() {
   return (
     <div className="mx-auto max-w-[760px]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-        <div>
-          <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Tasks</h1>
-          <p className="mt-1 text-[13px] text-ink-muted">Track custom, multi-step requirements per soldier</p>
-        </div>
+        <p className="text-sm font-semibold text-ink-dim">Track custom, multi-step requirements per soldier</p>
         <button
           onClick={() => setShowAddForm((v) => !v)}
           className="flex-shrink-0 rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink"

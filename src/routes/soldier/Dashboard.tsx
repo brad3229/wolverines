@@ -86,8 +86,7 @@ export function Dashboard() {
   if (notLinked || !soldier) {
     return (
       <div className="mx-auto max-w-[760px]">
-        <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Dashboard</h1>
-        <div className="mt-5 rounded-xl border border-line bg-panel p-5 text-sm text-ink-muted">
+        <div className="rounded-xl border border-line bg-panel p-5 text-sm text-ink-muted">
           Your account isn&rsquo;t linked to a Soldier record on the roster yet. Ask an admin to add you to the
           Roster and link your account to it.
         </div>
@@ -101,18 +100,9 @@ export function Dashboard() {
   const nextEventLabel = isCurrent ? 'CURRENT EVENT' : 'NEXT DRILL'
   const etsFlag = flagForDate(soldier.ets_date, ETS_WARNING_DAYS)
   const cacFlag = flagForDate(soldier.cac_expiration_date, CAC_WARNING_DAYS)
-  const todayLabel = new Date().toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 
   return (
     <div className="mx-auto max-w-[760px]">
-      <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Dashboard</h1>
-      <p className="mb-5 mt-1 text-[13px] text-ink-muted">{todayLabel} &middot; A CO 1-120 IN</p>
-
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">

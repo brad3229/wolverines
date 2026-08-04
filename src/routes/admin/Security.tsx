@@ -83,7 +83,6 @@ export function Security() {
 
   return (
     <div className="mx-auto max-w-[560px]">
-      <h1 className="mb-1 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Security</h1>
       <p className="mb-5 text-[13px] text-ink-muted">
         Add two-factor authentication to your admin account using an authenticator app (Google Authenticator, Authy,
         etc).

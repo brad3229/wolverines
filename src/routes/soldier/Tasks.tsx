@@ -48,9 +48,6 @@ export function Tasks() {
   if (notLinked || !soldier) {
     return (
       <div className="mx-auto max-w-[680px]">
-        <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:mb-5 sm:text-[26px]">
-          Tasks
-        </h1>
         <div className="rounded-xl border border-line bg-panel p-5 text-sm text-ink-muted">
           Your account isn&rsquo;t linked to a Soldier record on the roster, so there&rsquo;s nothing to track yet.{' '}
           {role === 'admin'
@@ -122,7 +119,6 @@ export function Tasks() {
 
   return (
     <div className="mx-auto max-w-[680px]">
-      <h1 className="mb-1 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Tasks</h1>
       <p className="mb-5 text-[13px] text-ink-muted">
         Tap a station to report it done. An admin will verify it before it counts as complete.
       </p>

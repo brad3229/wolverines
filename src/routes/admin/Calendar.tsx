@@ -36,8 +36,7 @@ export function Calendar() {
 
   return (
     <div className="mx-auto max-w-[760px]">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-        <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Drill Dates</h1>
+      <div className="mb-4 flex justify-end sm:mb-5">
         <button
           onClick={() => setShowForm((v) => !v)}
           className="rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink"

@@ -88,8 +88,6 @@ export function GearRequests() {
 
   return (
     <div className="mx-auto max-w-[760px]">
-      <h1 className="mb-5 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Gear Requests</h1>
-
       {error && <p className="mb-4 text-sm text-bad-ink">{error}</p>}
 
       <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">OPEN</h2>

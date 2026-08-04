@@ -103,182 +103,194 @@ export function Dashboard() {
     const s = soldiers.find((s) => s.id === id)
     return s ? `${s.rank} ${s.last_name}, ${s.first_name}` : 'Unknown Soldier'
   }
-  const todayLabel = new Date().toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 
   return (
-    <div className="mx-auto max-w-[1000px]">
-      <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Dashboard</h1>
-      <p className="mb-5 mt-1 text-[13px] text-ink-muted">
-        {todayLabel} &middot; A CO 1-120 IN
-      </p>
-
+    <div className="mx-auto max-w-[1280px]">
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
-      <div className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile
-          icon={<IconRoster />}
-          accent="accent"
-          label="ROSTER STRENGTH"
-          value={String(activeCount)}
-          to="/admin/roster"
-        />
-        <StatTile
-          icon={<IconCalendar />}
-          accent="info"
-          label="NEXT DRILL"
-          value={nextEvent ? monthDayLabel(nextEvent.event_date).monthLabel + ' ' + monthDayLabel(nextEvent.event_date).dayLabel : '—'}
-          to={nextEvent ? `/admin/calendar/${nextEvent.id}` : '/admin/calendar'}
-        />
-        <StatTile
-          icon={<IconInbox />}
-          accent="warn"
-          label="PENDING REQUESTS"
-          value={String(editRequests.length)}
-          valueClass="text-warn-ink"
-          onClick={() => scrollToSection('pending-edit-requests')}
-        />
-        <StatTile
-          icon={<IconAttendance />}
-          accent="good"
-          label="LAST DRILL ATTENDANCE"
-          value={lastDrillPresentCount === null ? '—' : String(lastDrillPresentCount)}
-          valueClass="text-good-ink"
-          to={lastDrillEventId ? `/admin/calendar/${lastDrillEventId}` : undefined}
-        />
-        <StatTile
-          icon={<IconAlertTriangle />}
-          accent="warn"
-          label="EXPIRING SOON"
-          value={String(expiringSoldiers.length)}
-          valueClass={expiringSoldiers.length > 0 ? 'text-warn-ink' : undefined}
-          onClick={() => scrollToSection('upcoming-expirations')}
-        />
-        <StatTile
-          icon={<IconEvaluation />}
-          accent="warn"
-          label="NCOER DUE"
-          value={String(ncoerDueCount)}
-          valueClass={ncoerDueCount > 0 ? 'text-warn-ink' : undefined}
-          to="/admin/ncoer"
-        />
-      </div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        {/* Primary column */}
+        <div>
+          <div className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <StatTile
+              icon={<IconRoster />}
+              accent="accent"
+              label="ROSTER STRENGTH"
+              value={String(activeCount)}
+              to="/admin/roster"
+            />
+            <StatTile
+              icon={<IconCalendar />}
+              accent="info"
+              label="NEXT DRILL"
+              value={nextEvent ? monthDayLabel(nextEvent.event_date).monthLabel + ' ' + monthDayLabel(nextEvent.event_date).dayLabel : '—'}
+              to={nextEvent ? `/admin/calendar/${nextEvent.id}` : '/admin/calendar'}
+            />
+            <StatTile
+              icon={<IconInbox />}
+              accent="warn"
+              label="PENDING REQUESTS"
+              value={String(editRequests.length)}
+              valueClass="text-warn-ink"
+              onClick={() => scrollToSection('pending-edit-requests')}
+            />
+            <StatTile
+              icon={<IconAttendance />}
+              accent="good"
+              label="LAST DRILL ATTENDANCE"
+              value={lastDrillPresentCount === null ? '—' : String(lastDrillPresentCount)}
+              valueClass="text-good-ink"
+              to={lastDrillEventId ? `/admin/calendar/${lastDrillEventId}` : undefined}
+            />
+            <StatTile
+              icon={<IconAlertTriangle />}
+              accent="warn"
+              label="EXPIRING SOON"
+              value={String(expiringSoldiers.length)}
+              valueClass={expiringSoldiers.length > 0 ? 'text-warn-ink' : undefined}
+              onClick={() => scrollToSection('upcoming-expirations')}
+            />
+            <StatTile
+              icon={<IconEvaluation />}
+              accent="warn"
+              label="NCOER DUE"
+              value={String(ncoerDueCount)}
+              valueClass={ncoerDueCount > 0 ? 'text-warn-ink' : undefined}
+              to="/admin/ncoer"
+            />
+          </div>
 
-      <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">UPCOMING EVENTS</h2>
-      <div className="mb-7 flex flex-col gap-2">
-        {upcomingEvents.map((event) => {
-          const { monthLabel, dayLabel } = monthDayLabel(event.event_date)
-          return (
-            <div key={event.id} className="flex items-center gap-3.5 rounded-xl border border-line bg-panel p-3.5">
-              <div className="flex h-[52px] w-[52px] flex-shrink-0 flex-col items-center justify-center rounded-lg bg-info-bg">
-                <div className="text-[10px] tracking-wide text-info-ink">{monthLabel}</div>
-                <div className="font-display text-lg font-semibold">{dayLabel}</div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold">{event.title}</div>
-                <div className="text-xs text-ink-muted">{formatEventDateRange(event)}</div>
-              </div>
-              <Link
-                to={`/admin/calendar/${event.id}`}
-                className="flex-shrink-0 rounded-md bg-accent px-3 py-1.5 text-[11px] font-bold tracking-wide text-accent-ink"
-              >
-                MANAGE
-              </Link>
-            </div>
-          )
-        })}
-        {upcomingEvents.length === 0 && <p className="text-sm text-ink-muted">No upcoming events scheduled.</p>}
-      </div>
-
-      <h2 id="upcoming-expirations" className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">
-        UPCOMING EXPIRATIONS
-      </h2>
-      {expiringSoldiers.length === 0 ? (
-        <p className="mb-7 py-1 text-sm text-ink-muted">Nothing expiring soon.</p>
-      ) : (
-        <div className="mb-7 flex flex-col gap-2">
-          {expiringSoldiers.map(({ soldier, etsFlag, etsDays, cacFlag, cacDays, ncoerFlag, ncoerDays }) => (
-            <Link
-              key={soldier.id}
-              to={`/admin/roster/${soldier.id}`}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-panel p-3.5 transition-colors hover:bg-surface-raised"
-            >
-              <span className="text-sm font-semibold">
-                {soldier.rank} {soldier.last_name}, {soldier.first_name}
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {etsFlag && (
-                  <span
-                    className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
-                      etsFlag === 'expired' ? 'bg-bad-bg text-bad-ink' : 'bg-warn-bg text-warn-ink'
-                    }`}
-                  >
-                    {etsFlag === 'expired' ? `ETS ${Math.abs(etsDays!)}D OVERDUE` : `ETS IN ${etsDays}D`}
-                  </span>
-                )}
-                {cacFlag && (
-                  <span
-                    className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
-                      cacFlag === 'expired' ? 'bg-bad-bg text-bad-ink' : 'bg-warn-bg text-warn-ink'
-                    }`}
-                  >
-                    {cacFlag === 'expired' ? `CAC ${Math.abs(cacDays!)}D EXPIRED` : `CAC IN ${cacDays}D`}
-                  </span>
-                )}
-                {ncoerFlag && (
-                  <span
-                    className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
-                      ncoerFlag === 'expired' ? 'bg-bad-bg text-bad-ink' : 'bg-warn-bg text-warn-ink'
-                    }`}
-                  >
-                    {ncoerFlag === 'expired' ? `NCOER ${Math.abs(ncoerDays!)}D OVERDUE` : `NCOER DUE IN ${ncoerDays}D`}
-                  </span>
-                )}
-              </div>
-            </Link>
-          ))}
+          <SectionCard title="UPCOMING EVENTS" count={upcomingEvents.length}>
+            {upcomingEvents.map((event) => {
+              const { monthLabel, dayLabel } = monthDayLabel(event.event_date)
+              return (
+                <Link
+                  key={event.id}
+                  to={`/admin/calendar/${event.id}`}
+                  className="flex items-center gap-3.5 rounded-lg p-2.5 transition-colors hover:bg-surface-raised"
+                >
+                  <div className="flex h-[46px] w-[46px] flex-shrink-0 flex-col items-center justify-center rounded-lg bg-info-bg">
+                    <div className="text-[9px] tracking-wide text-info-ink">{monthLabel}</div>
+                    <div className="font-display text-base font-semibold">{dayLabel}</div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold">{event.title}</div>
+                    <div className="text-xs text-ink-muted">{formatEventDateRange(event)}</div>
+                  </div>
+                </Link>
+              )
+            })}
+            {upcomingEvents.length === 0 && <p className="p-2.5 text-sm text-ink-muted">No upcoming events scheduled.</p>}
+          </SectionCard>
         </div>
-      )}
 
-      <h2 id="pending-edit-requests" className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">
-        PENDING EDIT REQUESTS
-      </h2>
-      {editRequests.length === 0 ? (
-        <p className="py-3 text-sm text-ink-muted">No pending requests.</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {editRequests.map((req) => (
-            <div key={req.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-panel p-3.5">
-              <div className="min-w-[180px] flex-1">
-                <div className="text-sm font-semibold">{soldierName(req.soldier_id)}</div>
-                <div className="text-xs text-ink-muted">
-                  {req.field_name}:{' '}
-                  <span className="text-ink-dim">{formatEditRequestValue(req.field_name, req.old_value)}</span>{' '}
-                  &rarr; <span className="text-ink">{formatEditRequestValue(req.field_name, req.new_value)}</span>
+        {/* Watchlist column */}
+        <div className="flex flex-col gap-6 lg:sticky lg:top-0">
+          <SectionCard title="EXPIRING SOON" count={expiringSoldiers.length} id="upcoming-expirations">
+            {expiringSoldiers.length === 0 ? (
+              <p className="p-2.5 text-sm text-ink-muted">Nothing expiring soon.</p>
+            ) : (
+              expiringSoldiers.map(({ soldier, etsFlag, etsDays, cacFlag, cacDays, ncoerFlag, ncoerDays }) => (
+                <Link
+                  key={soldier.id}
+                  to={`/admin/roster/${soldier.id}`}
+                  className="flex flex-col gap-1.5 rounded-lg p-2.5 transition-colors hover:bg-surface-raised"
+                >
+                  <span className="text-sm font-semibold">
+                    {soldier.rank} {soldier.last_name}, {soldier.first_name}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {etsFlag && (
+                      <span
+                        className={`rounded-md px-2 py-1 text-[10px] font-bold tracking-wide ${
+                          etsFlag === 'expired' ? 'bg-bad-bg text-bad-ink' : 'bg-warn-bg text-warn-ink'
+                        }`}
+                      >
+                        {etsFlag === 'expired' ? `ETS ${Math.abs(etsDays!)}D OVERDUE` : `ETS IN ${etsDays}D`}
+                      </span>
+                    )}
+                    {cacFlag && (
+                      <span
+                        className={`rounded-md px-2 py-1 text-[10px] font-bold tracking-wide ${
+                          cacFlag === 'expired' ? 'bg-bad-bg text-bad-ink' : 'bg-warn-bg text-warn-ink'
+                        }`}
+                      >
+                        {cacFlag === 'expired' ? `CAC ${Math.abs(cacDays!)}D EXPIRED` : `CAC IN ${cacDays}D`}
+                      </span>
+                    )}
+                    {ncoerFlag && (
+                      <span
+                        className={`rounded-md px-2 py-1 text-[10px] font-bold tracking-wide ${
+                          ncoerFlag === 'expired' ? 'bg-bad-bg text-bad-ink' : 'bg-warn-bg text-warn-ink'
+                        }`}
+                      >
+                        {ncoerFlag === 'expired' ? `NCOER ${Math.abs(ncoerDays!)}D OVERDUE` : `NCOER DUE IN ${ncoerDays}D`}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              ))
+            )}
+          </SectionCard>
+
+          <SectionCard title="PENDING EDIT REQUESTS" count={editRequests.length} id="pending-edit-requests">
+            {editRequests.length === 0 ? (
+              <p className="p-2.5 text-sm text-ink-muted">No pending requests.</p>
+            ) : (
+              editRequests.map((req) => (
+                <div key={req.id} className="flex flex-col gap-2.5 rounded-lg p-2.5">
+                  <div>
+                    <div className="text-sm font-semibold">{soldierName(req.soldier_id)}</div>
+                    <div className="text-xs text-ink-muted">
+                      {req.field_name}:{' '}
+                      <span className="text-ink-dim">{formatEditRequestValue(req.field_name, req.old_value)}</span>{' '}
+                      &rarr; <span className="text-ink">{formatEditRequestValue(req.field_name, req.new_value)}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleReview(req, true)}
+                      className="rounded-md bg-good-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-good-ink"
+                    >
+                      APPROVE
+                    </button>
+                    <button
+                      onClick={() => handleReview(req, false)}
+                      className="rounded-md bg-bad-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-bad-ink"
+                    >
+                      REJECT
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-shrink-0 gap-2">
-                <button
-                  onClick={() => handleReview(req, true)}
-                  className="rounded-md bg-good-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-good-ink"
-                >
-                  APPROVE
-                </button>
-                <button
-                  onClick={() => handleReview(req, false)}
-                  className="rounded-md bg-bad-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-bad-ink"
-                >
-                  REJECT
-                </button>
-              </div>
-            </div>
-          ))}
+              ))
+            )}
+          </SectionCard>
         </div>
-      )}
+      </div>
+    </div>
+  )
+}
+
+function SectionCard({
+  title,
+  count,
+  id,
+  children,
+}: {
+  title: string
+  count: number
+  id?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-line bg-panel">
+      <div className="flex items-center justify-between border-b border-line-soft px-4 py-3">
+        <h2 id={id} className="font-display text-[13px] font-semibold tracking-wide text-ink-dim">
+          {title}
+        </h2>
+        <span className="text-xs text-ink-faint">{count}</span>
+      </div>
+      <div className="flex flex-col gap-1 p-2.5">{children}</div>
     </div>
   )
 }

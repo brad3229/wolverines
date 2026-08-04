@@ -49,6 +49,12 @@
 
   --color-neutral-bg: oklch(0.29 0.02 110);
   --color-neutral-ink: oklch(0.78 0.008 110);
+
+  /* Command rail (desktop sidebar) -- deeper than any other surface so it
+     reads as a distinct navigation plane against the app's dark content. */
+  --color-rail: oklch(0.09 0.01 110);
+  --color-rail-line: oklch(0.16 0.015 110);
+  --color-rail-hover: oklch(0.14 0.015 110);
 }
 
 :root {

@@ -46,10 +46,7 @@ export function Roster() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-        <div>
-          <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">Roster</h1>
-          <p className="mt-1 text-[13px] text-ink-muted">{filtered.length} soldiers assigned</p>
-        </div>
+        <p className="text-sm font-semibold text-ink-dim">{filtered.length} soldiers assigned</p>
         <button
           onClick={() => setShowAddForm((v) => !v)}
           className="flex-shrink-0 rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink"

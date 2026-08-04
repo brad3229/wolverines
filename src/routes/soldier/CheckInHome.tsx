@@ -69,10 +69,6 @@ export function CheckInHome() {
 
   return (
     <div className="mx-auto max-w-[480px]">
-      <h1 className="mb-4 font-display text-2xl font-semibold uppercase tracking-wide sm:mb-5 sm:text-[26px]">
-        Check-In
-      </h1>
-
       {todayEvent === undefined ? (
         <LoadingScreen />
       ) : error && !todayEvent ? (
