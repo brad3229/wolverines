@@ -219,7 +219,7 @@ export function Layout({ navItems, children, mobileNav = 'tabs' }: LayoutProps) 
           {activeItem && (
             <div className="font-display text-xl font-semibold uppercase tracking-wide text-ink">{activeItem.label}</div>
           )}
-          <div className="border-l border-line pl-3.5 text-xs text-ink-muted">{todayLabel}</div>
+          <div className="border-l border-line pl-3.5 text-sm text-ink-dim">{todayLabel}</div>
           <div className="ml-auto flex items-center gap-2.5">
             <NotificationBell />
             <button
