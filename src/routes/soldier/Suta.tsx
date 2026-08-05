@@ -1,12 +1,26 @@
 import { useEffect, useState } from 'react'
 import { listDrillEvents, formatEventDateRange, EVENT_TYPE_LABEL } from '../../lib/drillEvents'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
-import { listOwnSutaRequests, submitSutaRequest } from '../../lib/sutaRequests'
+import {
+  listOwnSutaRequests,
+  submitSutaRequest,
+  SUTA_REQUEST_TYPE_LABEL,
+  SUTA_DUTY_LOCATION_LABEL,
+  SUTA_ACKNOWLEDGMENTS,
+} from '../../lib/sutaRequests'
 import { formatDate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
-import type { DrillEvent, MakeupStatus, Soldier, SutaRequest, SutaStatus } from '../../types/database'
+import type {
+  DrillEvent,
+  MakeupStatus,
+  Soldier,
+  SutaDutyLocation,
+  SutaRequest,
+  SutaRequestType,
+  SutaStatus,
+} from '../../types/database'
 
 const STATUS_BADGE: Record<SutaStatus, { label: string; className: string }> = {
   pending: { label: 'PENDING', className: 'bg-warn-bg text-warn-ink' },
@@ -27,8 +41,11 @@ export function Suta() {
   const [requests, setRequests] = useState<SutaRequest[]>([])
   const [showForm, setShowForm] = useState(false)
   const [eventId, setEventId] = useState('')
+  const [requestType, setRequestType] = useState<SutaRequestType | ''>('')
   const [reason, setReason] = useState('')
   const [makeupDate, setMakeupDate] = useState('')
+  const [dutyLocation, setDutyLocation] = useState<SutaDutyLocation | ''>('')
+  const [showAckModal, setShowAckModal] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -79,8 +96,20 @@ export function Suta() {
     return e ? `${e.title} — ${formatEventDateRange(e)}` : 'Unknown event'
   }
 
-  async function handleSubmit() {
-    if (!soldier || !eventId || !reason.trim()) return
+  async function handleDownload(request: SutaRequest) {
+    const event = events.find((e) => e.id === request.drill_event_id)
+    if (!soldier || !event) return
+    try {
+      const { fillSutaCertificate, downloadPdf } = await import('../../lib/pdfForms')
+      const bytes = await fillSutaCertificate(soldier, request, event)
+      downloadPdf(bytes, `SUTA-${soldier.last_name}-${soldier.first_name}.pdf`)
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to generate form'))
+    }
+  }
+
+  async function handleConfirmedSubmit() {
+    if (!soldier || !eventId || !requestType || !reason.trim()) return
     setSubmitting(true)
     setError(null)
     try {
@@ -88,12 +117,17 @@ export function Suta() {
         soldierId: soldier.id,
         drillEventId: eventId,
         reason: reason.trim(),
+        requestType,
         requestedMakeupDate: makeupDate || null,
+        dutyLocation: dutyLocation || null,
       })
+      setShowAckModal(false)
       setShowForm(false)
       setEventId('')
+      setRequestType('')
       setReason('')
       setMakeupDate('')
+      setDutyLocation('')
       refresh()
     } catch (err) {
       setError(errorMessage(err, 'Failed to submit request'))
@@ -137,6 +171,23 @@ export function Suta() {
             </select>
           </div>
           <div>
+            <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">REQUEST TYPE</label>
+            <select
+              value={requestType}
+              onChange={(e) => setRequestType(e.target.value as SutaRequestType)}
+              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+            >
+              <option value="" disabled>
+                Select request type
+              </option>
+              {(Object.keys(SUTA_REQUEST_TYPE_LABEL) as SutaRequestType[]).map((t) => (
+                <option key={t} value={t}>
+                  {SUTA_REQUEST_TYPE_LABEL[t]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">REASON</label>
             <textarea
               rows={3}
@@ -160,15 +211,70 @@ export function Suta() {
               Leave this blank if you don&rsquo;t know yet — you can let your chain of command know later.
             </p>
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
+              LOCATION DUTY WILL BE PERFORMED (OPTIONAL)
+            </label>
+            <select
+              value={dutyLocation}
+              onChange={(e) => setDutyLocation(e.target.value as SutaDutyLocation)}
+              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+            >
+              <option value="">Not sure yet</option>
+              {(Object.keys(SUTA_DUTY_LOCATION_LABEL) as SutaDutyLocation[]).map((loc) => (
+                <option key={loc} value={loc}>
+                  {SUTA_DUTY_LOCATION_LABEL[loc]}
+                </option>
+              ))}
+            </select>
+          </div>
           {error && <p className="text-sm text-bad-ink">{error}</p>}
           <div>
             <button
-              disabled={submitting || !eventId || !reason.trim()}
-              onClick={handleSubmit}
+              disabled={!eventId || !requestType || !reason.trim()}
+              onClick={() => setShowAckModal(true)}
               className="rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
             >
-              {submitting ? 'SUBMITTING...' : 'SUBMIT REQUEST'}
+              SUBMIT REQUEST
             </button>
+          </div>
+        </div>
+      )}
+
+      {showAckModal && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowAckModal(false)}
+        >
+          <div
+            className="flex w-full max-w-md max-h-[85vh] flex-col gap-3 overflow-y-auto rounded-xl border border-line bg-panel p-4 shadow-lg sm:p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-semibold">Before you submit, please confirm you understand:</div>
+            <ul className="flex flex-col gap-2 text-xs text-ink-dim">
+              {SUTA_ACKNOWLEDGMENTS.map((text, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="flex-shrink-0 text-ink-faint">{i + 1}.</span>
+                  <span>{text}</span>
+                </li>
+              ))}
+            </ul>
+            {error && <p className="text-sm text-bad-ink">{error}</p>}
+            <div className="flex gap-2">
+              <button
+                disabled={submitting}
+                onClick={handleConfirmedSubmit}
+                className="rounded-md bg-accent px-3.5 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
+              >
+                {submitting ? 'SUBMITTING...' : 'I ACKNOWLEDGE & SUBMIT'}
+              </button>
+              <button
+                onClick={() => setShowAckModal(false)}
+                className="rounded-md bg-neutral-bg px-3.5 py-2 text-xs font-bold tracking-wide text-neutral-ink"
+              >
+                CANCEL
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -186,6 +292,12 @@ export function Suta() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-[180px] flex-1">
                     <div className="text-sm font-semibold">{eventLabel(r.drill_event_id)}</div>
+                    {r.request_type && (
+                      <div className="text-xs text-ink-muted">{SUTA_REQUEST_TYPE_LABEL[r.request_type]}</div>
+                    )}
+                    {r.duty_location && (
+                      <div className="text-xs text-ink-muted">{SUTA_DUTY_LOCATION_LABEL[r.duty_location]}</div>
+                    )}
                     <div className="mt-0.5 text-xs italic text-ink-muted">&ldquo;{r.reason}&rdquo;</div>
                     {r.makeup_status === 'pending' && r.requested_makeup_date && (
                       <div className="mt-1 text-xs text-ink-dim">
@@ -197,6 +309,12 @@ export function Suta() {
                     )}
                   </div>
                   <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
+                    <button
+                      onClick={() => handleDownload(r)}
+                      className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
+                    >
+                      DOWNLOAD FORM
+                    </button>
                     <span
                       className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${STATUS_BADGE[r.status].className}`}
                     >

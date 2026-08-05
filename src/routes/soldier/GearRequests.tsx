@@ -1,18 +1,10 @@
 import { useEffect, useState } from 'react'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
-import { listOwnGearRequests, submitGearRequest } from '../../lib/gearRequests'
+import { listOwnGearRequests, submitGearRequest, GEAR_CATEGORY_LABEL as CATEGORY_LABEL } from '../../lib/gearRequests'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import type { GearRequest, GearRequestCategory, GearRequestStatus, Soldier } from '../../types/database'
-
-const CATEGORY_LABEL: Record<GearRequestCategory, string> = {
-  initial_issue: 'Initial Issue (New Soldier)',
-  missing_lost: 'Missing / Lost',
-  damaged: 'Damaged / Worn Out',
-  wrong_size: 'Wrong Size',
-  other: 'Other',
-}
 
 const STATUS_BADGE: Record<GearRequestStatus, { label: string; className: string }> = {
   open: { label: 'OPEN', className: 'bg-warn-bg text-warn-ink' },
@@ -66,6 +58,17 @@ export function GearRequests() {
         </div>
       </div>
     )
+  }
+
+  async function handleDownload(request: GearRequest) {
+    if (!soldier) return
+    try {
+      const { fillCcdfOrderForm, downloadPdf } = await import('../../lib/pdfForms')
+      const bytes = await fillCcdfOrderForm(soldier, request)
+      downloadPdf(bytes, `CCDF-${soldier.last_name}-${soldier.first_name}.pdf`)
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to generate form'))
+    }
   }
 
   async function handleSubmit() {
@@ -154,11 +157,19 @@ export function GearRequests() {
                     <div className="mt-1 text-xs text-ink-dim">Resolution: {r.resolution_notes}</div>
                   )}
                 </div>
-                <span
-                  className={`flex-shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${STATUS_BADGE[r.status].className}`}
-                >
-                  {STATUS_BADGE[r.status].label}
-                </span>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <button
+                    onClick={() => handleDownload(r)}
+                    className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    DOWNLOAD FORM
+                  </button>
+                  <span
+                    className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${STATUS_BADGE[r.status].className}`}
+                  >
+                    {STATUS_BADGE[r.status].label}
+                  </span>
+                </div>
               </div>
             </div>
           ))}

@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { listSoldiers } from '../../lib/soldiers'
 import { listDrillEvents, formatEventDateRange } from '../../lib/drillEvents'
-import { listSutaRequests, reviewSutaRequest, markMakeupComplete } from '../../lib/sutaRequests'
+import {
+  listSutaRequests,
+  reviewSutaRequest,
+  markMakeupComplete,
+  SUTA_REQUEST_TYPE_LABEL,
+  SUTA_DUTY_LOCATION_LABEL,
+} from '../../lib/sutaRequests'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
@@ -43,6 +49,19 @@ export function Suta() {
   const eventLabel = (id: string) => {
     const e = events.find((e) => e.id === id)
     return e ? `${e.title} — ${formatEventDateRange(e)}` : 'Unknown event'
+  }
+
+  async function handleDownload(request: SutaRequest) {
+    const soldier = soldiers.find((s) => s.id === request.soldier_id)
+    const event = events.find((e) => e.id === request.drill_event_id)
+    if (!soldier || !event) return
+    try {
+      const { fillSutaCertificate, downloadPdf } = await import('../../lib/pdfForms')
+      const bytes = await fillSutaCertificate(soldier, request, event)
+      downloadPdf(bytes, `SUTA-${soldier.last_name}-${soldier.first_name}.pdf`)
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to generate form'))
+    }
   }
 
   async function handleReview(request: SutaRequest, approve: boolean) {
@@ -107,12 +126,24 @@ export function Suta() {
                 <div className="min-w-[200px] flex-1">
                   <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
                   <div className="text-xs text-ink-muted">{eventLabel(r.drill_event_id)}</div>
+                  {r.request_type && (
+                    <div className="text-xs text-ink-muted">{SUTA_REQUEST_TYPE_LABEL[r.request_type]}</div>
+                  )}
+                  {r.duty_location && (
+                    <div className="text-xs text-ink-muted">{SUTA_DUTY_LOCATION_LABEL[r.duty_location]}</div>
+                  )}
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.reason}&rdquo;</div>
                   <div className="mt-1 text-xs text-ink-dim">
                     Planned make-up: {r.requested_makeup_date ? formatDate(r.requested_makeup_date) : 'Not sure yet'}
                   </div>
                 </div>
                 <div className="flex flex-shrink-0 gap-2">
+                  <button
+                    onClick={() => handleDownload(r)}
+                    className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    DOWNLOAD FORM
+                  </button>
                   <button
                     onClick={() => handleReview(r, true)}
                     className="rounded-md bg-good-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-good-ink"
@@ -139,19 +170,27 @@ export function Suta() {
         <div className="mb-7 flex flex-col gap-2">
           {awaitingMakeup.map((r) => (
             <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5">
-              <div className="mb-2.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</span>
-                  {isOverdue(r) && (
-                    <span className="rounded-md bg-bad-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-bad-ink">
-                      OVERDUE
-                    </span>
-                  )}
+              <div className="mb-2.5 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</span>
+                    {isOverdue(r) && (
+                      <span className="rounded-md bg-bad-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-bad-ink">
+                        OVERDUE
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-ink-muted">Missed: {eventLabel(r.drill_event_id)}</div>
+                  <div className="mt-0.5 text-xs text-ink-dim">
+                    Planned make-up: {r.requested_makeup_date ? formatDate(r.requested_makeup_date) : 'Not sure yet'}
+                  </div>
                 </div>
-                <div className="text-xs text-ink-muted">Missed: {eventLabel(r.drill_event_id)}</div>
-                <div className="mt-0.5 text-xs text-ink-dim">
-                  Planned make-up: {r.requested_makeup_date ? formatDate(r.requested_makeup_date) : 'Not sure yet'}
-                </div>
+                <button
+                  onClick={() => handleDownload(r)}
+                  className="flex-shrink-0 rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
+                >
+                  DOWNLOAD FORM
+                </button>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
@@ -185,13 +224,21 @@ export function Suta() {
                   <div className="text-xs text-ink-muted">{eventLabel(r.drill_event_id)}</div>
                   {r.makeup_notes && <div className="mt-1 text-xs text-ink-dim">Make-up: {r.makeup_notes}</div>}
                 </div>
-                <span
-                  className={`flex-shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
-                    r.status === 'denied' ? 'bg-bad-bg text-bad-ink' : 'bg-good-bg text-good-ink'
-                  }`}
-                >
-                  {r.status === 'denied' ? 'DENIED' : 'MAKE-UP COMPLETE'}
-                </span>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <button
+                    onClick={() => handleDownload(r)}
+                    className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    DOWNLOAD FORM
+                  </button>
+                  <span
+                    className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
+                      r.status === 'denied' ? 'bg-bad-bg text-bad-ink' : 'bg-good-bg text-good-ink'
+                    }`}
+                  >
+                    {r.status === 'denied' ? 'DENIED' : 'MAKE-UP COMPLETE'}
+                  </span>
+                </div>
               </div>
             </div>
           ))}

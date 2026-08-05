@@ -1,19 +1,11 @@
 import { useEffect, useState } from 'react'
 import { listSoldiers } from '../../lib/soldiers'
-import { listGearRequests, markGearRequestInProgress, resolveGearRequest } from '../../lib/gearRequests'
+import { listGearRequests, markGearRequestInProgress, resolveGearRequest, GEAR_CATEGORY_LABEL as CATEGORY_LABEL } from '../../lib/gearRequests'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
 import { LoadingScreen } from '../../components/LoadingScreen'
-import type { GearRequest, GearRequestCategory, Soldier } from '../../types/database'
-
-const CATEGORY_LABEL: Record<GearRequestCategory, string> = {
-  initial_issue: 'Initial Issue (New Soldier)',
-  missing_lost: 'Missing / Lost',
-  damaged: 'Damaged / Worn Out',
-  wrong_size: 'Wrong Size',
-  other: 'Other',
-}
+import type { GearRequest, Soldier } from '../../types/database'
 
 export function GearRequests() {
   const { session, refreshPendingCounts } = useAuth()
@@ -62,6 +54,18 @@ export function GearRequests() {
     }
   }
 
+  async function handleDownload(request: GearRequest) {
+    const soldier = soldiers.find((s) => s.id === request.soldier_id)
+    if (!soldier) return
+    try {
+      const { fillCcdfOrderForm, downloadPdf } = await import('../../lib/pdfForms')
+      const bytes = await fillCcdfOrderForm(soldier, request)
+      downloadPdf(bytes, `CCDF-${soldier.last_name}-${soldier.first_name}.pdf`)
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to generate form'))
+    }
+  }
+
   async function handleResolve(request: GearRequest) {
     if (!session) return
     try {
@@ -103,12 +107,20 @@ export function GearRequests() {
                   <div className="text-xs text-ink-muted">{CATEGORY_LABEL[r.category]}</div>
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.description}&rdquo;</div>
                 </div>
-                <button
-                  onClick={() => handleStart(r)}
-                  className="flex-shrink-0 rounded-md bg-info-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-info-ink"
-                >
-                  START WORKING
-                </button>
+                <div className="flex flex-shrink-0 gap-2">
+                  <button
+                    onClick={() => handleDownload(r)}
+                    className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    DOWNLOAD FORM
+                  </button>
+                  <button
+                    onClick={() => handleStart(r)}
+                    className="rounded-md bg-info-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-info-ink"
+                  >
+                    START WORKING
+                  </button>
+                </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
@@ -136,10 +148,18 @@ export function GearRequests() {
         <div className="mb-7 flex flex-col gap-2">
           {inProgress.map((r) => (
             <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5">
-              <div className="mb-2.5">
-                <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
-                <div className="text-xs text-ink-muted">{CATEGORY_LABEL[r.category]}</div>
-                <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.description}&rdquo;</div>
+              <div className="mb-2.5 flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-[200px] flex-1">
+                  <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                  <div className="text-xs text-ink-muted">{CATEGORY_LABEL[r.category]}</div>
+                  <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.description}&rdquo;</div>
+                </div>
+                <button
+                  onClick={() => handleDownload(r)}
+                  className="flex-shrink-0 rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
+                >
+                  DOWNLOAD FORM
+                </button>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
@@ -173,9 +193,17 @@ export function GearRequests() {
                   <div className="text-xs text-ink-muted">{CATEGORY_LABEL[r.category]}</div>
                   {r.resolution_notes && <div className="mt-1 text-xs text-ink-dim">Resolution: {r.resolution_notes}</div>}
                 </div>
-                <span className="flex-shrink-0 rounded-md bg-good-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-good-ink">
-                  RESOLVED
-                </span>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <button
+                    onClick={() => handleDownload(r)}
+                    className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    DOWNLOAD FORM
+                  </button>
+                  <span className="rounded-md bg-good-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-good-ink">
+                    RESOLVED
+                  </span>
+                </div>
               </div>
             </div>
           ))}

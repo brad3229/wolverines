@@ -18,6 +18,108 @@ const RANK_GROUPS: { label: string; ranks: string[] }[] = [
 
 const ALL_RANKS = new Set(RANK_GROUPS.flatMap((group) => group.ranks))
 
+// Official Army ACU/OCP size matrix -- 7 sizes (X-Small through 3X-Large) each
+// crossed with Short/Regular/Long. Value is the abbreviated code (e.g. "MR" for
+// Medium Regular) since that's the shorthand supply expects on the CCDF form.
+export const ACU_SIZE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'XSS', label: 'X-Small Short' },
+  { value: 'XSR', label: 'X-Small Regular' },
+  { value: 'XSL', label: 'X-Small Long' },
+  { value: 'SS', label: 'Small Short' },
+  { value: 'SR', label: 'Small Regular' },
+  { value: 'SL', label: 'Small Long' },
+  { value: 'MS', label: 'Medium Short' },
+  { value: 'MR', label: 'Medium Regular' },
+  { value: 'ML', label: 'Medium Long' },
+  { value: 'LS', label: 'Large Short' },
+  { value: 'LR', label: 'Large Regular' },
+  { value: 'LL', label: 'Large Long' },
+  { value: 'XLS', label: 'X-Large Short' },
+  { value: 'XLR', label: 'X-Large Regular' },
+  { value: 'XLL', label: 'X-Large Long' },
+  { value: '2XLS', label: '2X-Large Short' },
+  { value: '2XLR', label: '2X-Large Regular' },
+  { value: '2XLL', label: '2X-Large Long' },
+  { value: '3XLS', label: '3X-Large Short' },
+  { value: '3XLR', label: '3X-Large Regular' },
+  { value: '3XLL', label: '3X-Large Long' },
+]
+
+const SHIRT_SIZE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'XS', label: 'X-Small' },
+  { value: 'S', label: 'Small' },
+  { value: 'M', label: 'Medium' },
+  { value: 'L', label: 'Large' },
+  { value: 'XL', label: 'X-Large' },
+  { value: '2XL', label: '2X-Large' },
+  { value: '3XL', label: '3X-Large' },
+]
+
+function numberRange(start: number, end: number, step: number): number[] {
+  const out: number[] = []
+  for (let v = start; v <= end + 1e-9; v += step) out.push(Math.round(v * 1000) / 1000)
+  return out
+}
+
+const LENGTH_LABEL: Record<string, string> = { S: 'Short', R: 'Regular', L: 'Long' }
+
+// Boots / Dress shoes: whole & half U.S. sizes, Regular/Wide width.
+function shoeSizeOptions(min: number, max: number): { value: string; label: string }[] {
+  return numberRange(min, max, 0.5).flatMap((size) => [
+    { value: `${size}R`, label: `${size} Regular` },
+    { value: `${size}W`, label: `${size} Wide` },
+  ])
+}
+const BOOTS_SIZE_OPTIONS = shoeSizeOptions(4, 14)
+const DRESS_SHOES_SIZE_OPTIONS = shoeSizeOptions(4, 14)
+
+// ASU coat: chest size (even inches) x Short/Regular/Long.
+const ASU_COAT_SIZE_OPTIONS = numberRange(34, 56, 2).flatMap((chest) =>
+  (['S', 'R', 'L'] as const).map((len) => ({ value: `${chest}${len}`, label: `${chest} Chest ${LENGTH_LABEL[len]}` })),
+)
+
+// ASU pants: waist size (inches) x Short/Regular/Long.
+const ASU_PANTS_SIZE_OPTIONS = numberRange(28, 50, 1).flatMap((waist) =>
+  (['S', 'R', 'L'] as const).map((len) => ({ value: `${waist}${len}`, label: `${waist} Waist ${LENGTH_LABEL[len]}` })),
+)
+
+// ASU shirt: neck size (half inches) x sleeve length.
+const ASU_SHIRT_SIZE_OPTIONS = numberRange(14, 20, 0.5).flatMap((neck) =>
+  numberRange(32, 37, 1).map((sleeve) => ({ value: `${neck}x${sleeve}`, label: `${neck} Neck / ${sleeve} Sleeve` })),
+)
+
+// Beret / service cap: standard Army hat-size range.
+const BERET_SIZE_OPTIONS: { value: string; label: string }[] = [
+  '6 1/2', '6 5/8', '6 3/4', '6 7/8', '7', '7 1/8', '7 1/4', '7 3/8', '7 1/2', '7 5/8', '7 3/4',
+].map((size) => ({ value: size, label: size }))
+
+// Matches the CCDF Order Form's fields -- keeping these on the Soldier record
+// lets the pre-filled gear-request PDF skip asking for sizes every time.
+// Exported so Profile.tsx's self-service edit-request flow can reuse the same list.
+export const UNIFORM_SIZE_FIELDS: {
+  key: keyof SoldierFormValues
+  label: string
+  options?: { value: string; label: string }[]
+}[] = [
+  { key: 'ocp_top_size', label: 'OCP top', options: ACU_SIZE_OPTIONS },
+  { key: 'ocp_bottom_size', label: 'OCP bottom', options: ACU_SIZE_OPTIONS },
+  { key: 'tshirt_size', label: 'T-shirt', options: SHIRT_SIZE_OPTIONS },
+  { key: 'boots_size', label: 'Boots', options: BOOTS_SIZE_OPTIONS },
+  { key: 'gloves_size', label: 'Gloves', options: SHIRT_SIZE_OPTIONS },
+  { key: 'ach_size', label: 'ACH', options: SHIRT_SIZE_OPTIONS },
+  { key: 'asu_coat_size', label: 'ASU coat', options: ASU_COAT_SIZE_OPTIONS },
+  { key: 'asu_pants_size', label: 'ASU pants', options: ASU_PANTS_SIZE_OPTIONS },
+  { key: 'asu_shirt_size', label: 'ASU shirt', options: ASU_SHIRT_SIZE_OPTIONS },
+  { key: 'dress_shoes_size', label: 'Dress shoes', options: DRESS_SHOES_SIZE_OPTIONS },
+  { key: 'beret_size', label: 'Beret / service cap', options: BERET_SIZE_OPTIONS },
+  { key: 'pro_mask_size', label: 'Pro-mask', options: SHIRT_SIZE_OPTIONS },
+  { key: 'iba_iotv_size', label: 'IBA / IOTV', options: SHIRT_SIZE_OPTIONS },
+  { key: 'apfu_jacket_size', label: 'APFU jacket', options: SHIRT_SIZE_OPTIONS },
+  { key: 'apfu_pants_size', label: 'APFU pants', options: SHIRT_SIZE_OPTIONS },
+  { key: 'apfu_tshirt_size', label: 'APFU t-shirt', options: SHIRT_SIZE_OPTIONS },
+  { key: 'apfu_shorts_size', label: 'APFU shorts', options: SHIRT_SIZE_OPTIONS },
+]
+
 // Corporal and above (enlisted) are NCOs; specialists and below, warrant officers, and
 // commissioned officers are not.
 const NCO_RANKS = new Set(['CPL', 'SGT', 'SSG', 'SFC', 'MSG', '1SG', 'SGM', 'CSM', 'SMA'])
@@ -25,6 +127,7 @@ const NCO_RANKS = new Set(['CPL', 'SGT', 'SSG', 'SFC', 'MSG', '1SG', 'SGM', 'CSM
 export interface SoldierFormValues {
   first_name: string
   last_name: string
+  middle_initial: string
   rank: string
   date_of_rank: string
   dod_id: string
@@ -34,13 +137,33 @@ export interface SoldierFormValues {
   phone_number: string
   personal_email: string
   mil_email: string
-  home_address: string
+  street_address: string
+  city: string
+  state: string
+  zip_code: string
   emergency_contact_name: string
   emergency_contact_relationship: string
   emergency_contact_phone: string
   blood_type: BloodType | ''
   cac_expiration_date: string
   receives_drill_pay: boolean
+  ocp_top_size: string
+  ocp_bottom_size: string
+  tshirt_size: string
+  boots_size: string
+  gloves_size: string
+  ach_size: string
+  asu_coat_size: string
+  asu_pants_size: string
+  asu_shirt_size: string
+  dress_shoes_size: string
+  beret_size: string
+  pro_mask_size: string
+  iba_iotv_size: string
+  apfu_jacket_size: string
+  apfu_pants_size: string
+  apfu_tshirt_size: string
+  apfu_shorts_size: string
 }
 
 export function soldierFormValuesToPayload(values: SoldierFormValues): Partial<Soldier> {
@@ -52,13 +175,34 @@ export function soldierFormValuesToPayload(values: SoldierFormValues): Partial<S
     phone_number: values.phone_number || null,
     personal_email: values.personal_email || null,
     mil_email: values.mil_email || null,
-    home_address: values.home_address || null,
+    middle_initial: values.middle_initial || null,
+    street_address: values.street_address || null,
+    city: values.city || null,
+    state: values.state || null,
+    zip_code: values.zip_code || null,
     emergency_contact_name: values.emergency_contact_name || null,
     emergency_contact_relationship: values.emergency_contact_relationship || null,
     emergency_contact_phone: values.emergency_contact_phone || null,
     blood_type: values.blood_type || null,
     cac_expiration_date: values.cac_expiration_date || null,
     receives_drill_pay: values.receives_drill_pay,
+    ocp_top_size: values.ocp_top_size || null,
+    ocp_bottom_size: values.ocp_bottom_size || null,
+    tshirt_size: values.tshirt_size || null,
+    boots_size: values.boots_size || null,
+    gloves_size: values.gloves_size || null,
+    ach_size: values.ach_size || null,
+    asu_coat_size: values.asu_coat_size || null,
+    asu_pants_size: values.asu_pants_size || null,
+    asu_shirt_size: values.asu_shirt_size || null,
+    dress_shoes_size: values.dress_shoes_size || null,
+    beret_size: values.beret_size || null,
+    pro_mask_size: values.pro_mask_size || null,
+    iba_iotv_size: values.iba_iotv_size || null,
+    apfu_jacket_size: values.apfu_jacket_size || null,
+    apfu_pants_size: values.apfu_pants_size || null,
+    apfu_tshirt_size: values.apfu_tshirt_size || null,
+    apfu_shorts_size: values.apfu_shorts_size || null,
   }
 }
 
@@ -72,6 +216,7 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
   const [values, setValues] = useState<SoldierFormValues>({
     first_name: initial?.first_name ?? '',
     last_name: initial?.last_name ?? '',
+    middle_initial: initial?.middle_initial ?? '',
     rank: initial?.rank ?? '',
     date_of_rank: initial?.date_of_rank ?? '',
     dod_id: initial?.dod_id ?? '',
@@ -81,13 +226,33 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
     phone_number: initial?.phone_number ?? '',
     personal_email: initial?.personal_email ?? '',
     mil_email: initial?.mil_email ?? '',
-    home_address: initial?.home_address ?? '',
+    street_address: initial?.street_address ?? '',
+    city: initial?.city ?? '',
+    state: initial?.state ?? '',
+    zip_code: initial?.zip_code ?? '',
     emergency_contact_name: initial?.emergency_contact_name ?? '',
     emergency_contact_relationship: initial?.emergency_contact_relationship ?? '',
     emergency_contact_phone: initial?.emergency_contact_phone ?? '',
     blood_type: initial?.blood_type ?? '',
     cac_expiration_date: initial?.cac_expiration_date ?? '',
     receives_drill_pay: initial?.receives_drill_pay ?? true,
+    ocp_top_size: initial?.ocp_top_size ?? '',
+    ocp_bottom_size: initial?.ocp_bottom_size ?? '',
+    tshirt_size: initial?.tshirt_size ?? '',
+    boots_size: initial?.boots_size ?? '',
+    gloves_size: initial?.gloves_size ?? '',
+    ach_size: initial?.ach_size ?? '',
+    asu_coat_size: initial?.asu_coat_size ?? '',
+    asu_pants_size: initial?.asu_pants_size ?? '',
+    asu_shirt_size: initial?.asu_shirt_size ?? '',
+    dress_shoes_size: initial?.dress_shoes_size ?? '',
+    beret_size: initial?.beret_size ?? '',
+    pro_mask_size: initial?.pro_mask_size ?? '',
+    iba_iotv_size: initial?.iba_iotv_size ?? '',
+    apfu_jacket_size: initial?.apfu_jacket_size ?? '',
+    apfu_pants_size: initial?.apfu_pants_size ?? '',
+    apfu_tshirt_size: initial?.apfu_tshirt_size ?? '',
+    apfu_shorts_size: initial?.apfu_shorts_size ?? '',
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -132,6 +297,16 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
           required
           value={values.last_name}
           onChange={(e) => set('last_name', e.target.value)}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Middle initial</label>
+        <input
+          maxLength={1}
+          value={values.middle_initial}
+          onChange={(e) => set('middle_initial', e.target.value.toUpperCase())}
+          placeholder="Optional"
           className={inputClass}
         />
       </div>
@@ -227,13 +402,31 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
           className={inputClass}
         />
       </div>
-      <div>
-        <label className={labelClass}>Home address</label>
+      <div className="sm:col-span-2">
+        <label className={labelClass}>Street address</label>
         <input
-          value={values.home_address}
-          onChange={(e) => set('home_address', e.target.value)}
+          value={values.street_address}
+          onChange={(e) => set('street_address', e.target.value)}
           className={inputClass}
         />
+      </div>
+      <div>
+        <label className={labelClass}>City</label>
+        <input value={values.city} onChange={(e) => set('city', e.target.value)} className={inputClass} />
+      </div>
+      <div>
+        <label className={labelClass}>State</label>
+        <input
+          maxLength={2}
+          placeholder="e.g. NC"
+          value={values.state}
+          onChange={(e) => set('state', e.target.value.toUpperCase())}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Zip code</label>
+        <input value={values.zip_code} onChange={(e) => set('zip_code', e.target.value)} className={inputClass} />
       </div>
 
       <div className="sm:col-span-2 mt-2 border-t border-line pt-4">
@@ -303,6 +496,36 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
           <option value="no">No — waived (e.g. VA disability)</option>
         </select>
       </div>
+
+      <div className="sm:col-span-2 mt-2 border-t border-line pt-4">
+        <h3 className="font-display text-xs font-semibold tracking-wide text-ink-muted">UNIFORM SIZES</h3>
+        <p className="mt-1 text-xs text-ink-faint">Used to pre-fill the CCDF Order Form on gear requests.</p>
+      </div>
+      {UNIFORM_SIZE_FIELDS.map(({ key, label, options }) => (
+        <div key={key}>
+          <label className={labelClass}>{label}</label>
+          {options ? (
+            <select
+              value={values[key] as string}
+              onChange={(e) => set(key, e.target.value as SoldierFormValues[typeof key])}
+              className={inputClass}
+            >
+              <option value="">Select size</option>
+              {options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              value={values[key] as string}
+              onChange={(e) => set(key, e.target.value as SoldierFormValues[typeof key])}
+              className={inputClass}
+            />
+          )}
+        </div>
+      ))}
 
       {error && <p className="sm:col-span-2 text-sm text-bad-ink">{error}</p>}
 

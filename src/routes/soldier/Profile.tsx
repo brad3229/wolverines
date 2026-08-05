@@ -3,7 +3,7 @@ import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { submitEditRequest, listOwnEditRequests, formatEditRequestValue } from '../../lib/editRequests'
 import { flagForDate, CAC_WARNING_DAYS } from '../../lib/expirations'
 import { formatDate } from '../../lib/dates'
-import { BLOOD_TYPES } from '../../components/SoldierForm'
+import { BLOOD_TYPES, UNIFORM_SIZE_FIELDS } from '../../components/SoldierForm'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
@@ -18,11 +18,12 @@ type FieldKey =
   | 'phone_number'
   | 'personal_email'
   | 'mil_email'
-  | 'home_address'
+  | 'address'
   | 'blood_type'
   | 'cac_expiration_date'
   | 'emergency_contact'
   | 'receives_drill_pay'
+  | 'uniform_sizes'
 
 const FIELD_LABEL: Record<FieldKey, string> = {
   name: 'NAME',
@@ -33,16 +34,18 @@ const FIELD_LABEL: Record<FieldKey, string> = {
   phone_number: 'PHONE NUMBER',
   personal_email: 'PERSONAL EMAIL',
   mil_email: '.MIL EMAIL',
-  home_address: 'HOME ADDRESS',
+  address: 'ADDRESS',
   blood_type: 'BLOOD TYPE',
   cac_expiration_date: 'CAC EXPIRATION DATE',
   emergency_contact: 'EMERGENCY CONTACT',
   receives_drill_pay: 'RECEIVES DRILL PAY',
+  uniform_sizes: 'UNIFORM SIZES',
 }
 
 const RAW_FIELD_LABEL: Record<string, string> = {
   first_name: 'First name',
   last_name: 'Last name',
+  middle_initial: 'Middle initial',
   rank: 'Rank',
   dod_id: 'DoD ID',
   ets_date: 'ETS date',
@@ -50,13 +53,17 @@ const RAW_FIELD_LABEL: Record<string, string> = {
   phone_number: 'Phone number',
   personal_email: 'Personal email',
   mil_email: '.mil email',
-  home_address: 'Home address',
+  street_address: 'Street address',
+  city: 'City',
+  state: 'State',
+  zip_code: 'Zip code',
   blood_type: 'Blood type',
   cac_expiration_date: 'CAC expiration date',
   emergency_contact_name: 'Emergency contact name',
   emergency_contact_relationship: 'Emergency contact relationship',
   emergency_contact_phone: 'Emergency contact phone',
   receives_drill_pay: 'Receives drill pay',
+  ...Object.fromEntries(UNIFORM_SIZE_FIELDS.map(({ key, label }) => [key, label])),
 }
 
 const DATE_FIELDS = new Set<FieldKey>(['ets_date', 'last_ncoer_date', 'cac_expiration_date'])
@@ -68,9 +75,15 @@ export function Profile() {
   const [editingField, setEditingField] = useState<FieldKey | null>(null)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [middleInitial, setMiddleInitial] = useState('')
+  const [streetAddress, setStreetAddress] = useState('')
+  const [city, setCity] = useState('')
+  const [addrState, setAddrState] = useState('')
+  const [zipCode, setZipCode] = useState('')
   const [ecName, setEcName] = useState('')
   const [ecRelationship, setEcRelationship] = useState('')
   const [ecPhone, setEcPhone] = useState('')
+  const [sizeDrafts, setSizeDrafts] = useState<Record<string, string>>({})
   const [value, setValue] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [notLinked, setNotLinked] = useState(false)
@@ -110,10 +123,16 @@ export function Profile() {
     setEditingField(field)
     setFirstName(soldier.first_name)
     setLastName(soldier.last_name)
+    setMiddleInitial(soldier.middle_initial ?? '')
+    setStreetAddress(soldier.street_address ?? '')
+    setCity(soldier.city ?? '')
+    setAddrState(soldier.state ?? '')
+    setZipCode(soldier.zip_code ?? '')
     setEcName(soldier.emergency_contact_name ?? '')
     setEcRelationship(soldier.emergency_contact_relationship ?? '')
     setEcPhone(soldier.emergency_contact_phone ?? '')
-    if (field === 'name' || field === 'emergency_contact') {
+    setSizeDrafts(Object.fromEntries(UNIFORM_SIZE_FIELDS.map(({ key }) => [key, (soldier[key] as string) ?? ''])))
+    if (field === 'name' || field === 'emergency_contact' || field === 'uniform_sizes' || field === 'address') {
       setValue('')
     } else if (field === 'receives_drill_pay') {
       setValue(soldier.receives_drill_pay ? 'true' : 'false')
@@ -143,6 +162,47 @@ export function Profile() {
             newValue: lastName,
           })
         }
+        if (middleInitial !== (soldier.middle_initial ?? '')) {
+          await submitEditRequest({
+            soldierId: soldier.id,
+            fieldName: 'middle_initial',
+            oldValue: soldier.middle_initial,
+            newValue: middleInitial,
+          })
+        }
+      } else if (editingField === 'address') {
+        if (streetAddress !== (soldier.street_address ?? '')) {
+          await submitEditRequest({
+            soldierId: soldier.id,
+            fieldName: 'street_address',
+            oldValue: soldier.street_address,
+            newValue: streetAddress,
+          })
+        }
+        if (city !== (soldier.city ?? '')) {
+          await submitEditRequest({
+            soldierId: soldier.id,
+            fieldName: 'city',
+            oldValue: soldier.city,
+            newValue: city,
+          })
+        }
+        if (addrState !== (soldier.state ?? '')) {
+          await submitEditRequest({
+            soldierId: soldier.id,
+            fieldName: 'state',
+            oldValue: soldier.state,
+            newValue: addrState,
+          })
+        }
+        if (zipCode !== (soldier.zip_code ?? '')) {
+          await submitEditRequest({
+            soldierId: soldier.id,
+            fieldName: 'zip_code',
+            oldValue: soldier.zip_code,
+            newValue: zipCode,
+          })
+        }
       } else if (editingField === 'emergency_contact') {
         if (ecName !== (soldier.emergency_contact_name ?? '')) {
           await submitEditRequest({
@@ -168,6 +228,18 @@ export function Profile() {
             newValue: ecPhone,
           })
         }
+      } else if (editingField === 'uniform_sizes') {
+        for (const { key } of UNIFORM_SIZE_FIELDS) {
+          const draft = sizeDrafts[key] ?? ''
+          if (draft !== ((soldier[key] as string) ?? '')) {
+            await submitEditRequest({
+              soldierId: soldier.id,
+              fieldName: key,
+              oldValue: (soldier[key] as string) ?? null,
+              newValue: draft,
+            })
+          }
+        }
       } else {
         await submitEditRequest({
           soldierId: soldier.id,
@@ -189,7 +261,11 @@ export function Profile() {
   }
 
   const profileRows: { key: FieldKey; display: string; editable: boolean }[] = [
-    { key: 'name', display: `${soldier.first_name} ${soldier.last_name}`, editable: true },
+    {
+      key: 'name',
+      display: `${soldier.first_name} ${soldier.middle_initial ? soldier.middle_initial + '. ' : ''}${soldier.last_name}`,
+      editable: true,
+    },
     { key: 'rank', display: soldier.rank, editable: true },
     { key: 'dod_id', display: soldier.dod_id, editable: true },
     { key: 'ets_date', display: formatDate(soldier.ets_date), editable: true },
@@ -207,7 +283,15 @@ export function Profile() {
     { key: 'phone_number', display: soldier.phone_number ?? '—', editable: true },
     { key: 'personal_email', display: soldier.personal_email ?? '—', editable: true },
     { key: 'mil_email', display: soldier.mil_email ?? '—', editable: true },
-    { key: 'home_address', display: soldier.home_address ?? '—', editable: true },
+    {
+      key: 'address',
+      display: soldier.street_address
+        ? [soldier.street_address, [soldier.city, soldier.state].filter(Boolean).join(', '), soldier.zip_code]
+            .filter(Boolean)
+            .join(' — ')
+        : '—',
+      editable: true,
+    },
     { key: 'blood_type', display: soldier.blood_type ?? 'Unknown', editable: true },
     {
       key: 'cac_expiration_date',
@@ -294,17 +378,60 @@ export function Profile() {
         ))}
       </div>
 
+      <h2 className="mb-2.5 font-display text-sm font-semibold tracking-wide text-ink-dim">UNIFORM SIZES</h2>
+      <div className="mb-6 rounded-xl border border-line bg-panel p-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <p className="text-sm text-ink-muted">Used to pre-fill the CCDF Order Form when you request gear.</p>
+          <button
+            onClick={() => startEdit('uniform_sizes')}
+            className="flex-shrink-0 rounded-md bg-neutral-bg px-2.5 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
+          >
+            REQUEST EDIT
+          </button>
+        </div>
+      </div>
+
       {editingField && (
         <div
           className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
           onClick={() => setEditingField(null)}
         >
         <div
-          className="flex w-full max-w-sm flex-col gap-2.5 rounded-xl border border-line bg-panel p-4 shadow-lg"
+          className={`flex w-full max-h-[85vh] flex-col gap-2.5 overflow-y-auto rounded-xl border border-line bg-panel p-4 shadow-lg ${
+            editingField === 'uniform_sizes' ? 'max-w-md' : 'max-w-sm'
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-sm font-semibold">Request edit: {FIELD_LABEL[editingField]}</div>
-          {editingField === 'name' ? (
+          {editingField === 'uniform_sizes' ? (
+            <div className="grid grid-cols-2 gap-2.5">
+              {UNIFORM_SIZE_FIELDS.map(({ key, label, options }) => (
+                <div key={key}>
+                  <label className="mb-1 block text-[11px] font-semibold tracking-wide text-ink-faint">{label}</label>
+                  {options ? (
+                    <select
+                      value={sizeDrafts[key] ?? ''}
+                      onChange={(e) => setSizeDrafts((prev) => ({ ...prev, [key]: e.target.value }))}
+                      className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                    >
+                      <option value="">Select size</option>
+                      {options.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={sizeDrafts[key] ?? ''}
+                      onChange={(e) => setSizeDrafts((prev) => ({ ...prev, [key]: e.target.value }))}
+                      className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : editingField === 'name' ? (
             <>
               <input
                 value={firstName}
@@ -318,6 +445,43 @@ export function Profile() {
                 placeholder="Last name"
                 className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
               />
+              <input
+                maxLength={1}
+                value={middleInitial}
+                onChange={(e) => setMiddleInitial(e.target.value.toUpperCase())}
+                placeholder="Middle initial (optional)"
+                className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+              />
+            </>
+          ) : editingField === 'address' ? (
+            <>
+              <input
+                value={streetAddress}
+                onChange={(e) => setStreetAddress(e.target.value)}
+                placeholder="Street address"
+                className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+              />
+              <input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="City"
+                className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+              />
+              <div className="flex gap-2.5">
+                <input
+                  maxLength={2}
+                  value={addrState}
+                  onChange={(e) => setAddrState(e.target.value.toUpperCase())}
+                  placeholder="State (e.g. NC)"
+                  className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+                />
+                <input
+                  value={zipCode}
+                  onChange={(e) => setZipCode(e.target.value)}
+                  placeholder="Zip code"
+                  className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+                />
+              </div>
             </>
           ) : editingField === 'emergency_contact' ? (
             <>

@@ -1,6 +1,14 @@
 import { supabase } from './supabaseClient'
 import type { GearRequest, GearRequestCategory } from '../types/database'
 
+export const GEAR_CATEGORY_LABEL: Record<GearRequestCategory, string> = {
+  initial_issue: 'Initial Issue (New Soldier)',
+  missing_lost: 'Missing / Lost',
+  damaged: 'Damaged / Worn Out',
+  wrong_size: 'Wrong Size',
+  other: 'Other',
+}
+
 export async function listGearRequests() {
   const { data, error } = await supabase
     .from('gear_requests')

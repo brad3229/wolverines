@@ -4,6 +4,8 @@ export type EditRequestStatus = 'pending' | 'approved' | 'rejected'
 export type BloodType = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-'
 export type DrillEventType = 'drill' | 'annual_training'
 export type SutaStatus = 'pending' | 'approved' | 'denied'
+export type SutaRequestType = 'suta_before' | 'suta_after' | 'rma' | 'present_at_alt_location' | 'authorized_absence'
+export type SutaDutyLocation = 'jacksonville' | 'wilmington' | 'lumberton' | 'fayetteville'
 export type MakeupStatus = 'not_required' | 'pending' | 'completed'
 export type PayIssueCategory =
   | 'missing_pay'
@@ -28,6 +30,7 @@ export interface Soldier {
   profile_id: string | null
   first_name: string
   last_name: string
+  middle_initial: string | null
   rank: string
   date_of_rank: string
   dod_id: string
@@ -38,13 +41,33 @@ export interface Soldier {
   phone_number: string | null
   personal_email: string | null
   mil_email: string | null
-  home_address: string | null
+  street_address: string | null
+  city: string | null
+  state: string | null
+  zip_code: string | null
   emergency_contact_name: string | null
   emergency_contact_relationship: string | null
   emergency_contact_phone: string | null
   blood_type: BloodType | null
   cac_expiration_date: string | null
   receives_drill_pay: boolean
+  ocp_top_size: string | null
+  ocp_bottom_size: string | null
+  tshirt_size: string | null
+  boots_size: string | null
+  gloves_size: string | null
+  ach_size: string | null
+  asu_coat_size: string | null
+  asu_pants_size: string | null
+  asu_shirt_size: string | null
+  dress_shoes_size: string | null
+  beret_size: string | null
+  pro_mask_size: string | null
+  iba_iotv_size: string | null
+  apfu_jacket_size: string | null
+  apfu_pants_size: string | null
+  apfu_tshirt_size: string | null
+  apfu_shorts_size: string | null
   created_at: string
   updated_at: string
 }
@@ -92,6 +115,7 @@ export interface SutaRequest {
   soldier_id: string
   drill_event_id: string
   reason: string
+  request_type: SutaRequestType | null
   status: SutaStatus
   requested_at: string
   reviewed_by: string | null
@@ -100,6 +124,8 @@ export interface SutaRequest {
   makeup_notes: string | null
   makeup_completed_at: string | null
   requested_makeup_date: string | null
+  acknowledged_at: string | null
+  duty_location: SutaDutyLocation | null
 }
 
 export interface PayIssue {
