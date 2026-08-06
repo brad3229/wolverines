@@ -5,11 +5,11 @@ import {
   listOwnSutaRequests,
   submitSutaRequest,
   resubmitSutaRequest,
+  formatMakeupDateRange,
   SUTA_REQUEST_TYPE_LABEL,
   SUTA_DUTY_LOCATION_LABEL,
   SUTA_ACKNOWLEDGMENTS,
 } from '../../lib/sutaRequests'
-import { formatDate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
@@ -46,7 +46,9 @@ export function Suta() {
   const [requestType, setRequestType] = useState<SutaRequestType | ''>('')
   const [reason, setReason] = useState('')
   const [makeupDate, setMakeupDate] = useState('')
+  const [makeupEndDate, setMakeupEndDate] = useState('')
   const [dutyLocation, setDutyLocation] = useState<SutaDutyLocation | ''>('')
+  const [signatureName, setSignatureName] = useState('')
   const [ackMode, setAckMode] = useState<'submit' | 'resubmit' | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,6 +62,7 @@ export function Suta() {
   const [editRequestType, setEditRequestType] = useState<SutaRequestType | ''>('')
   const [editReason, setEditReason] = useState('')
   const [editMakeupDate, setEditMakeupDate] = useState('')
+  const [editMakeupEndDate, setEditMakeupEndDate] = useState('')
   const [editDutyLocation, setEditDutyLocation] = useState<SutaDutyLocation | ''>('')
 
   async function refresh() {
@@ -107,6 +110,12 @@ export function Suta() {
     const e = events.find((e) => e.id === id)
     return e ? `${e.title} — ${formatEventDateRange(e)}` : 'Unknown event'
   }
+  const defaultSignatureName = `${soldier.first_name} ${soldier.middle_initial ? soldier.middle_initial + '. ' : ''}${soldier.last_name}`
+
+  function openAckModal(mode: 'submit' | 'resubmit') {
+    setSignatureName((prev) => prev || defaultSignatureName)
+    setAckMode(mode)
+  }
 
   async function handlePreview(request: SutaRequest) {
     const event = events.find((e) => e.id === request.drill_event_id)
@@ -121,7 +130,7 @@ export function Suta() {
   }
 
   async function handleConfirmedSubmit() {
-    if (!soldier || !eventId || !requestType || !reason.trim()) return
+    if (!soldier || !eventId || !requestType || !reason.trim() || !signatureName.trim()) return
     setSubmitting(true)
     setError(null)
     try {
@@ -131,7 +140,9 @@ export function Suta() {
         reason: reason.trim(),
         requestType,
         requestedMakeupDate: makeupDate || null,
+        requestedMakeupEndDate: makeupEndDate || null,
         dutyLocation: dutyLocation || null,
+        signatureName: signatureName.trim(),
       })
       setAckMode(null)
       setShowForm(false)
@@ -139,7 +150,9 @@ export function Suta() {
       setRequestType('')
       setReason('')
       setMakeupDate('')
+      setMakeupEndDate('')
       setDutyLocation('')
+      setSignatureName('')
       refresh()
     } catch (err) {
       setError(errorMessage(err, 'Failed to submit request'))
@@ -154,11 +167,12 @@ export function Suta() {
     setEditRequestType(request.request_type ?? '')
     setEditReason(request.reason)
     setEditMakeupDate(request.requested_makeup_date ?? '')
+    setEditMakeupEndDate(request.requested_makeup_end_date ?? '')
     setEditDutyLocation(request.duty_location ?? '')
   }
 
   async function handleConfirmedResubmit() {
-    if (!editingId || !editEventId || !editRequestType || !editReason.trim()) return
+    if (!editingId || !editEventId || !editRequestType || !editReason.trim() || !signatureName.trim()) return
     setSubmitting(true)
     setError(null)
     try {
@@ -168,10 +182,13 @@ export function Suta() {
         reason: editReason.trim(),
         requestType: editRequestType,
         requestedMakeupDate: editMakeupDate || null,
+        requestedMakeupEndDate: editMakeupEndDate || null,
         dutyLocation: editDutyLocation || null,
+        signatureName: signatureName.trim(),
       })
       setAckMode(null)
       setEditingId(null)
+      setSignatureName('')
       refresh()
     } catch (err) {
       setError(errorMessage(err, 'Failed to resubmit request'))
@@ -245,14 +262,29 @@ export function Suta() {
             <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
               PLANNED MAKE-UP DATE (OPTIONAL)
             </label>
-            <input
-              type="date"
-              value={makeupDate}
-              onChange={(e) => setMakeupDate(e.target.value)}
-              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={makeupDate}
+                onChange={(e) => {
+                  setMakeupDate(e.target.value)
+                  if (makeupEndDate && makeupEndDate < e.target.value) setMakeupEndDate(e.target.value)
+                }}
+                className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+              />
+              <span className="flex-shrink-0 text-xs text-ink-muted">to</span>
+              <input
+                type="date"
+                value={makeupEndDate}
+                min={makeupDate || undefined}
+                disabled={!makeupDate}
+                onChange={(e) => setMakeupEndDate(e.target.value)}
+                className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none disabled:opacity-50"
+              />
+            </div>
             <p className="mt-1 text-xs text-ink-muted">
-              Leave this blank if you don&rsquo;t know yet — you can let your chain of command know later.
+              Leave blank if you don&rsquo;t know yet — you can let your chain of command know later. Leave the end
+              date blank if it&rsquo;s a single day.
             </p>
           </div>
           <div>
@@ -276,7 +308,7 @@ export function Suta() {
           <div>
             <button
               disabled={!eventId || !requestType || !reason.trim()}
-              onClick={() => setAckMode('submit')}
+              onClick={() => openAckModal('submit')}
               className="rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
             >
               SUBMIT REQUEST
@@ -303,10 +335,24 @@ export function Suta() {
                 </li>
               ))}
             </ul>
+            <div>
+              <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
+                TYPE YOUR NAME TO SIGN
+              </label>
+              <input
+                value={signatureName}
+                onChange={(e) => setSignatureName(e.target.value)}
+                placeholder="Full name"
+                className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-ink-muted">
+                This is stamped onto the form as your signature (block 9) when you generate it.
+              </p>
+            </div>
             {error && <p className="text-sm text-bad-ink">{error}</p>}
             <div className="flex gap-2">
               <button
-                disabled={submitting}
+                disabled={submitting || !signatureName.trim()}
                 onClick={ackMode === 'submit' ? handleConfirmedSubmit : handleConfirmedResubmit}
                 className="rounded-md bg-accent px-3.5 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
               >
@@ -330,7 +376,8 @@ export function Suta() {
         <div className="flex flex-col gap-2">
           {requests.map((r) => {
             const makeupBadge = MAKEUP_BADGE[r.makeup_status]
-            const isOverdue = r.makeup_status === 'pending' && !!r.requested_makeup_date && r.requested_makeup_date < today
+            const makeupCutoff = r.requested_makeup_end_date || r.requested_makeup_date
+            const isOverdue = r.makeup_status === 'pending' && !!makeupCutoff && makeupCutoff < today
             return (
               <div
                 key={r.id}
@@ -349,9 +396,7 @@ export function Suta() {
                     )}
                     <div className="mt-0.5 text-xs italic text-ink-muted">&ldquo;{r.reason}&rdquo;</div>
                     {r.makeup_status === 'pending' && r.requested_makeup_date && (
-                      <div className="mt-1 text-xs text-ink-dim">
-                        Planned make-up: {formatDate(r.requested_makeup_date)}
-                      </div>
+                      <div className="mt-1 text-xs text-ink-dim">Planned make-up: {formatMakeupDateRange(r)}</div>
                     )}
                     {r.makeup_status === 'completed' && r.makeup_notes && (
                       <div className="mt-1 text-xs text-ink-dim">Make-up: {r.makeup_notes}</div>
@@ -425,12 +470,26 @@ export function Suta() {
                           <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
                             PLANNED MAKE-UP DATE (OPTIONAL)
                           </label>
-                          <input
-                            type="date"
-                            value={editMakeupDate}
-                            onChange={(e) => setEditMakeupDate(e.target.value)}
-                            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
-                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="date"
+                              value={editMakeupDate}
+                              onChange={(e) => {
+                                setEditMakeupDate(e.target.value)
+                                if (editMakeupEndDate && editMakeupEndDate < e.target.value) setEditMakeupEndDate(e.target.value)
+                              }}
+                              className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                            />
+                            <span className="flex-shrink-0 text-xs text-ink-muted">to</span>
+                            <input
+                              type="date"
+                              value={editMakeupEndDate}
+                              min={editMakeupDate || undefined}
+                              disabled={!editMakeupDate}
+                              onChange={(e) => setEditMakeupEndDate(e.target.value)}
+                              className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none disabled:opacity-50"
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
@@ -452,7 +511,7 @@ export function Suta() {
                         <div className="flex gap-2">
                           <button
                             disabled={!editEventId || !editRequestType || !editReason.trim()}
-                            onClick={() => setAckMode('resubmit')}
+                            onClick={() => openAckModal('resubmit')}
                             className="rounded-md bg-accent px-3.5 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
                           >
                             RESUBMIT

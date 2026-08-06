@@ -1,7 +1,7 @@
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import type { PDFForm } from 'pdf-lib'
 import { GEAR_CATEGORY_LABEL } from './gearRequests'
-import { SUTA_REQUEST_TYPE_LABEL, SUTA_DUTY_LOCATION_LABEL, SUTA_DUTY_LOCATION_CITY } from './sutaRequests'
+import { SUTA_REQUEST_TYPE_LABEL, SUTA_DUTY_LOCATION_LABEL, SUTA_DUTY_LOCATION_ADDRESS } from './sutaRequests'
 import type { DrillEvent, GearRequest, Soldier, SutaRequest, SutaRequestType } from '../types/database'
 
 // Maps a SUTA request type to the export value of its radio widget on
@@ -56,6 +56,26 @@ function soldierInitials(soldier: Soldier): string {
   return `${first}${mid}${last}`
 }
 
+// The SUTA template's own signature blocks are real PDF digital-signature
+// widgets (not text fields), which pdf-lib can't fill through the normal
+// form-field API -- this draws the typed name directly onto the page at the
+// widget's position instead. A visual stamp, not a cryptographic signature.
+async function stampSignature(pdf: PDFDocument, form: PDFForm, fieldName: string, text: string) {
+  const field = form.getField(fieldName)
+  const widget = field.acroField.getWidgets()[0]
+  if (!widget) return
+  const rect = widget.getRectangle()
+  const font = await pdf.embedFont(StandardFonts.TimesRomanItalic)
+  const fontSize = Math.min(rect.height * 0.55, 16)
+  pdf.getPages()[0].drawText(text, {
+    x: rect.x + 4,
+    y: rect.y + rect.height * 0.28,
+    size: fontSize,
+    font,
+    color: rgb(0.1, 0.1, 0.35),
+  })
+}
+
 export async function fillCcdfOrderForm(soldier: Soldier, request: GearRequest): Promise<Uint8Array> {
   const pdf = await loadTemplate('forms/ccdf-order-form.pdf')
   const form = pdf.getForm()
@@ -101,7 +121,7 @@ export async function fillSutaCertificate(soldier: Soldier, request: SutaRequest
   form.getTextField('IDTE').setText(mmddyyyy(event.end_date))
   if (request.requested_makeup_date) {
     form.getTextField('DDS').setText(mmddyyyy(request.requested_makeup_date))
-    form.getTextField('DDE').setText(mmddyyyy(request.requested_makeup_date))
+    form.getTextField('DDE').setText(mmddyyyy(request.requested_makeup_end_date || request.requested_makeup_date))
   }
   form.getTextField('DUTY').setText(
     `${event.title} (${mmddyyyy(event.event_date)}) -- ${SUTA_REQUEST_TYPE_LABEL[request.request_type ?? 'suta_before']}: ${request.reason}`,
@@ -118,10 +138,10 @@ export async function fillSutaCertificate(soldier: Soldier, request: SutaRequest
   }
 
   if (request.duty_location) {
+    const address = SUTA_DUTY_LOCATION_ADDRESS[request.duty_location]
     form.getTextField('UNIT').setText(SUTA_DUTY_LOCATION_LABEL[request.duty_location])
-    // Street address isn't captured (not reliably known), so this only ever
-    // carries city + state, never a fabricated street/zip.
-    form.getTextField('CITY ST ZIP').setText(`${SUTA_DUTY_LOCATION_CITY[request.duty_location]}, NC`)
+    form.getTextField('ADDRESS').setText(address.street)
+    form.getTextField('CITY ST ZIP').setText(`${address.city}, NC ${address.zip}`)
   }
 
   // Only written when the Soldier went through the in-app Section 8
@@ -132,6 +152,14 @@ export async function fillSutaCertificate(soldier: Soldier, request: SutaRequest
     for (let i = 1; i <= 11; i++) {
       form.getTextField(`INI${i}`).setText(initials)
     }
+  }
+
+  // "Signature5" is block 9 (the Soldier's own signature) despite the name --
+  // the template's internal field numbering doesn't match the visual layout;
+  // verified by matching each Signature widget's position against its
+  // neighboring name/date field.
+  if (request.signature_name) {
+    await stampSignature(pdf, form, 'Signature5', request.signature_name)
   }
 
   form.updateFieldAppearances()

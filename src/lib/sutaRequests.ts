@@ -1,5 +1,14 @@
 import { supabase } from './supabaseClient'
+import { formatDate } from './dates'
 import type { SutaRequest, SutaRequestType, SutaDutyLocation } from '../types/database'
+
+export function formatMakeupDateRange(request: Pick<SutaRequest, 'requested_makeup_date' | 'requested_makeup_end_date'>) {
+  if (!request.requested_makeup_date) return null
+  if (!request.requested_makeup_end_date || request.requested_makeup_end_date === request.requested_makeup_date) {
+    return formatDate(request.requested_makeup_date)
+  }
+  return `${formatDate(request.requested_makeup_date)} – ${formatDate(request.requested_makeup_end_date)}`
+}
 
 // Matches the 5 radio choices on NC ARNG Form 350-2R (the official SUTA
 // certificate) -- also used to select the matching choice when generating
@@ -13,8 +22,7 @@ export const SUTA_REQUEST_TYPE_LABEL: Record<SutaRequestType, string> = {
 }
 
 // Armories available for "location duty to be performed" -- maps onto the
-// SUTA certificate's UNIT / CITY, STATE fields. Street address isn't filled
-// in since it isn't reliably known here; see fillSutaCertificate.
+// SUTA certificate's UNIT / ADDRESS / CITY, STATE ZIP fields; see fillSutaCertificate.
 export const SUTA_DUTY_LOCATION_LABEL: Record<SutaDutyLocation, string> = {
   jacksonville: 'Jacksonville, NC Armory',
   wilmington: 'Wilmington, NC Armory',
@@ -22,11 +30,11 @@ export const SUTA_DUTY_LOCATION_LABEL: Record<SutaDutyLocation, string> = {
   fayetteville: 'Fayetteville, NC Armory',
 }
 
-export const SUTA_DUTY_LOCATION_CITY: Record<SutaDutyLocation, string> = {
-  jacksonville: 'Jacksonville',
-  wilmington: 'Wilmington',
-  lumberton: 'Lumberton',
-  fayetteville: 'Fayetteville',
+export const SUTA_DUTY_LOCATION_ADDRESS: Record<SutaDutyLocation, { street: string; city: string; zip: string }> = {
+  jacksonville: { street: '142 Broadhurst Rd', city: 'Jacksonville', zip: '28540' },
+  wilmington: { street: '2412 Infantry Rd', city: 'Wilmington', zip: '28405' },
+  lumberton: { street: '4502 Fayetteville Rd', city: 'Lumberton', zip: '28358' },
+  fayetteville: { street: '3555 Owen Dr', city: 'Fayetteville', zip: '28306' },
 }
 
 // The 11 acknowledgment statements from Section 8 of NC ARNG Form 350-2R --
@@ -72,7 +80,9 @@ export async function submitSutaRequest(params: {
   reason: string
   requestType: SutaRequestType
   requestedMakeupDate?: string | null
+  requestedMakeupEndDate?: string | null
   dutyLocation?: SutaDutyLocation | null
+  signatureName: string
 }) {
   const { data, error } = await supabase
     .from('suta_requests')
@@ -83,10 +93,12 @@ export async function submitSutaRequest(params: {
       request_type: params.requestType,
       status: 'pending',
       requested_makeup_date: params.requestedMakeupDate || null,
+      requested_makeup_end_date: params.requestedMakeupDate ? params.requestedMakeupEndDate || null : null,
       duty_location: params.dutyLocation || null,
       // Only ever called after the Soldier confirms the Section 8 acknowledgment
-      // popup, so it's safe to stamp this at submit time.
+      // popup, so it's safe to stamp these at submit time.
       acknowledged_at: new Date().toISOString(),
+      signature_name: params.signatureName,
     })
     .select()
     .single()
@@ -130,7 +142,9 @@ export async function resubmitSutaRequest(params: {
   reason: string
   requestType: SutaRequestType
   requestedMakeupDate?: string | null
+  requestedMakeupEndDate?: string | null
   dutyLocation?: SutaDutyLocation | null
+  signatureName: string
 }) {
   const { data, error } = await supabase
     .from('suta_requests')
@@ -139,10 +153,12 @@ export async function resubmitSutaRequest(params: {
       reason: params.reason,
       request_type: params.requestType,
       requested_makeup_date: params.requestedMakeupDate || null,
+      requested_makeup_end_date: params.requestedMakeupDate ? params.requestedMakeupEndDate || null : null,
       duty_location: params.dutyLocation || null,
       status: 'pending',
       correction_notes: null,
       acknowledged_at: new Date().toISOString(),
+      signature_name: params.signatureName,
     })
     .eq('id', params.id)
     .select()

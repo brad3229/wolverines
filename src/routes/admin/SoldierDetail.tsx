@@ -76,6 +76,9 @@ export function SoldierDetail() {
   const [confirmingRoleChange, setConfirmingRoleChange] = useState(false)
   const [roleChangeLoading, setRoleChangeLoading] = useState(false)
   const [roleChangeError, setRoleChangeError] = useState<string | null>(null)
+  const [confirmingSelfLink, setConfirmingSelfLink] = useState(false)
+  const [selfLinkLoading, setSelfLinkLoading] = useState(false)
+  const [selfLinkError, setSelfLinkError] = useState<string | null>(null)
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceHistoryEntry[] | null>(null)
   const [attendanceRate, setAttendanceRate] = useState<number | null>(null)
   const [readiness, setReadiness] = useState<ReadinessSnapshot | null>(null)
@@ -125,6 +128,21 @@ export function SoldierDetail() {
     }
   }
 
+  async function handleLinkToMyAccount() {
+    if (!id || !session) return
+    setSelfLinkLoading(true)
+    setSelfLinkError(null)
+    try {
+      await updateSoldier(id, { profile_id: session.user.id })
+      setConfirmingSelfLink(false)
+      refresh()
+    } catch (err) {
+      setSelfLinkError(errorMessage(err, 'Failed to link account'))
+    } finally {
+      setSelfLinkLoading(false)
+    }
+  }
+
   async function handleRoleChange(role: UserRole) {
     if (!soldier?.profile_id) return
     setRoleChangeLoading(true)
@@ -161,6 +179,11 @@ export function SoldierDetail() {
       setLoadError(errorMessage(err, 'Failed to review request'))
     }
   }
+
+  const sessionEmail = session?.user.email?.toLowerCase()
+  const isOwnEmail =
+    !!sessionEmail &&
+    (soldier.personal_email?.toLowerCase() === sessionEmail || soldier.mil_email?.toLowerCase() === sessionEmail)
 
   return (
     <div>
@@ -331,6 +354,45 @@ export function SoldierDetail() {
             </p>
           )}
           {inviteStatus && <p className="mt-2 text-sm text-ink-muted">{inviteStatus}</p>}
+
+          {isOwnEmail && (
+            <div className="mt-4 border-t border-line pt-4">
+              <p className="mb-2 text-sm text-ink-dim">
+                This Soldier&rsquo;s email matches your own admin login. If this is you, link it directly instead of
+                sending yourself an invite.
+              </p>
+              {!confirmingSelfLink ? (
+                <button
+                  onClick={() => setConfirmingSelfLink(true)}
+                  className="rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink"
+                >
+                  LINK TO MY ACCOUNT
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm text-warn-ink">
+                    Link this Soldier record to your own admin login ({session?.user.email})?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      disabled={selfLinkLoading}
+                      onClick={handleLinkToMyAccount}
+                      className="rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
+                    >
+                      {selfLinkLoading ? 'LINKING...' : 'CONFIRM LINK'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmingSelfLink(false)}
+                      className="rounded-md bg-neutral-bg px-4 py-2 text-xs font-bold tracking-wide text-neutral-ink"
+                    >
+                      CANCEL
+                    </button>
+                  </div>
+                </div>
+              )}
+              {selfLinkError && <p className="mt-2 text-sm text-bad-ink">{selfLinkError}</p>}
+            </div>
+          )}
         </div>
       )}
 

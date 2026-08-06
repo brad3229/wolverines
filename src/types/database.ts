@@ -124,7 +124,9 @@ export interface SutaRequest {
   makeup_notes: string | null
   makeup_completed_at: string | null
   requested_makeup_date: string | null
+  requested_makeup_end_date: string | null
   acknowledged_at: string | null
+  signature_name: string | null
   duty_location: SutaDutyLocation | null
   correction_notes: string | null
 }
