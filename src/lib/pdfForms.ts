@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import type { PDFForm } from 'pdf-lib'
 import { GEAR_CATEGORY_LABEL } from './gearRequests'
-import { SUTA_REQUEST_TYPE_LABEL, SUTA_DUTY_LOCATION_LABEL, SUTA_DUTY_LOCATION_ADDRESS } from './sutaRequests'
+import { SUTA_REQUEST_TYPE_LABEL, SUTA_DUTY_LOCATION_ADDRESS } from './sutaRequests'
 import type { DrillEvent, GearRequest, Soldier, SutaRequest, SutaRequestType } from '../types/database'
 
 // Maps a SUTA request type to the export value of its radio widget on
@@ -139,9 +139,14 @@ export async function fillSutaCertificate(soldier: Soldier, request: SutaRequest
 
   if (request.duty_location) {
     const address = SUTA_DUTY_LOCATION_ADDRESS[request.duty_location]
-    form.getTextField('UNIT').setText(SUTA_DUTY_LOCATION_LABEL[request.duty_location])
     form.getTextField('ADDRESS').setText(address.street)
     form.getTextField('CITY ST ZIP').setText(`${address.city}, NC ${address.zip}`)
+  }
+
+  // "UNIT (IF DIFFERENT)" is the company the training will be performed
+  // with (e.g. "A CO 1-120 IN"), not the armory location.
+  if (request.duty_unit) {
+    form.getTextField('UNIT').setText(request.duty_unit)
   }
 
   // Only written when the Soldier went through the in-app Section 8

@@ -37,6 +37,12 @@ export const SUTA_DUTY_LOCATION_ADDRESS: Record<SutaDutyLocation, { street: stri
   fayetteville: { street: '3555 Owen Dr', city: 'Fayetteville', zip: '28306' },
 }
 
+// Companies in 1-120 IN, for Section 5's "UNIT (IF DIFFERENT)" -- the unit
+// training will be performed WITH, separate from duty_location (the armory
+// address). Most Soldiers leave this blank (same as their own unit); the
+// picker also allows a free-typed value for anything outside this list.
+export const SUTA_UNIT_OPTIONS: string[] = ['A CO 1-120', 'B CO 1-120', 'C CO 1-120', 'D CO 1-120', 'I CO 1-120']
+
 // The 11 acknowledgment statements from Section 8 of NC ARNG Form 350-2R --
 // shown in an in-app confirmation popup at submission time (there's no way
 // to collect a physical initial next to each line), and used to decide
@@ -82,6 +88,7 @@ export async function submitSutaRequest(params: {
   requestedMakeupDate?: string | null
   requestedMakeupEndDate?: string | null
   dutyLocation?: SutaDutyLocation | null
+  dutyUnit?: string | null
   signatureName: string
 }) {
   const { data, error } = await supabase
@@ -95,6 +102,7 @@ export async function submitSutaRequest(params: {
       requested_makeup_date: params.requestedMakeupDate || null,
       requested_makeup_end_date: params.requestedMakeupDate ? params.requestedMakeupEndDate || null : null,
       duty_location: params.dutyLocation || null,
+      duty_unit: params.dutyUnit || null,
       // Only ever called after the Soldier confirms the Section 8 acknowledgment
       // popup, so it's safe to stamp these at submit time.
       acknowledged_at: new Date().toISOString(),
@@ -144,6 +152,7 @@ export async function resubmitSutaRequest(params: {
   requestedMakeupDate?: string | null
   requestedMakeupEndDate?: string | null
   dutyLocation?: SutaDutyLocation | null
+  dutyUnit?: string | null
   signatureName: string
 }) {
   const { data, error } = await supabase
@@ -155,6 +164,7 @@ export async function resubmitSutaRequest(params: {
       requested_makeup_date: params.requestedMakeupDate || null,
       requested_makeup_end_date: params.requestedMakeupDate ? params.requestedMakeupEndDate || null : null,
       duty_location: params.dutyLocation || null,
+      duty_unit: params.dutyUnit || null,
       status: 'pending',
       correction_notes: null,
       acknowledged_at: new Date().toISOString(),

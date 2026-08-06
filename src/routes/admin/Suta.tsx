@@ -158,6 +158,7 @@ export function Suta() {
                   {r.duty_location && (
                     <div className="text-xs text-ink-muted">{SUTA_DUTY_LOCATION_LABEL[r.duty_location]}</div>
                   )}
+                  {r.duty_unit && <div className="text-xs text-ink-muted">Unit: {r.duty_unit}</div>}
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.reason}&rdquo;</div>
                   <div className="mt-1 text-xs text-ink-dim">
                     Planned make-up: {r.requested_makeup_date ? formatMakeupDateRange(r) : 'Not sure yet'}

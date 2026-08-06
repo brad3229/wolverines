@@ -8,6 +8,7 @@ import {
   formatMakeupDateRange,
   SUTA_REQUEST_TYPE_LABEL,
   SUTA_DUTY_LOCATION_LABEL,
+  SUTA_UNIT_OPTIONS,
   SUTA_ACKNOWLEDGMENTS,
 } from '../../lib/sutaRequests'
 import { errorMessage } from '../../lib/errors'
@@ -29,6 +30,7 @@ const STATUS_BADGE: Record<SutaStatus, { label: string; className: string }> = {
   denied: { label: 'DENIED', className: 'bg-bad-bg text-bad-ink' },
 }
 const NEEDS_CORRECTION_BADGE = { label: 'NEEDS CORRECTION', className: 'bg-bad-bg text-bad-ink' }
+const UNIT_OTHER = '__other__'
 
 const MAKEUP_BADGE: Record<MakeupStatus, { label: string; className: string } | null> = {
   not_required: null,
@@ -48,6 +50,8 @@ export function Suta() {
   const [makeupDate, setMakeupDate] = useState('')
   const [makeupEndDate, setMakeupEndDate] = useState('')
   const [dutyLocation, setDutyLocation] = useState<SutaDutyLocation | ''>('')
+  const [dutyUnit, setDutyUnit] = useState('')
+  const [dutyUnitOther, setDutyUnitOther] = useState('')
   const [signatureName, setSignatureName] = useState('')
   const [ackMode, setAckMode] = useState<'submit' | 'resubmit' | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -64,6 +68,8 @@ export function Suta() {
   const [editMakeupDate, setEditMakeupDate] = useState('')
   const [editMakeupEndDate, setEditMakeupEndDate] = useState('')
   const [editDutyLocation, setEditDutyLocation] = useState<SutaDutyLocation | ''>('')
+  const [editDutyUnit, setEditDutyUnit] = useState('')
+  const [editDutyUnitOther, setEditDutyUnitOther] = useState('')
 
   async function refresh() {
     if (!session) return
@@ -142,6 +148,7 @@ export function Suta() {
         requestedMakeupDate: makeupDate || null,
         requestedMakeupEndDate: makeupEndDate || null,
         dutyLocation: dutyLocation || null,
+        dutyUnit: (dutyUnit === UNIT_OTHER ? dutyUnitOther.trim() : dutyUnit) || null,
         signatureName: signatureName.trim(),
       })
       setAckMode(null)
@@ -152,6 +159,8 @@ export function Suta() {
       setMakeupDate('')
       setMakeupEndDate('')
       setDutyLocation('')
+      setDutyUnit('')
+      setDutyUnitOther('')
       setSignatureName('')
       refresh()
     } catch (err) {
@@ -169,6 +178,16 @@ export function Suta() {
     setEditMakeupDate(request.requested_makeup_date ?? '')
     setEditMakeupEndDate(request.requested_makeup_end_date ?? '')
     setEditDutyLocation(request.duty_location ?? '')
+    if (request.duty_unit && (SUTA_UNIT_OPTIONS as string[]).includes(request.duty_unit)) {
+      setEditDutyUnit(request.duty_unit)
+      setEditDutyUnitOther('')
+    } else if (request.duty_unit) {
+      setEditDutyUnit(UNIT_OTHER)
+      setEditDutyUnitOther(request.duty_unit)
+    } else {
+      setEditDutyUnit('')
+      setEditDutyUnitOther('')
+    }
   }
 
   async function handleConfirmedResubmit() {
@@ -184,6 +203,7 @@ export function Suta() {
         requestedMakeupDate: editMakeupDate || null,
         requestedMakeupEndDate: editMakeupEndDate || null,
         dutyLocation: editDutyLocation || null,
+        dutyUnit: (editDutyUnit === UNIT_OTHER ? editDutyUnitOther.trim() : editDutyUnit) || null,
         signatureName: signatureName.trim(),
       })
       setAckMode(null)
@@ -304,6 +324,32 @@ export function Suta() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
+              UNIT (IF DIFFERENT) — OPTIONAL
+            </label>
+            <select
+              value={dutyUnit}
+              onChange={(e) => setDutyUnit(e.target.value)}
+              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+            >
+              <option value="">Same as my unit</option>
+              {SUTA_UNIT_OPTIONS.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+              <option value={UNIT_OTHER}>Other...</option>
+            </select>
+            {dutyUnit === UNIT_OTHER && (
+              <input
+                value={dutyUnitOther}
+                onChange={(e) => setDutyUnitOther(e.target.value)}
+                placeholder="Unit"
+                className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+              />
+            )}
+          </div>
           {error && <p className="text-sm text-bad-ink">{error}</p>}
           <div>
             <button
@@ -394,6 +440,7 @@ export function Suta() {
                     {r.duty_location && (
                       <div className="text-xs text-ink-muted">{SUTA_DUTY_LOCATION_LABEL[r.duty_location]}</div>
                     )}
+                    {r.duty_unit && <div className="text-xs text-ink-muted">Unit: {r.duty_unit}</div>}
                     <div className="mt-0.5 text-xs italic text-ink-muted">&ldquo;{r.reason}&rdquo;</div>
                     {r.makeup_status === 'pending' && r.requested_makeup_date && (
                       <div className="mt-1 text-xs text-ink-dim">Planned make-up: {formatMakeupDateRange(r)}</div>
@@ -507,6 +554,32 @@ export function Suta() {
                               </option>
                             ))}
                           </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
+                            UNIT (IF DIFFERENT) — OPTIONAL
+                          </label>
+                          <select
+                            value={editDutyUnit}
+                            onChange={(e) => setEditDutyUnit(e.target.value)}
+                            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                          >
+                            <option value="">Same as my unit</option>
+                            {SUTA_UNIT_OPTIONS.map((u) => (
+                              <option key={u} value={u}>
+                                {u}
+                              </option>
+                            ))}
+                            <option value={UNIT_OTHER}>Other...</option>
+                          </select>
+                          {editDutyUnit === UNIT_OTHER && (
+                            <input
+                              value={editDutyUnitOther}
+                              onChange={(e) => setEditDutyUnitOther(e.target.value)}
+                              placeholder="Unit"
+                              className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                            />
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <button

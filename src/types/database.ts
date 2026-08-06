@@ -128,6 +128,7 @@ export interface SutaRequest {
   acknowledged_at: string | null
   signature_name: string | null
   duty_location: SutaDutyLocation | null
+  duty_unit: string | null
   correction_notes: string | null
 }
 
