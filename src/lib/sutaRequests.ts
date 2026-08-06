@@ -110,6 +110,47 @@ export async function reviewSutaRequest(params: { id: string; approve: boolean; 
   return data as SutaRequest
 }
 
+export async function sendSutaRequestBackForCorrection(params: { id: string; notes: string }) {
+  const { data, error } = await supabase
+    .from('suta_requests')
+    .update({ status: 'pending', correction_notes: params.notes })
+    .eq('id', params.id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as SutaRequest
+}
+
+// RLS only allows this while correction_notes is set, and only lets it clear
+// that note -- see suta_requests_resubmit_own. Requires re-acknowledging
+// Section 8, same as a fresh submission.
+export async function resubmitSutaRequest(params: {
+  id: string
+  drillEventId: string
+  reason: string
+  requestType: SutaRequestType
+  requestedMakeupDate?: string | null
+  dutyLocation?: SutaDutyLocation | null
+}) {
+  const { data, error } = await supabase
+    .from('suta_requests')
+    .update({
+      drill_event_id: params.drillEventId,
+      reason: params.reason,
+      request_type: params.requestType,
+      requested_makeup_date: params.requestedMakeupDate || null,
+      duty_location: params.dutyLocation || null,
+      status: 'pending',
+      correction_notes: null,
+      acknowledged_at: new Date().toISOString(),
+    })
+    .eq('id', params.id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as SutaRequest
+}
+
 export async function markMakeupComplete(params: { id: string; notes: string }) {
   const { data, error } = await supabase
     .from('suta_requests')

@@ -70,3 +70,27 @@ export async function resolveGearRequest(params: { id: string; resolvedBy: strin
   return data as GearRequest
 }
 
+export async function sendGearRequestBackForCorrection(params: { id: string; notes: string }) {
+  const { data, error } = await supabase
+    .from('gear_requests')
+    .update({ status: 'open', correction_notes: params.notes })
+    .eq('id', params.id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as GearRequest
+}
+
+// RLS only allows this while correction_notes is set, and only lets it clear
+// that note -- see gear_requests_resubmit_own.
+export async function resubmitGearRequest(params: { id: string; category: GearRequestCategory; description: string }) {
+  const { data, error } = await supabase
+    .from('gear_requests')
+    .update({ category: params.category, description: params.description, status: 'open', correction_notes: null })
+    .eq('id', params.id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as GearRequest
+}
+

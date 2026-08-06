@@ -126,6 +126,7 @@ export interface SutaRequest {
   requested_makeup_date: string | null
   acknowledged_at: string | null
   duty_location: SutaDutyLocation | null
+  correction_notes: string | null
 }
 
 export interface PayIssue {
@@ -150,6 +151,7 @@ export interface GearRequest {
   resolved_by: string | null
   resolved_at: string | null
   resolution_notes: string | null
+  correction_notes: string | null
 }
 
 export interface TaskList {

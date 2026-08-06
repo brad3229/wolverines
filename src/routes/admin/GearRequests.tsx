@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
 import { listSoldiers } from '../../lib/soldiers'
-import { listGearRequests, markGearRequestInProgress, resolveGearRequest, GEAR_CATEGORY_LABEL as CATEGORY_LABEL } from '../../lib/gearRequests'
+import {
+  listGearRequests,
+  markGearRequestInProgress,
+  resolveGearRequest,
+  sendGearRequestBackForCorrection,
+  GEAR_CATEGORY_LABEL as CATEGORY_LABEL,
+} from '../../lib/gearRequests'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
@@ -12,6 +18,7 @@ export function GearRequests() {
   const [requests, setRequests] = useState<GearRequest[]>([])
   const [soldiers, setSoldiers] = useState<Soldier[]>([])
   const [resolveDrafts, setResolveDrafts] = useState<Record<string, string>>({})
+  const [correctionDrafts, setCorrectionDrafts] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,13 +61,13 @@ export function GearRequests() {
     }
   }
 
-  async function handleDownload(request: GearRequest) {
+  async function handlePreview(request: GearRequest) {
     const soldier = soldiers.find((s) => s.id === request.soldier_id)
     if (!soldier) return
     try {
-      const { fillCcdfOrderForm, downloadPdf } = await import('../../lib/pdfForms')
+      const { fillCcdfOrderForm, previewPdf } = await import('../../lib/pdfForms')
       const bytes = await fillCcdfOrderForm(soldier, request)
-      downloadPdf(bytes, `CCDF-${soldier.last_name}-${soldier.first_name}.pdf`)
+      previewPdf(bytes)
     } catch (err) {
       setError(errorMessage(err, 'Failed to generate form'))
     }
@@ -84,10 +91,31 @@ export function GearRequests() {
     }
   }
 
+  async function handleSendBack(request: GearRequest) {
+    const notes = correctionDrafts[request.id]?.trim()
+    if (!notes) return
+    try {
+      await sendGearRequestBackForCorrection({ id: request.id, notes })
+      const soldier = soldiers.find((s) => s.id === request.soldier_id)
+      notify({
+        profileId: soldier?.profile_id,
+        title: 'Gear request needs corrections',
+        body: notes,
+        link: '/soldier/gear-requests',
+      })
+      setCorrectionDrafts((prev) => ({ ...prev, [request.id]: '' }))
+      refresh()
+      refreshPendingCounts()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to send request back'))
+    }
+  }
+
   if (loading) return <LoadingScreen />
 
-  const open = requests.filter((r) => r.status === 'open')
-  const inProgress = requests.filter((r) => r.status === 'in_progress')
+  const open = requests.filter((r) => r.status === 'open' && !r.correction_notes)
+  const needsCorrection = requests.filter((r) => !!r.correction_notes)
+  const inProgress = requests.filter((r) => r.status === 'in_progress' && !r.correction_notes)
   const resolved = requests.filter((r) => r.status === 'resolved')
 
   return (
@@ -109,10 +137,10 @@ export function GearRequests() {
                 </div>
                 <div className="flex flex-shrink-0 gap-2">
                   <button
-                    onClick={() => handleDownload(r)}
+                    onClick={() => handlePreview(r)}
                     className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
                   >
-                    DOWNLOAD FORM
+                    PREVIEW FORM
                   </button>
                   <button
                     onClick={() => handleStart(r)}
@@ -136,6 +164,49 @@ export function GearRequests() {
                   RESOLVE
                 </button>
               </div>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  placeholder="What needs to be corrected?"
+                  value={correctionDrafts[r.id] ?? ''}
+                  onChange={(e) => setCorrectionDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                  className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                />
+                <button
+                  onClick={() => handleSendBack(r)}
+                  disabled={!correctionDrafts[r.id]?.trim()}
+                  className="flex-shrink-0 rounded-md bg-warn-bg px-3.5 py-2 text-[11px] font-bold tracking-wide text-warn-ink disabled:opacity-50"
+                >
+                  SEND BACK FOR CORRECTION
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">NEEDS CORRECTION</h2>
+      {needsCorrection.length === 0 ? (
+        <p className="mb-6 text-sm text-ink-muted">Nothing waiting on a Soldier correction.</p>
+      ) : (
+        <div className="mb-7 flex flex-col gap-2">
+          {needsCorrection.map((r) => (
+            <div key={r.id} className="rounded-xl border border-warn-border bg-warn-bg/10 p-3.5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-[200px] flex-1">
+                  <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                  <div className="text-xs text-ink-muted">{CATEGORY_LABEL[r.category]}</div>
+                  <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.description}&rdquo;</div>
+                  {r.correction_notes && (
+                    <div className="mt-1.5 text-xs text-warn-ink">Sent back: {r.correction_notes}</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => handlePreview(r)}
+                  className="flex-shrink-0 rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
+                >
+                  PREVIEW FORM
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -155,10 +226,10 @@ export function GearRequests() {
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.description}&rdquo;</div>
                 </div>
                 <button
-                  onClick={() => handleDownload(r)}
+                  onClick={() => handlePreview(r)}
                   className="flex-shrink-0 rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
                 >
-                  DOWNLOAD FORM
+                  PREVIEW FORM
                 </button>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -173,6 +244,21 @@ export function GearRequests() {
                   className="flex-shrink-0 rounded-md bg-good-bg px-3.5 py-2 text-[11px] font-bold tracking-wide text-good-ink"
                 >
                   RESOLVE
+                </button>
+              </div>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  placeholder="What needs to be corrected?"
+                  value={correctionDrafts[r.id] ?? ''}
+                  onChange={(e) => setCorrectionDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                  className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                />
+                <button
+                  onClick={() => handleSendBack(r)}
+                  disabled={!correctionDrafts[r.id]?.trim()}
+                  className="flex-shrink-0 rounded-md bg-warn-bg px-3.5 py-2 text-[11px] font-bold tracking-wide text-warn-ink disabled:opacity-50"
+                >
+                  SEND BACK FOR CORRECTION
                 </button>
               </div>
             </div>
@@ -195,10 +281,10 @@ export function GearRequests() {
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-2">
                   <button
-                    onClick={() => handleDownload(r)}
+                    onClick={() => handlePreview(r)}
                     className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
                   >
-                    DOWNLOAD FORM
+                    PREVIEW FORM
                   </button>
                   <span className="rounded-md bg-good-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-good-ink">
                     RESOLVED

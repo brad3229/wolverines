@@ -5,6 +5,7 @@ import {
   listSutaRequests,
   reviewSutaRequest,
   markMakeupComplete,
+  sendSutaRequestBackForCorrection,
   SUTA_REQUEST_TYPE_LABEL,
   SUTA_DUTY_LOCATION_LABEL,
 } from '../../lib/sutaRequests'
@@ -21,6 +22,7 @@ export function Suta() {
   const [soldiers, setSoldiers] = useState<Soldier[]>([])
   const [events, setEvents] = useState<DrillEvent[]>([])
   const [makeupDrafts, setMakeupDrafts] = useState<Record<string, string>>({})
+  const [correctionDrafts, setCorrectionDrafts] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -51,14 +53,14 @@ export function Suta() {
     return e ? `${e.title} — ${formatEventDateRange(e)}` : 'Unknown event'
   }
 
-  async function handleDownload(request: SutaRequest) {
+  async function handlePreview(request: SutaRequest) {
     const soldier = soldiers.find((s) => s.id === request.soldier_id)
     const event = events.find((e) => e.id === request.drill_event_id)
     if (!soldier || !event) return
     try {
-      const { fillSutaCertificate, downloadPdf } = await import('../../lib/pdfForms')
+      const { fillSutaCertificate, previewPdf } = await import('../../lib/pdfForms')
       const bytes = await fillSutaCertificate(soldier, request, event)
-      downloadPdf(bytes, `SUTA-${soldier.last_name}-${soldier.first_name}.pdf`)
+      previewPdf(bytes)
     } catch (err) {
       setError(errorMessage(err, 'Failed to generate form'))
     }
@@ -79,6 +81,26 @@ export function Suta() {
       refreshPendingCounts()
     } catch (err) {
       setError(errorMessage(err, 'Failed to review request'))
+    }
+  }
+
+  async function handleSendBack(request: SutaRequest) {
+    const notes = correctionDrafts[request.id]?.trim()
+    if (!notes) return
+    try {
+      await sendSutaRequestBackForCorrection({ id: request.id, notes })
+      const soldier = soldiers.find((s) => s.id === request.soldier_id)
+      notify({
+        profileId: soldier?.profile_id,
+        title: 'SUTA request needs corrections',
+        body: notes,
+        link: '/soldier/suta',
+      })
+      setCorrectionDrafts((prev) => ({ ...prev, [request.id]: '' }))
+      refresh()
+      refreshPendingCounts()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to send request back'))
     }
   }
 
@@ -103,7 +125,8 @@ export function Suta() {
   const today = new Date().toISOString().slice(0, 10)
   const isOverdue = (r: SutaRequest) => !!r.requested_makeup_date && r.requested_makeup_date < today
 
-  const pendingReview = requests.filter((r) => r.status === 'pending')
+  const pendingReview = requests.filter((r) => r.status === 'pending' && !r.correction_notes)
+  const needsCorrection = requests.filter((r) => !!r.correction_notes)
   const awaitingMakeup = requests
     .filter((r) => r.status === 'approved' && r.makeup_status === 'pending')
     .sort((a, b) => Number(isOverdue(b)) - Number(isOverdue(a)))
@@ -139,10 +162,10 @@ export function Suta() {
                 </div>
                 <div className="flex flex-shrink-0 gap-2">
                   <button
-                    onClick={() => handleDownload(r)}
+                    onClick={() => handlePreview(r)}
                     className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
                   >
-                    DOWNLOAD FORM
+                    PREVIEW FORM
                   </button>
                   <button
                     onClick={() => handleReview(r, true)}
@@ -157,6 +180,49 @@ export function Suta() {
                     DENY
                   </button>
                 </div>
+              </div>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  placeholder="What needs to be corrected?"
+                  value={correctionDrafts[r.id] ?? ''}
+                  onChange={(e) => setCorrectionDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                  className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                />
+                <button
+                  onClick={() => handleSendBack(r)}
+                  disabled={!correctionDrafts[r.id]?.trim()}
+                  className="flex-shrink-0 rounded-md bg-warn-bg px-3.5 py-2 text-[11px] font-bold tracking-wide text-warn-ink disabled:opacity-50"
+                >
+                  SEND BACK FOR CORRECTION
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h2 className="mb-2.5 font-display text-[15px] font-semibold tracking-wide text-ink-dim">NEEDS CORRECTION</h2>
+      {needsCorrection.length === 0 ? (
+        <p className="mb-6 text-sm text-ink-muted">Nothing waiting on a Soldier correction.</p>
+      ) : (
+        <div className="mb-7 flex flex-col gap-2">
+          {needsCorrection.map((r) => (
+            <div key={r.id} className="rounded-xl border border-warn-border bg-warn-bg/10 p-3.5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-[200px] flex-1">
+                  <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                  <div className="text-xs text-ink-muted">{eventLabel(r.drill_event_id)}</div>
+                  <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.reason}&rdquo;</div>
+                  {r.correction_notes && (
+                    <div className="mt-1.5 text-xs text-warn-ink">Sent back: {r.correction_notes}</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => handlePreview(r)}
+                  className="flex-shrink-0 rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
+                >
+                  PREVIEW FORM
+                </button>
               </div>
             </div>
           ))}
@@ -186,10 +252,10 @@ export function Suta() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleDownload(r)}
+                  onClick={() => handlePreview(r)}
                   className="flex-shrink-0 rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
                 >
-                  DOWNLOAD FORM
+                  PREVIEW FORM
                 </button>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -226,10 +292,10 @@ export function Suta() {
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-2">
                   <button
-                    onClick={() => handleDownload(r)}
+                    onClick={() => handlePreview(r)}
                     className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
                   >
-                    DOWNLOAD FORM
+                    PREVIEW FORM
                   </button>
                   <span
                     className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${

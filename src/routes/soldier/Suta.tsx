@@ -4,6 +4,7 @@ import { getOwnSoldierRecord } from '../../lib/soldiers'
 import {
   listOwnSutaRequests,
   submitSutaRequest,
+  resubmitSutaRequest,
   SUTA_REQUEST_TYPE_LABEL,
   SUTA_DUTY_LOCATION_LABEL,
   SUTA_ACKNOWLEDGMENTS,
@@ -27,6 +28,7 @@ const STATUS_BADGE: Record<SutaStatus, { label: string; className: string }> = {
   approved: { label: 'APPROVED', className: 'bg-good-bg text-good-ink' },
   denied: { label: 'DENIED', className: 'bg-bad-bg text-bad-ink' },
 }
+const NEEDS_CORRECTION_BADGE = { label: 'NEEDS CORRECTION', className: 'bg-bad-bg text-bad-ink' }
 
 const MAKEUP_BADGE: Record<MakeupStatus, { label: string; className: string } | null> = {
   not_required: null,
@@ -45,11 +47,20 @@ export function Suta() {
   const [reason, setReason] = useState('')
   const [makeupDate, setMakeupDate] = useState('')
   const [dutyLocation, setDutyLocation] = useState<SutaDutyLocation | ''>('')
-  const [showAckModal, setShowAckModal] = useState(false)
+  const [ackMode, setAckMode] = useState<'submit' | 'resubmit' | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [notLinked, setNotLinked] = useState(false)
+
+  // Correction/resubmit flow -- same fields as the submission form, but
+  // editing an existing request in place.
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editEventId, setEditEventId] = useState('')
+  const [editRequestType, setEditRequestType] = useState<SutaRequestType | ''>('')
+  const [editReason, setEditReason] = useState('')
+  const [editMakeupDate, setEditMakeupDate] = useState('')
+  const [editDutyLocation, setEditDutyLocation] = useState<SutaDutyLocation | ''>('')
 
   async function refresh() {
     if (!session) return
@@ -91,18 +102,19 @@ export function Suta() {
   const today = new Date().toISOString().slice(0, 10)
   const requestedEventIds = new Set(requests.map((r) => r.drill_event_id))
   const eligibleEvents = events.filter((e) => e.end_date >= today && !requestedEventIds.has(e.id))
+  const editEligibleEvents = events.filter((e) => e.end_date >= today && (!requestedEventIds.has(e.id) || e.id === editEventId))
   const eventLabel = (id: string) => {
     const e = events.find((e) => e.id === id)
     return e ? `${e.title} — ${formatEventDateRange(e)}` : 'Unknown event'
   }
 
-  async function handleDownload(request: SutaRequest) {
+  async function handlePreview(request: SutaRequest) {
     const event = events.find((e) => e.id === request.drill_event_id)
     if (!soldier || !event) return
     try {
-      const { fillSutaCertificate, downloadPdf } = await import('../../lib/pdfForms')
+      const { fillSutaCertificate, previewPdf } = await import('../../lib/pdfForms')
       const bytes = await fillSutaCertificate(soldier, request, event)
-      downloadPdf(bytes, `SUTA-${soldier.last_name}-${soldier.first_name}.pdf`)
+      previewPdf(bytes)
     } catch (err) {
       setError(errorMessage(err, 'Failed to generate form'))
     }
@@ -121,7 +133,7 @@ export function Suta() {
         requestedMakeupDate: makeupDate || null,
         dutyLocation: dutyLocation || null,
       })
-      setShowAckModal(false)
+      setAckMode(null)
       setShowForm(false)
       setEventId('')
       setRequestType('')
@@ -131,6 +143,38 @@ export function Suta() {
       refresh()
     } catch (err) {
       setError(errorMessage(err, 'Failed to submit request'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function startEdit(request: SutaRequest) {
+    setEditingId(request.id)
+    setEditEventId(request.drill_event_id)
+    setEditRequestType(request.request_type ?? '')
+    setEditReason(request.reason)
+    setEditMakeupDate(request.requested_makeup_date ?? '')
+    setEditDutyLocation(request.duty_location ?? '')
+  }
+
+  async function handleConfirmedResubmit() {
+    if (!editingId || !editEventId || !editRequestType || !editReason.trim()) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      await resubmitSutaRequest({
+        id: editingId,
+        drillEventId: editEventId,
+        reason: editReason.trim(),
+        requestType: editRequestType,
+        requestedMakeupDate: editMakeupDate || null,
+        dutyLocation: editDutyLocation || null,
+      })
+      setAckMode(null)
+      setEditingId(null)
+      refresh()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to resubmit request'))
     } finally {
       setSubmitting(false)
     }
@@ -232,7 +276,7 @@ export function Suta() {
           <div>
             <button
               disabled={!eventId || !requestType || !reason.trim()}
-              onClick={() => setShowAckModal(true)}
+              onClick={() => setAckMode('submit')}
               className="rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
             >
               SUBMIT REQUEST
@@ -241,10 +285,10 @@ export function Suta() {
         </div>
       )}
 
-      {showAckModal && (
+      {ackMode && (
         <div
           className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setShowAckModal(false)}
+          onClick={() => setAckMode(null)}
         >
           <div
             className="flex w-full max-w-md max-h-[85vh] flex-col gap-3 overflow-y-auto rounded-xl border border-line bg-panel p-4 shadow-lg sm:p-5"
@@ -263,13 +307,13 @@ export function Suta() {
             <div className="flex gap-2">
               <button
                 disabled={submitting}
-                onClick={handleConfirmedSubmit}
+                onClick={ackMode === 'submit' ? handleConfirmedSubmit : handleConfirmedResubmit}
                 className="rounded-md bg-accent px-3.5 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
               >
                 {submitting ? 'SUBMITTING...' : 'I ACKNOWLEDGE & SUBMIT'}
               </button>
               <button
-                onClick={() => setShowAckModal(false)}
+                onClick={() => setAckMode(null)}
                 className="rounded-md bg-neutral-bg px-3.5 py-2 text-xs font-bold tracking-wide text-neutral-ink"
               >
                 CANCEL
@@ -288,7 +332,12 @@ export function Suta() {
             const makeupBadge = MAKEUP_BADGE[r.makeup_status]
             const isOverdue = r.makeup_status === 'pending' && !!r.requested_makeup_date && r.requested_makeup_date < today
             return (
-              <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5">
+              <div
+                key={r.id}
+                className={`rounded-xl border p-3.5 ${
+                  r.correction_notes ? 'border-bad-border bg-bad-bg/10' : 'border-line bg-panel'
+                }`}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-[180px] flex-1">
                     <div className="text-sm font-semibold">{eventLabel(r.drill_event_id)}</div>
@@ -307,18 +356,21 @@ export function Suta() {
                     {r.makeup_status === 'completed' && r.makeup_notes && (
                       <div className="mt-1 text-xs text-ink-dim">Make-up: {r.makeup_notes}</div>
                     )}
+                    {r.correction_notes && <div className="mt-1 text-xs text-bad-ink">Cadre says: {r.correction_notes}</div>}
                   </div>
                   <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
                     <button
-                      onClick={() => handleDownload(r)}
+                      onClick={() => handlePreview(r)}
                       className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
                     >
-                      DOWNLOAD FORM
+                      PREVIEW FORM
                     </button>
                     <span
-                      className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${STATUS_BADGE[r.status].className}`}
+                      className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
+                        r.correction_notes ? NEEDS_CORRECTION_BADGE.className : STATUS_BADGE[r.status].className
+                      }`}
                     >
-                      {STATUS_BADGE[r.status].label}
+                      {r.correction_notes ? NEEDS_CORRECTION_BADGE.label : STATUS_BADGE[r.status].label}
                     </span>
                     {isOverdue ? (
                       <span className="rounded-md bg-bad-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-bad-ink">
@@ -333,6 +385,96 @@ export function Suta() {
                     )}
                   </div>
                 </div>
+
+                {r.correction_notes && (
+                  <div className="mt-3 border-t border-bad-border pt-3">
+                    {editingId === r.id ? (
+                      <div className="flex flex-col gap-2.5">
+                        <select
+                          value={editEventId}
+                          onChange={(e) => setEditEventId(e.target.value)}
+                          className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                        >
+                          {editEligibleEvents.map((e) => (
+                            <option key={e.id} value={e.id}>
+                              {e.title} ({EVENT_TYPE_LABEL[e.event_type]}) — {formatEventDateRange(e)}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={editRequestType}
+                          onChange={(e) => setEditRequestType(e.target.value as SutaRequestType)}
+                          className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                        >
+                          <option value="" disabled>
+                            Select request type
+                          </option>
+                          {(Object.keys(SUTA_REQUEST_TYPE_LABEL) as SutaRequestType[]).map((t) => (
+                            <option key={t} value={t}>
+                              {SUTA_REQUEST_TYPE_LABEL[t]}
+                            </option>
+                          ))}
+                        </select>
+                        <textarea
+                          rows={3}
+                          value={editReason}
+                          onChange={(e) => setEditReason(e.target.value)}
+                          className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                        />
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
+                            PLANNED MAKE-UP DATE (OPTIONAL)
+                          </label>
+                          <input
+                            type="date"
+                            value={editMakeupDate}
+                            onChange={(e) => setEditMakeupDate(e.target.value)}
+                            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
+                            LOCATION DUTY WILL BE PERFORMED (OPTIONAL)
+                          </label>
+                          <select
+                            value={editDutyLocation}
+                            onChange={(e) => setEditDutyLocation(e.target.value as SutaDutyLocation)}
+                            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                          >
+                            <option value="">Not sure yet</option>
+                            {(Object.keys(SUTA_DUTY_LOCATION_LABEL) as SutaDutyLocation[]).map((loc) => (
+                              <option key={loc} value={loc}>
+                                {SUTA_DUTY_LOCATION_LABEL[loc]}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            disabled={!editEventId || !editRequestType || !editReason.trim()}
+                            onClick={() => setAckMode('resubmit')}
+                            className="rounded-md bg-accent px-3.5 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
+                          >
+                            RESUBMIT
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="rounded-md bg-neutral-bg px-3.5 py-2 text-xs font-bold tracking-wide text-neutral-ink"
+                          >
+                            CANCEL
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startEdit(r)}
+                        className="rounded-md bg-accent px-3.5 py-2 text-xs font-bold tracking-wide text-accent-ink"
+                      >
+                        EDIT &amp; RESUBMIT
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}

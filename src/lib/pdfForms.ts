@@ -149,3 +149,14 @@ export function downloadPdf(bytes: Uint8Array, filename: string) {
   a.remove()
   URL.revokeObjectURL(url)
 }
+
+// Opens the PDF in a new tab using the browser's built-in viewer instead of
+// forcing a save-as dialog -- lets the Soldier/admin check it's filled out
+// correctly before deciding to keep a copy (the viewer has its own download
+// button for that). Not revoked immediately since the new tab needs time to
+// load the blob URL.
+export function previewPdf(bytes: Uint8Array) {
+  const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank')
+}

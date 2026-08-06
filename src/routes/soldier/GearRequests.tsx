@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
-import { listOwnGearRequests, submitGearRequest, GEAR_CATEGORY_LABEL as CATEGORY_LABEL } from '../../lib/gearRequests'
+import {
+  listOwnGearRequests,
+  submitGearRequest,
+  resubmitGearRequest,
+  GEAR_CATEGORY_LABEL as CATEGORY_LABEL,
+} from '../../lib/gearRequests'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
@@ -11,6 +16,7 @@ const STATUS_BADGE: Record<GearRequestStatus, { label: string; className: string
   in_progress: { label: 'IN PROGRESS', className: 'bg-info-bg text-info-ink' },
   resolved: { label: 'RESOLVED', className: 'bg-good-bg text-good-ink' },
 }
+const NEEDS_CORRECTION_BADGE = { label: 'NEEDS CORRECTION', className: 'bg-bad-bg text-bad-ink' }
 
 export function GearRequests() {
   const { session, role } = useAuth()
@@ -23,6 +29,9 @@ export function GearRequests() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [notLinked, setNotLinked] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editCategory, setEditCategory] = useState<GearRequestCategory>('initial_issue')
+  const [editDescription, setEditDescription] = useState('')
 
   async function refresh() {
     if (!session) return
@@ -60,12 +69,12 @@ export function GearRequests() {
     )
   }
 
-  async function handleDownload(request: GearRequest) {
+  async function handlePreview(request: GearRequest) {
     if (!soldier) return
     try {
-      const { fillCcdfOrderForm, downloadPdf } = await import('../../lib/pdfForms')
+      const { fillCcdfOrderForm, previewPdf } = await import('../../lib/pdfForms')
       const bytes = await fillCcdfOrderForm(soldier, request)
-      downloadPdf(bytes, `CCDF-${soldier.last_name}-${soldier.first_name}.pdf`)
+      previewPdf(bytes)
     } catch (err) {
       setError(errorMessage(err, 'Failed to generate form'))
     }
@@ -83,6 +92,27 @@ export function GearRequests() {
       refresh()
     } catch (err) {
       setError(errorMessage(err, 'Failed to submit request'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function startEdit(request: GearRequest) {
+    setEditingId(request.id)
+    setEditCategory(request.category)
+    setEditDescription(request.description)
+  }
+
+  async function handleResubmit(request: GearRequest) {
+    if (!editDescription.trim()) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      await resubmitGearRequest({ id: request.id, category: editCategory, description: editDescription.trim() })
+      setEditingId(null)
+      refresh()
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to resubmit request'))
     } finally {
       setSubmitting(false)
     }
@@ -148,7 +178,12 @@ export function GearRequests() {
       ) : (
         <div className="flex flex-col gap-2">
           {requests.map((r) => (
-            <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5">
+            <div
+              key={r.id}
+              className={`rounded-xl border p-3.5 ${
+                r.correction_notes ? 'border-bad-border bg-bad-bg/10' : 'border-line bg-panel'
+              }`}
+            >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-[180px] flex-1">
                   <div className="text-sm font-semibold">{CATEGORY_LABEL[r.category]}</div>
@@ -156,21 +191,72 @@ export function GearRequests() {
                   {r.status === 'resolved' && r.resolution_notes && (
                     <div className="mt-1 text-xs text-ink-dim">Resolution: {r.resolution_notes}</div>
                   )}
+                  {r.correction_notes && <div className="mt-1 text-xs text-bad-ink">Cadre says: {r.correction_notes}</div>}
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-2">
                   <button
-                    onClick={() => handleDownload(r)}
+                    onClick={() => handlePreview(r)}
                     className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
                   >
-                    DOWNLOAD FORM
+                    PREVIEW FORM
                   </button>
                   <span
-                    className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${STATUS_BADGE[r.status].className}`}
+                    className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
+                      r.correction_notes ? NEEDS_CORRECTION_BADGE.className : STATUS_BADGE[r.status].className
+                    }`}
                   >
-                    {STATUS_BADGE[r.status].label}
+                    {r.correction_notes ? NEEDS_CORRECTION_BADGE.label : STATUS_BADGE[r.status].label}
                   </span>
                 </div>
               </div>
+
+              {r.correction_notes && (
+                <div className="mt-3 border-t border-bad-border pt-3">
+                  {editingId === r.id ? (
+                    <div className="flex flex-col gap-2.5">
+                      <select
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value as GearRequestCategory)}
+                        className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                      >
+                        {(Object.keys(CATEGORY_LABEL) as GearRequestCategory[]).map((c) => (
+                          <option key={c} value={c}>
+                            {CATEGORY_LABEL[c]}
+                          </option>
+                        ))}
+                      </select>
+                      <textarea
+                        rows={3}
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          disabled={submitting || !editDescription.trim()}
+                          onClick={() => handleResubmit(r)}
+                          className="rounded-md bg-accent px-3.5 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
+                        >
+                          {submitting ? 'RESUBMITTING...' : 'RESUBMIT'}
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="rounded-md bg-neutral-bg px-3.5 py-2 text-xs font-bold tracking-wide text-neutral-ink"
+                        >
+                          CANCEL
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => startEdit(r)}
+                      className="rounded-md bg-accent px-3.5 py-2 text-xs font-bold tracking-wide text-accent-ink"
+                    >
+                      EDIT &amp; RESUBMIT
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
