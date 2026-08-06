@@ -307,7 +307,7 @@ function App() {
             path="/soldier/dashboard"
             element={
               <RequireRole allow={['soldier']}>
-                <Layout navItems={SOLDIER_NAV}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <SoldierDashboard />
                 </Layout>
               </RequireRole>
@@ -317,7 +317,7 @@ function App() {
             path="/soldier/profile"
             element={
               <RequireRole allow={['soldier']}>
-                <Layout navItems={SOLDIER_NAV}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <Profile />
                 </Layout>
               </RequireRole>
@@ -327,7 +327,7 @@ function App() {
             path="/soldier/calendar"
             element={
               <RequireRole allow={['soldier']}>
-                <Layout navItems={SOLDIER_NAV}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <SoldierCalendar />
                 </Layout>
               </RequireRole>
@@ -337,7 +337,7 @@ function App() {
             path="/soldier/calendar/:eventId"
             element={
               <RequireRole allow={['soldier']}>
-                <Layout navItems={SOLDIER_NAV}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <CheckIn />
                 </Layout>
               </RequireRole>
@@ -347,7 +347,7 @@ function App() {
             path="/soldier/checkin"
             element={
               <RequireRole allow={['soldier']}>
-                <Layout navItems={SOLDIER_NAV}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <CheckInHome />
                 </Layout>
               </RequireRole>
@@ -357,7 +357,7 @@ function App() {
             path="/soldier/suta"
             element={
               <RequireRole allow={['soldier']}>
-                <Layout navItems={SOLDIER_NAV}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <SoldierSuta />
                 </Layout>
               </RequireRole>
@@ -367,7 +367,7 @@ function App() {
             path="/soldier/pay-issues"
             element={
               <RequireRole allow={['soldier']}>
-                <Layout navItems={SOLDIER_NAV}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <SoldierPayIssues />
                 </Layout>
               </RequireRole>
@@ -377,7 +377,7 @@ function App() {
             path="/soldier/gear-requests"
             element={
               <RequireRole allow={['soldier']}>
-                <Layout navItems={SOLDIER_NAV}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <SoldierGearRequests />
                 </Layout>
               </RequireRole>
@@ -387,7 +387,7 @@ function App() {
             path="/soldier/tasks"
             element={
               <RequireRole allow={['soldier']}>
-                <Layout navItems={SOLDIER_NAV}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <SoldierTasks />
                 </Layout>
               </RequireRole>
