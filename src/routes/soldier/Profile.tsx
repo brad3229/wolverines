@@ -7,6 +7,7 @@ import { BLOOD_TYPES, UNIFORM_SIZE_FIELDS } from '../../components/SoldierForm'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { AvatarUploader } from '../../components/AvatarUploader'
 import type { EditRequest, Soldier } from '../../types/database'
 
 type FieldKey =
@@ -318,6 +319,10 @@ export function Profile() {
 
   return (
     <div className="mx-auto max-w-[600px]">
+      <div className="mb-6">
+        <AvatarUploader />
+      </div>
+
       <p className="mb-5 text-[13px] text-ink-muted">Field changes require admin approval.</p>
 
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}

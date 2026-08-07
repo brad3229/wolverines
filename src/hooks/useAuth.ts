@@ -14,6 +14,7 @@ interface AuthState {
   session: Session | null
   role: UserRole | null
   soldier: Soldier | null
+  refreshSoldier: () => void
   loading: boolean
   needsMfaChallenge: boolean
   mfaFactorId: string | null
@@ -35,6 +36,7 @@ export const AuthContext = createContext<AuthState>({
   session: null,
   role: null,
   soldier: null,
+  refreshSoldier: () => {},
   loading: true,
   needsMfaChallenge: false,
   mfaFactorId: null,
@@ -122,19 +124,20 @@ export function useAuthState(): AuthState {
   // Lives here (not per-page) so the mobile profile banner in Layout has a name/rank to
   // show without re-fetching on every route change -- Layout remounts per <Route>. Silently
   // null for accounts with no linked Soldier row (e.g. an admin who hasn't self-linked).
-  useEffect(() => {
+  const refreshSoldier = useCallback(() => {
     if (!session) {
       setSoldier(null)
       return
     }
-    let active = true
     getOwnSoldierRecord(session.user.id)
-      .then((s) => active && setSoldier(s))
-      .catch(() => active && setSoldier(null))
-    return () => {
-      active = false
-    }
+      .then(setSoldier)
+      .catch(() => setSoldier(null))
   }, [session])
+
+  // Exposed as refreshSoldier so pages that change the Soldier's own row
+  // (e.g. uploading an avatar) can pull the update in immediately, instead
+  // of it only showing up after the next full session refresh.
+  useEffect(refreshSoldier, [refreshSoldier])
 
   // A Soldier can be signed in (aal1, password only) but still owe a second factor
   // if their account has a verified TOTP factor enrolled -- block on that here so
@@ -218,6 +221,7 @@ export function useAuthState(): AuthState {
     session,
     role,
     soldier,
+    refreshSoldier,
     loading,
     needsMfaChallenge,
     mfaFactorId,

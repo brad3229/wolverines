@@ -28,10 +28,10 @@ export function Login() {
       <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl border border-line bg-panel p-8">
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex h-12 min-w-12 items-center justify-center rounded-lg bg-accent px-2 font-display text-base font-bold text-accent-ink">
-            ACO
+            AT
           </div>
-          <h1 className="font-display text-xl font-semibold tracking-wide">A CO 1-120 IN</h1>
-          <p className="text-sm text-ink-muted">Sign in to your unit account</p>
+          <h1 className="font-display text-xl font-semibold tracking-wide">ATLAS</h1>
+          <p className="text-sm text-ink-muted">A CO 1-120 IN</p>
         </div>
         <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">EMAIL</label>
         <input

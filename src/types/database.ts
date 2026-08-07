@@ -51,6 +51,7 @@ export interface Soldier {
   blood_type: BloodType | null
   cac_expiration_date: string | null
   receives_drill_pay: boolean
+  avatar_url: string | null
   ocp_top_size: string | null
   ocp_bottom_size: string | null
   tshirt_size: string | null

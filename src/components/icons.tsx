@@ -165,6 +165,15 @@ export function IconSettings(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconCamera(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 8a2 2 0 0 1 2-2h1.2l.9-1.5A2 2 0 0 1 9.83 3.5h4.34a2 2 0 0 1 1.73 1l.9 1.5H18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </Icon>
+  )
+}
+
 export function IconAlertTriangle(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

@@ -137,13 +137,11 @@ export function Layout({
       <header className="sticky top-0 z-30 flex h-[60px] flex-shrink-0 items-center justify-between border-b border-line bg-surface-raised px-4 md:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="flex h-[34px] min-w-[34px] flex-shrink-0 items-center justify-center rounded-md bg-accent px-1.5 font-display text-xs font-bold text-accent-ink">
-            ACO
+            AT
           </div>
           <div className="min-w-0">
-            <div className="truncate font-display text-[15px] font-semibold leading-tight tracking-wide">
-              A CO 1-120 IN
-            </div>
-            <div className="truncate text-[11px] tracking-wide text-ink-muted">ROSTER &amp; ATTENDANCE</div>
+            <div className="truncate font-display text-[15px] font-semibold leading-tight tracking-wide">ATLAS</div>
+            <div className="truncate text-[11px] tracking-wide text-ink-muted">A CO 1-120 IN</div>
           </div>
         </div>
 
@@ -217,13 +215,11 @@ export function Layout({
       <nav className="hidden w-[236px] flex-shrink-0 flex-col bg-rail md:flex">
         <div className="flex items-center gap-2.5 border-b border-rail-line px-4 py-4">
           <div className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-md bg-accent font-display text-xs font-bold text-accent-ink">
-            ACO
+            AT
           </div>
           <div className="min-w-0">
-            <div className="truncate font-display text-[14px] font-semibold leading-tight tracking-wide">
-              A CO 1-120 IN
-            </div>
-            <div className="truncate text-[10px] tracking-wide text-ink-muted">ROSTER &amp; ATTENDANCE</div>
+            <div className="truncate font-display text-[14px] font-semibold leading-tight tracking-wide">ATLAS</div>
+            <div className="truncate text-[10px] tracking-wide text-ink-muted">A CO 1-120 IN</div>
           </div>
         </div>
 
@@ -255,9 +251,13 @@ export function Layout({
         </div>
 
         <div className="flex items-center gap-2.5 border-t border-rail-line p-3">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-accent font-display text-xs font-bold text-accent-ink">
-            {(session?.user.email?.[0] ?? '?').toUpperCase()}
-          </div>
+          {soldier?.avatar_url ? (
+            <img src={soldier.avatar_url} alt="" className="h-8 w-8 flex-shrink-0 rounded-full object-cover" />
+          ) : (
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-accent font-display text-xs font-bold text-accent-ink">
+              {profileInitials}
+            </div>
+          )}
           <div className="min-w-0 flex-1 truncate text-[11.5px] font-semibold text-ink-dim">
             {session?.user.email ?? 'Signed in'}
           </div>
@@ -298,9 +298,17 @@ export function Layout({
             to={profileLink}
             className="flex items-center gap-2.5 rounded-[18px] border border-line bg-surface-raised px-3 py-2.5 shadow-lg transition-colors active:bg-line-soft"
           >
-            <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full bg-accent-soft font-display text-[13.5px] font-bold text-accent shadow-[0_0_0_2px_var(--color-accent)]">
-              {profileInitials}
-            </div>
+            {soldier?.avatar_url ? (
+              <img
+                src={soldier.avatar_url}
+                alt=""
+                className="h-[38px] w-[38px] flex-shrink-0 rounded-full object-cover shadow-[0_0_0_2px_var(--color-accent)]"
+              />
+            ) : (
+              <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full bg-accent-soft font-display text-[13.5px] font-bold text-accent shadow-[0_0_0_2px_var(--color-accent)]">
+                {profileInitials}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <div className="truncate font-display text-[13.5px] font-bold uppercase tracking-wide text-ink">
                 {profileName}
