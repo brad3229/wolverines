@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
-import { NotificationBell } from './NotificationBell'
+import { NotificationBell, NotificationListPanel, useNotificationPanel } from './NotificationBell'
+import { IconBell } from './icons'
 
 export interface NavItem {
   to: string
@@ -49,13 +50,27 @@ interface LayoutProps {
   // Bottom tab bars get cramped once a role has more than a handful of nav items
   // (admin's is up to 7) -- 'menu' swaps mobile nav for a hamburger dropdown instead.
   mobileNav?: 'tabs' | 'menu'
+  // Route to a personal profile page. When set, mobile gets a floating profile
+  // banner docked at the bottom instead of a "SIGN OUT" entry in the dropdown --
+  // sign-out lives on that profile page instead. Only wired up where a role has
+  // one (soldiers); admin has no equivalent single "my profile" destination.
+  profileLink?: string
 }
 
-export function Layout({ navItems, children, mobileNav = 'tabs' }: LayoutProps) {
-  const { session } = useAuth()
+export function Layout({ navItems, children, mobileNav = 'tabs', profileLink }: LayoutProps) {
+  const { session, soldier } = useAuth()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
+  const {
+    open: notifSheetOpen,
+    setOpen: setNotifSheetOpen,
+    notifications,
+    notificationsError,
+    unreadCount,
+    handleSelect: handleSelectNotification,
+    handleMarkAllRead,
+  } = useNotificationPanel()
 
   // Overlay dropdown, not part of document flow -- closing on scroll keeps it from
   // sitting stranded over content the user has since scrolled away from.
@@ -83,6 +98,19 @@ export function Layout({ navItems, children, mobileNav = 'tabs' }: LayoutProps) 
   })
 
   const navGroups = groupNavItems(navItems)
+  // The mobile dropdown drops whatever profileLink points at -- the floating
+  // profile banner is that entry now, so listing it again would be redundant.
+  // Desktop's rail nav (no banner) keeps the full, unfiltered navItems.
+  const mobileMenuItems = profileLink ? navItems.filter((item) => item.to !== profileLink) : navItems
+  // Sign-out lives on the Settings page instead of the dropdown wherever a
+  // role has one -- checked off navItems (not profileLink) since the banner
+  // is now dashboard-only but Settings is reachable from every page.
+  const hasSettingsPage = navItems.some((item) => item.to.endsWith('/settings'))
+
+  const profileInitials = soldier
+    ? `${soldier.first_name.charAt(0)}${soldier.last_name.charAt(0)}`.toUpperCase()
+    : (session?.user.email?.[0] ?? '?').toUpperCase()
+  const profileName = soldier ? `${soldier.rank} ${soldier.last_name}` : (session?.user.email ?? 'Signed in')
 
   return (
     <div className="flex h-screen h-dvh flex-col overflow-hidden bg-surface text-ink md:flex-row">
@@ -101,7 +129,7 @@ export function Layout({ navItems, children, mobileNav = 'tabs' }: LayoutProps) 
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-2">
-          <NotificationBell />
+          {!profileLink && <NotificationBell />}
           <button
             onClick={() => supabase.auth.signOut()}
             className={`rounded-md bg-neutral-bg px-3 py-1.5 text-xs font-semibold tracking-wide text-neutral-ink transition-colors hover:bg-line ${
@@ -135,7 +163,7 @@ export function Layout({ navItems, children, mobileNav = 'tabs' }: LayoutProps) 
         <>
           <div className="fixed inset-x-0 top-[60px] bottom-0 z-10 bg-black/40 md:hidden" onClick={() => setMenuOpen(false)} />
           <nav className="fixed inset-x-0 top-[60px] z-20 flex flex-col gap-1 border-b border-line bg-surface-raised p-2.5 shadow-lg md:hidden">
-            {navItems.map((item) => (
+            {mobileMenuItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -151,13 +179,17 @@ export function Layout({ navItems, children, mobileNav = 'tabs' }: LayoutProps) 
                 <NavBadge count={item.badge} />
               </NavLink>
             ))}
-            <div className="my-1 border-t border-line" />
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-[13px] font-semibold tracking-wide text-bad-ink hover:bg-line-soft"
-            >
-              SIGN OUT
-            </button>
+            {!hasSettingsPage && (
+              <>
+                <div className="my-1 border-t border-line" />
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-[13px] font-semibold tracking-wide text-bad-ink hover:bg-line-soft"
+                >
+                  SIGN OUT
+                </button>
+              </>
+            )}
           </nav>
         </>
       )}
@@ -234,12 +266,79 @@ export function Layout({ navItems, children, mobileNav = 'tabs' }: LayoutProps) 
         <main
           ref={mainRef}
           className={`min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-7 sm:py-7 md:pb-7 ${
-            mobileNav === 'tabs' ? 'pb-24' : ''
+            mobileNav === 'tabs' || profileLink ? 'pb-24' : ''
           }`}
         >
           {children}
         </main>
       </div>
+
+      {profileLink && (
+        <div className={`sticky bottom-0 z-20 flex-shrink-0 bg-surface px-2.5 pb-2.5 pt-1.5 md:hidden ${menuOpen ? 'hidden' : ''}`}>
+          <NavLink
+            to={profileLink}
+            className="flex items-center gap-2.5 rounded-[18px] border border-line bg-surface-raised px-3 py-2.5 shadow-lg transition-colors active:bg-line-soft"
+          >
+            <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full bg-accent-soft font-display text-[13.5px] font-bold text-accent shadow-[0_0_0_2px_var(--color-accent)]">
+              {profileInitials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-display text-[13.5px] font-bold uppercase tracking-wide text-ink">
+                {profileName}
+              </div>
+              <div className="text-[11px] text-ink-muted">View Profile</div>
+            </div>
+            <button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setNotifSheetOpen((v) => !v)
+              }}
+              aria-label="Notifications"
+              aria-expanded={notifSheetOpen}
+              className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-ink-dim"
+            >
+              <IconBell className="h-[17px] w-[17px]" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-surface-raised bg-warn-bg px-1 text-[9px] font-extrabold text-warn-ink">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          </NavLink>
+        </div>
+      )}
+
+      {/* Bottom sheet -- kept mounted (not conditionally rendered) so the
+          translate-y transition actually animates on open, instead of the
+          panel just appearing already in its open position. */}
+      {profileLink && (
+        <div
+          className={`fixed inset-0 z-40 md:hidden ${notifSheetOpen ? '' : 'pointer-events-none'}`}
+          aria-hidden={!notifSheetOpen}
+        >
+          <div
+            className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${
+              notifSheetOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={() => setNotifSheetOpen(false)}
+          />
+          <div
+            className={`absolute inset-x-0 bottom-0 flex max-h-[75vh] flex-col overflow-hidden rounded-t-2xl border-t border-line bg-surface-raised shadow-lg transition-transform duration-300 ease-out ${
+              notifSheetOpen ? 'translate-y-0' : 'translate-y-full'
+            }`}
+          >
+            <div className="mx-auto mt-2.5 h-1 w-10 flex-shrink-0 rounded-full bg-line" />
+            <NotificationListPanel
+              notifications={notifications}
+              notificationsError={notificationsError}
+              unreadCount={unreadCount}
+              onSelect={handleSelectNotification}
+              onMarkAllRead={handleMarkAllRead}
+            />
+          </div>
+        </div>
+      )}
 
       {mobileNav === 'tabs' && (
         <nav className="sticky bottom-0 z-20 flex flex-shrink-0 border-t border-line bg-surface-raised md:hidden">

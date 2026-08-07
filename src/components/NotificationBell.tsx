@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { markNotificationRead, markAllNotificationsRead } from '../lib/notifications'
@@ -17,10 +17,95 @@ function timeAgo(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export function NotificationBell() {
+// Shared between the desktop/admin dropdown bell and the mobile bottom-sheet
+// trigger on the soldier profile banner -- both need the same open state,
+// data, and read/dismiss actions, just rendered inside different containers.
+export function useNotificationPanel() {
   const { session, notifications, notificationsError, removeNotification, clearNotifications } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+
+  // Read notifications disappear from the list immediately -- they're gone for good,
+  // not just dimmed/marked, since there's nothing left to act on once you've seen them.
+  const handleSelect = useCallback(
+    (n: Notification) => {
+      setOpen(false)
+      removeNotification(n.id)
+      markNotificationRead(n.id).catch(() => {})
+      if (n.link) navigate(n.link)
+    },
+    [removeNotification, navigate],
+  )
+
+  const handleMarkAllRead = useCallback(() => {
+    if (!session) return
+    clearNotifications()
+    markAllNotificationsRead(session.user.id).catch(() => {})
+  }, [session, clearNotifications])
+
+  return {
+    open,
+    setOpen,
+    notifications,
+    notificationsError,
+    unreadCount: notifications.length,
+    handleSelect,
+    handleMarkAllRead,
+  }
+}
+
+export function NotificationListPanel({
+  notifications,
+  notificationsError,
+  unreadCount,
+  onSelect,
+  onMarkAllRead,
+}: {
+  notifications: Notification[]
+  notificationsError: boolean
+  unreadCount: number
+  onSelect: (n: Notification) => void
+  onMarkAllRead: () => void
+}) {
+  return (
+    <>
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-line px-3.5 py-2.5">
+        <span className="font-display text-sm font-semibold tracking-wide">NOTIFICATIONS</span>
+        {unreadCount > 0 && (
+          <button onClick={onMarkAllRead} className="text-[11px] font-semibold text-accent-soft-ink hover:underline">
+            Mark all read
+          </button>
+        )}
+      </div>
+      <div className="overflow-y-auto">
+        {notificationsError ? (
+          <p className="p-4 text-center text-sm text-bad-ink">Couldn&rsquo;t load notifications.</p>
+        ) : notifications.length === 0 ? (
+          <p className="p-4 text-center text-sm text-ink-muted">Nothing new — you're all caught up.</p>
+        ) : (
+          notifications.map((n) => (
+            <button
+              key={n.id}
+              onClick={() => onSelect(n)}
+              className="flex w-full flex-col gap-0.5 border-b border-line-soft bg-accent-soft/10 px-3.5 py-2.5 text-left last:border-0 hover:bg-surface"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[13px] font-semibold">{n.title}</span>
+                <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent" />
+              </div>
+              <span className="text-xs text-ink-muted">{n.body}</span>
+              <span className="text-[10px] text-ink-faint">{timeAgo(n.created_at)}</span>
+            </button>
+          ))
+        )}
+      </div>
+    </>
+  )
+}
+
+export function NotificationBell() {
+  const { open, setOpen, notifications, notificationsError, unreadCount, handleSelect, handleMarkAllRead } =
+    useNotificationPanel()
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -30,24 +115,7 @@ export function NotificationBell() {
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [open])
-
-  const unreadCount = notifications.length
-
-  // Read notifications disappear from the list immediately -- they're gone for good,
-  // not just dimmed/marked, since there's nothing left to act on once you've seen them.
-  async function handleSelect(n: Notification) {
-    setOpen(false)
-    removeNotification(n.id)
-    markNotificationRead(n.id).catch(() => {})
-    if (n.link) navigate(n.link)
-  }
-
-  async function handleMarkAllRead() {
-    if (!session) return
-    clearNotifications()
-    markAllNotificationsRead(session.user.id).catch(() => {})
-  }
+  }, [open, setOpen])
 
   return (
     <div ref={containerRef} className="relative">
@@ -67,39 +135,13 @@ export function NotificationBell() {
 
       {open && (
         <div className="fixed inset-x-3 top-[60px] z-30 flex max-h-[70vh] flex-col overflow-hidden rounded-xl border border-line bg-surface-raised shadow-lg md:absolute md:inset-x-auto md:right-0 md:top-11 md:w-[320px]">
-          <div className="flex flex-shrink-0 items-center justify-between border-b border-line px-3.5 py-2.5">
-            <span className="font-display text-sm font-semibold tracking-wide">NOTIFICATIONS</span>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllRead}
-                className="text-[11px] font-semibold text-accent-soft-ink hover:underline"
-              >
-                Mark all read
-              </button>
-            )}
-          </div>
-          <div className="overflow-y-auto">
-            {notificationsError ? (
-              <p className="p-4 text-center text-sm text-bad-ink">Couldn&rsquo;t load notifications.</p>
-            ) : notifications.length === 0 ? (
-              <p className="p-4 text-center text-sm text-ink-muted">Nothing new — you're all caught up.</p>
-            ) : (
-              notifications.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => handleSelect(n)}
-                  className="flex w-full flex-col gap-0.5 border-b border-line-soft bg-accent-soft/10 px-3.5 py-2.5 text-left last:border-0 hover:bg-surface"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-[13px] font-semibold">{n.title}</span>
-                    <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent" />
-                  </div>
-                  <span className="text-xs text-ink-muted">{n.body}</span>
-                  <span className="text-[10px] text-ink-faint">{timeAgo(n.created_at)}</span>
-                </button>
-              ))
-            )}
-          </div>
+          <NotificationListPanel
+            notifications={notifications}
+            notificationsError={notificationsError}
+            unreadCount={unreadCount}
+            onSelect={handleSelect}
+            onMarkAllRead={handleMarkAllRead}
+          />
         </div>
       )}
     </div>

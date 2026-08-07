@@ -7,11 +7,13 @@ import { listPayIssues } from '../lib/payIssues'
 import { listGearRequests } from '../lib/gearRequests'
 import { countPendingTaskVerifications } from '../lib/tasks'
 import { listUnreadNotifications } from '../lib/notifications'
-import type { UserRole, Notification } from '../types/database'
+import { getOwnSoldierRecord } from '../lib/soldiers'
+import type { UserRole, Notification, Soldier } from '../types/database'
 
 interface AuthState {
   session: Session | null
   role: UserRole | null
+  soldier: Soldier | null
   loading: boolean
   needsMfaChallenge: boolean
   mfaFactorId: string | null
@@ -32,6 +34,7 @@ interface AuthState {
 export const AuthContext = createContext<AuthState>({
   session: null,
   role: null,
+  soldier: null,
   loading: true,
   needsMfaChallenge: false,
   mfaFactorId: null,
@@ -56,6 +59,7 @@ export function useAuthState(): AuthState {
   // actually happened yet, so a refresh doesn't briefly bounce a real session to /login.
   const [sessionChecked, setSessionChecked] = useState(false)
   const [role, setRole] = useState<UserRole | null>(null)
+  const [soldier, setSoldier] = useState<Soldier | null>(null)
   const [loading, setLoading] = useState(true)
   const [needsMfaChallenge, setNeedsMfaChallenge] = useState(false)
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
@@ -114,6 +118,23 @@ export function useAuthState(): AuthState {
       active = false
     }
   }, [session, sessionChecked])
+
+  // Lives here (not per-page) so the mobile profile banner in Layout has a name/rank to
+  // show without re-fetching on every route change -- Layout remounts per <Route>. Silently
+  // null for accounts with no linked Soldier row (e.g. an admin who hasn't self-linked).
+  useEffect(() => {
+    if (!session) {
+      setSoldier(null)
+      return
+    }
+    let active = true
+    getOwnSoldierRecord(session.user.id)
+      .then((s) => active && setSoldier(s))
+      .catch(() => active && setSoldier(null))
+    return () => {
+      active = false
+    }
+  }, [session])
 
   // A Soldier can be signed in (aal1, password only) but still owe a second factor
   // if their account has a verified TOTP factor enrolled -- block on that here so
@@ -196,6 +217,7 @@ export function useAuthState(): AuthState {
   return {
     session,
     role,
+    soldier,
     loading,
     needsMfaChallenge,
     mfaFactorId,
