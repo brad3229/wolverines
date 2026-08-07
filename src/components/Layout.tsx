@@ -284,7 +284,7 @@ export function Layout({ navItems, children, mobileNav = 'tabs', profileLink }: 
       </div>
 
       {profileLink && (
-        <div className={`sticky bottom-0 z-20 flex-shrink-0 bg-surface px-2.5 pb-2.5 pt-1.5 md:hidden ${menuOpen ? 'hidden' : ''}`}>
+        <div className={`sticky bottom-0 z-20 flex-shrink-0 px-2.5 pb-2.5 pt-1.5 md:hidden ${menuOpen ? 'hidden' : ''}`}>
           <NavLink
             to={profileLink}
             className="flex items-center gap-2.5 rounded-[18px] border border-line bg-surface-raised px-3 py-2.5 shadow-lg transition-colors active:bg-line-soft"
