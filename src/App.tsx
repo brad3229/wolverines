@@ -54,7 +54,7 @@ const SoldierGearRequests = lazy(() =>
   import('./routes/soldier/GearRequests').then((m) => ({ default: m.GearRequests })),
 )
 const SoldierTasks = lazy(() => import('./routes/soldier/Tasks').then((m) => ({ default: m.Tasks })))
-const SoldierSettings = lazy(() => import('./routes/soldier/Settings').then((m) => ({ default: m.Settings })))
+const Settings = lazy(() => import('./routes/Settings').then((m) => ({ default: m.Settings })))
 
 function buildAdminNav(
   pendingSutaCount: number,
@@ -108,6 +108,7 @@ function buildAdminNav(
       group: 'Requests & Readiness',
     },
     { to: '/admin/security', label: 'Security', shortLabel: 'Sec', icon: <IconSecurity />, group: 'System' },
+    { to: '/admin/settings', label: 'Settings', icon: <IconSettings />, group: 'System' },
   ]
 }
 
@@ -169,7 +170,7 @@ function App() {
             path="/admin/dashboard"
             element={
               <RequireRole allow={['admin']}>
-                <Layout navItems={adminNav} mobileNav="menu">
+                <Layout navItems={adminNav} mobileNav="menu" profileLink="/admin/settings" profileLinkLabel="Settings">
                   <AdminDashboard />
                 </Layout>
               </RequireRole>
@@ -305,6 +306,16 @@ function App() {
               </RequireRole>
             }
           />
+          <Route
+            path="/admin/settings"
+            element={
+              <RequireRole allow={['admin']}>
+                <Layout navItems={adminNav} mobileNav="menu">
+                  <Settings />
+                </Layout>
+              </RequireRole>
+            }
+          />
 
           <Route
             path="/soldier/dashboard"
@@ -401,7 +412,7 @@ function App() {
             element={
               <RequireRole allow={['soldier']}>
                 <Layout navItems={SOLDIER_NAV} mobileNav="menu">
-                  <SoldierSettings />
+                  <Settings />
                 </Layout>
               </RequireRole>
             }

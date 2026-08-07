@@ -50,14 +50,23 @@ interface LayoutProps {
   // Bottom tab bars get cramped once a role has more than a handful of nav items
   // (admin's is up to 7) -- 'menu' swaps mobile nav for a hamburger dropdown instead.
   mobileNav?: 'tabs' | 'menu'
-  // Route to a personal profile page. When set, mobile gets a floating profile
-  // banner docked at the bottom instead of a "SIGN OUT" entry in the dropdown --
-  // sign-out lives on that profile page instead. Only wired up where a role has
-  // one (soldiers); admin has no equivalent single "my profile" destination.
+  // Route the mobile banner links to (only shown where set, and only makes
+  // sense on a role's dashboard route -- see profileLink usage in App.tsx).
+  // Sign-out moves off the dropdown and onto whatever page this points at.
   profileLink?: string
+  // Subtitle under the name on that banner -- "View Profile" for soldiers
+  // (a real profile page), "Settings" for admin (no separate profile page,
+  // so the banner just opens Settings directly).
+  profileLinkLabel?: string
 }
 
-export function Layout({ navItems, children, mobileNav = 'tabs', profileLink }: LayoutProps) {
+export function Layout({
+  navItems,
+  children,
+  mobileNav = 'tabs',
+  profileLink,
+  profileLinkLabel = 'View Profile',
+}: LayoutProps) {
   const { session, soldier } = useAuth()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -296,7 +305,7 @@ export function Layout({ navItems, children, mobileNav = 'tabs', profileLink }: 
               <div className="truncate font-display text-[13.5px] font-bold uppercase tracking-wide text-ink">
                 {profileName}
               </div>
-              <div className="text-[11px] text-ink-muted">View Profile</div>
+              <div className="text-[11px] text-ink-muted">{profileLinkLabel}</div>
             </div>
             <button
               onClick={(e) => {
