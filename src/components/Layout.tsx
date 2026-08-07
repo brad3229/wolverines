@@ -113,7 +113,17 @@ export function Layout({ navItems, children, mobileNav = 'tabs', profileLink }: 
   const profileName = soldier ? `${soldier.rank} ${soldier.last_name}` : (session?.user.email ?? 'Signed in')
 
   return (
-    <div className="flex h-screen h-dvh flex-col overflow-hidden bg-surface text-ink md:flex-row">
+    // Two height classes on one element don't reliably cascade in class-list
+    // order -- an inline style is the only way to guarantee 100dvh wins where
+    // supported, with the h-screen class as an automatic 100vh fallback where
+    // it isn't (an unsupported inline value is dropped, not just ignored, so
+    // it falls through to the class). Without this, mobile Safari's 100vh
+    // (which includes the area behind its address bar) can end up taller than
+    // what's actually visible, pushing the sticky bottom banner off-screen.
+    <div
+      className="flex h-screen flex-col overflow-hidden bg-surface text-ink md:flex-row"
+      style={{ height: '100dvh' }}
+    >
       {/* ===== Mobile header (branding + actions) -- desktop uses the rail + topbar below ===== */}
       <header className="sticky top-0 z-30 flex h-[60px] flex-shrink-0 items-center justify-between border-b border-line bg-surface-raised px-4 md:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
