@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { enrollTotp, enrollPasskey, verifyFactor, listVerifiedFactors, browserSupportsPasskeys } from '../../lib/mfa'
+import { enrollTotp, enrollPasskey, verifyFactor, listVerifiedFactor, browserSupportsPasskeys } from '../../lib/mfa'
 import { listAdminProfiles } from '../../lib/profiles'
 import { resetUserMfa } from '../../lib/adminApi'
 import { listSoldiers } from '../../lib/soldiers'
@@ -12,7 +12,7 @@ import type { Factor } from '@supabase/supabase-js'
 
 export function Security() {
   const { session } = useAuth()
-  const [factors, setFactors] = useState<Factor[]>([])
+  const [factor, setFactor] = useState<Factor | null>(null)
   const [loading, setLoading] = useState(true)
   const [enrolling, setEnrolling] = useState(false)
   const [pendingFactorId, setPendingFactorId] = useState<string | null>(null)
@@ -33,9 +33,9 @@ export function Security() {
   function refresh() {
     setLoading(true)
     setLoadError(null)
-    Promise.all([listVerifiedFactors(), listAdminProfiles(), listSoldiers()])
+    Promise.all([listVerifiedFactor(), listAdminProfiles(), listSoldiers()])
       .then(([f, admins, allSoldiers]) => {
-        setFactors(f)
+        setFactor(f)
         setOtherAdminIds(admins.map((a) => a.id).filter((id) => id !== session?.user.id))
         setSoldiers(allSoldiers)
       })
@@ -118,9 +118,6 @@ export function Security() {
 
   if (loading) return <LoadingScreen />
 
-  const hasPasskey = factors.some((f) => f.factor_type === 'webauthn')
-  const hasTotp = factors.some((f) => f.factor_type === 'totp')
-
   return (
     <div className="mx-auto max-w-[560px]">
       <p className="mb-5 text-[13px] text-ink-muted">
@@ -130,7 +127,7 @@ export function Security() {
 
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
-      {factors.length === 0 && !enrolling && (
+      {!factor && !enrolling && (
         <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
@@ -216,47 +213,22 @@ export function Security() {
         </div>
       )}
 
-      {factors.length > 0 && !enrolling && (
+      {factor && (
         <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="text-sm font-semibold">Two-Factor Authentication</div>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Two-Factor Authentication</div>
+              <div className="text-xs text-ink-muted">
+                Enabled via {factor?.factor_type === 'webauthn' ? 'passkey' : 'authenticator app'}
+              </div>
+            </div>
             <span className="flex-shrink-0 rounded-md bg-good-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-good-ink">
               ON
             </span>
           </div>
-          <div className="mb-3 flex flex-col gap-2">
-            {factors.map((f) => (
-              <div key={f.id} className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2">
-                <span className="text-sm">{f.factor_type === 'webauthn' ? 'Passkey' : 'Authenticator app'}</span>
-                <span className="text-[11px] font-semibold tracking-wide text-good-ink">ON</span>
-              </div>
-            ))}
-          </div>
-          {(!hasPasskey || !hasTotp) && (
-            <div className="mb-3 flex gap-2">
-              {!hasPasskey && browserSupportsPasskeys() && (
-                <button
-                  onClick={startPasskey}
-                  disabled={passkeyBusy}
-                  className="rounded-md bg-accent-soft px-3 py-1.5 text-[11px] font-bold tracking-wide text-accent-soft-ink disabled:opacity-50"
-                >
-                  {passkeyBusy ? 'FOLLOW YOUR DEVICE PROMPT...' : 'ADD A PASSKEY'}
-                </button>
-              )}
-              {!hasTotp && (
-                <button
-                  onClick={startEnroll}
-                  className="rounded-md bg-neutral-bg px-3 py-1.5 text-[11px] font-bold tracking-wide text-neutral-ink"
-                >
-                  ADD AN AUTHENTICATOR APP
-                </button>
-              )}
-            </div>
-          )}
-          {error && <p className="mb-3 text-sm text-bad-ink">{error}</p>}
-          <p className="text-xs text-ink-muted">
-            Required for admin accounts, so there&rsquo;s no option to remove a method here. Switching devices? Add a
-            new method above, or have another admin reset your MFA below to start over.
+          <p className="mt-3 text-xs text-ink-muted">
+            Required for admin accounts, so there&rsquo;s no option to disable it here. Switching devices? Another
+            admin can reset it for you below.
           </p>
         </div>
       )}

@@ -49,12 +49,23 @@ export async function verifyFactor(factorId: string, code: string) {
   if (verifyError) throw verifyError
 }
 
-// Any factor type -- lets callers (Security page, login step-up) handle
-// whichever method(s) an admin actually enrolled with, TOTP and/or passkey.
-export async function listVerifiedFactors(): Promise<Factor[]> {
+export async function unenrollTotp(factorId: string) {
+  const { error } = await supabase.auth.mfa.unenroll({ factorId })
+  if (error) throw error
+}
+
+export async function listVerifiedTotpFactor() {
   const { data, error } = await supabase.auth.mfa.listFactors()
   if (error) throw error
-  return data.all.filter((f) => f.status === 'verified')
+  return data.totp.find((f) => f.status === 'verified') ?? null
+}
+
+// Any factor type -- lets callers (Security page, login step-up) handle
+// whichever method an admin actually enrolled with, TOTP or passkey.
+export async function listVerifiedFactor(): Promise<Factor | null> {
+  const { data, error } = await supabase.auth.mfa.listFactors()
+  if (error) throw error
+  return data.all.find((f) => f.status === 'verified') ?? null
 }
 
 export async function getAssuranceLevel() {
