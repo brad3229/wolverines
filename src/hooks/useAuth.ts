@@ -19,6 +19,8 @@ interface AuthState {
   needsMfaChallenge: boolean
   mfaFactorId: string | null
   clearMfaChallenge: () => void
+  needsMfaEnrollment: boolean
+  refreshMfaStatus: () => void
   pendingSutaCount: number
   pendingEditRequestCount: number
   pendingPayIssueCount: number
@@ -41,6 +43,8 @@ export const AuthContext = createContext<AuthState>({
   needsMfaChallenge: false,
   mfaFactorId: null,
   clearMfaChallenge: () => {},
+  needsMfaEnrollment: false,
+  refreshMfaStatus: () => {},
   pendingSutaCount: 0,
   pendingEditRequestCount: 0,
   pendingPayIssueCount: 0,
@@ -65,6 +69,7 @@ export function useAuthState(): AuthState {
   const [loading, setLoading] = useState(true)
   const [needsMfaChallenge, setNeedsMfaChallenge] = useState(false)
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
+  const [needsMfaEnrollment, setNeedsMfaEnrollment] = useState(false)
   const [pendingSutaCount, setPendingSutaCount] = useState(0)
   const [pendingEditRequestCount, setPendingEditRequestCount] = useState(0)
   const [pendingPayIssueCount, setPendingPayIssueCount] = useState(0)
@@ -141,35 +146,35 @@ export function useAuthState(): AuthState {
 
   // A Soldier can be signed in (aal1, password only) but still owe a second factor
   // if their account has a verified TOTP factor enrolled -- block on that here so
-  // no protected route ever renders before it's satisfied.
-  useEffect(() => {
+  // no protected route ever renders before it's satisfied. Admin accounts have a
+  // second case: aal1 with *no* factor to step up to at all means MFA is
+  // mandatory but never set up -- see needsMfaEnrollment / MfaEnrollmentRequired.
+  const refreshMfaStatus = useCallback(() => {
     if (!session) {
       setNeedsMfaChallenge(false)
       setMfaFactorId(null)
+      setNeedsMfaEnrollment(false)
       return
     }
 
-    let active = true
-
     supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data }) => {
-      if (!active || !data) return
+      if (!data) return
       if (data.currentLevel === 'aal1' && data.nextLevel === 'aal2') {
         supabase.auth.mfa.listFactors().then(({ data: factorData }) => {
-          if (!active) return
           const factor = factorData?.totp.find((f) => f.status === 'verified')
           setMfaFactorId(factor?.id ?? null)
           setNeedsMfaChallenge(true)
+          setNeedsMfaEnrollment(false)
         })
       } else {
         setNeedsMfaChallenge(false)
         setMfaFactorId(null)
+        setNeedsMfaEnrollment(role === 'admin' && data.currentLevel === 'aal1' && data.nextLevel === 'aal1')
       }
     })
+  }, [session, role])
 
-    return () => {
-      active = false
-    }
-  }, [session])
+  useEffect(refreshMfaStatus, [refreshMfaStatus])
 
   const refreshPendingCounts = useCallback(() => {
     if (role !== 'admin') {
@@ -226,6 +231,8 @@ export function useAuthState(): AuthState {
     needsMfaChallenge,
     mfaFactorId,
     clearMfaChallenge: () => setNeedsMfaChallenge(false),
+    needsMfaEnrollment,
+    refreshMfaStatus,
     pendingSutaCount,
     pendingEditRequestCount,
     pendingPayIssueCount,

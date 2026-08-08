@@ -23,3 +23,14 @@ export async function setUserRole(params: { profileId: string; role: UserRole })
   if (error) throw new Error(await functionErrorMessage(error, 'Failed to update role'))
   return data as { profileId: string; role: UserRole }
 }
+
+// Clears every MFA factor off another admin's account -- for when they've
+// lost their authenticator and can't get past the mandatory MFA gate
+// themselves. Only usable by an admin who *can* currently sign in.
+export async function resetUserMfa(profileId: string) {
+  const { data, error } = await supabase.functions.invoke('reset-mfa', {
+    body: { profileId },
+  })
+  if (error) throw new Error(await functionErrorMessage(error, 'Failed to reset MFA'))
+  return data as { profileId: string; factorsRemoved: number }
+}

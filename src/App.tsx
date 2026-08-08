@@ -5,6 +5,7 @@ import { RequireRole } from './components/RequireRole'
 import { Layout } from './components/Layout'
 import type { NavItem } from './components/Layout'
 import { MfaChallenge } from './components/MfaChallenge'
+import { MfaEnrollmentRequired } from './components/MfaEnrollmentRequired'
 import { SetPassword } from './components/SetPassword'
 import { LoadingScreen } from './components/LoadingScreen'
 import { initialAuthFlowType } from './lib/authFlow'
@@ -155,6 +156,14 @@ function App() {
     return (
       <AuthContext.Provider value={auth}>
         <MfaChallenge />
+      </AuthContext.Provider>
+    )
+  }
+
+  if (auth.session && auth.needsMfaEnrollment) {
+    return (
+      <AuthContext.Provider value={auth}>
+        <MfaEnrollmentRequired />
       </AuthContext.Provider>
     )
   }

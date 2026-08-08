@@ -77,6 +77,14 @@ textarea {
   font-family: var(--font-sans);
 }
 
+/* Tailwind's preflight resets button cursor to default instead of leaving
+   the browser's normal pointer -- undone globally here rather than adding
+   cursor-pointer to every button in the app. */
+button:not(:disabled),
+[role='button']:not(:disabled) {
+  cursor: pointer;
+}
+
 /* Native <option>/<optgroup> popups don't reliably inherit dark-mode text
    color from the page, leaving them washed out against their own default
    light background — so style them explicitly to match the app theme. */
