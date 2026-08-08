@@ -8,6 +8,7 @@ import { listGearRequests } from '../lib/gearRequests'
 import { countPendingTaskVerifications } from '../lib/tasks'
 import { listUnreadNotifications } from '../lib/notifications'
 import { getOwnSoldierRecord } from '../lib/soldiers'
+import { jwtAmrMethods } from '../lib/jwt'
 import type { UserRole, Notification, Soldier } from '../types/database'
 
 interface AuthState {
@@ -149,8 +150,19 @@ export function useAuthState(): AuthState {
   // no protected route ever renders before it's satisfied. Admin accounts have a
   // second case: aal1 with *no* factor to step up to at all means MFA is
   // mandatory but never set up -- see needsMfaEnrollment / MfaEnrollmentRequired.
+  // A passkey sign-in is exempt from both cases (see is_admin() in SQL for the
+  // matching server-side rule) -- it's already phishing-resistant and combines
+  // device possession with a biometric/PIN in one ceremony, so it satisfies the
+  // admin security bar without a separate TOTP step.
   const refreshMfaStatus = useCallback(() => {
     if (!session) {
+      setNeedsMfaChallenge(false)
+      setMfaFactorId(null)
+      setNeedsMfaEnrollment(false)
+      return
+    }
+
+    if (jwtAmrMethods(session.access_token).includes('passkey')) {
       setNeedsMfaChallenge(false)
       setMfaFactorId(null)
       setNeedsMfaEnrollment(false)
