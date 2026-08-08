@@ -1,4 +1,24 @@
 import { supabase } from './supabaseClient'
+import type { Factor } from '@supabase/supabase-js'
+
+export function browserSupportsPasskeys() {
+  return typeof window !== 'undefined' && typeof window.PublicKeyCredential !== 'undefined'
+}
+
+// Face ID / Touch ID / Windows Hello -- register() runs the full WebAuthn
+// ceremony (enroll + browser prompt + verify) in one call and elevates the
+// session to aal2 on success, same as verifyFactor() does for TOTP.
+export async function enrollPasskey(friendlyName: string) {
+  const { data, error } = await supabase.auth.mfa.webauthn.register({ friendlyName })
+  if (error) throw error
+  return data
+}
+
+// authenticate() runs challenge + browser prompt + verify in one call.
+export async function authenticatePasskey(factorId: string) {
+  const { error } = await supabase.auth.mfa.webauthn.authenticate({ factorId })
+  if (error) throw error
+}
 
 export async function enrollTotp() {
   // Supabase only returns the QR code/secret at the moment of enrollment, and
@@ -38,6 +58,14 @@ export async function listVerifiedTotpFactor() {
   const { data, error } = await supabase.auth.mfa.listFactors()
   if (error) throw error
   return data.totp.find((f) => f.status === 'verified') ?? null
+}
+
+// Any factor type -- lets callers (Security page, login step-up) handle
+// whichever method an admin actually enrolled with, TOTP or passkey.
+export async function listVerifiedFactor(): Promise<Factor | null> {
+  const { data, error } = await supabase.auth.mfa.listFactors()
+  if (error) throw error
+  return data.all.find((f) => f.status === 'verified') ?? null
 }
 
 export async function getAssuranceLevel() {
