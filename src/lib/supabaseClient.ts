@@ -13,4 +13,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // project to run `supabase gen types typescript` against, a hand-maintained
 // generic drifts from the real schema silently. Each lib/*.ts function casts
 // its response to the types in src/types/database.ts instead.
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { experimental: { passkey: true } },
+})
