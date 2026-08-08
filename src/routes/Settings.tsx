@@ -6,8 +6,13 @@ import { registerPasskey, listPasskeys, deletePasskey, browserSupportsPasskeys }
 import { errorMessage } from '../lib/errors'
 import type { PasskeyListItem } from '@supabase/supabase-js'
 
+function decodeJwt(token: string): Record<string, unknown> {
+  const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+  return JSON.parse(atob(base64))
+}
+
 export function Settings() {
-  const { soldier } = useAuth()
+  const { soldier, session } = useAuth()
   const [passkeys, setPasskeys] = useState<PasskeyListItem[]>([])
   const [loadingPasskeys, setLoadingPasskeys] = useState(true)
   const [registering, setRegistering] = useState(false)
@@ -98,6 +103,15 @@ export function Settings() {
               {registering ? 'FOLLOW YOUR DEVICE PROMPT...' : 'SET UP A PASSKEY'}
             </button>
             {passkeyError && <p className="mt-3 text-sm text-bad-ink">{passkeyError}</p>}
+          </div>
+        </>
+      )}
+
+      {session && (
+        <>
+          <h2 className="mb-2.5 font-display text-sm font-semibold tracking-wide text-ink-dim">DEBUG (TEMPORARY)</h2>
+          <div className="mb-6 overflow-x-auto rounded-xl border border-line bg-panel p-4 text-xs">
+            <pre className="whitespace-pre-wrap break-all">{JSON.stringify(decodeJwt(session.access_token), null, 2)}</pre>
           </div>
         </>
       )}
