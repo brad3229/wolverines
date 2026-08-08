@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { enrollTotp, enrollPasskey, verifyFactor, listVerifiedFactor, browserSupportsPasskeys } from '../../lib/mfa'
+import { enrollTotp, verifyFactor, listVerifiedTotpFactor } from '../../lib/mfa'
 import { listAdminProfiles } from '../../lib/profiles'
 import { resetUserMfa } from '../../lib/adminApi'
 import { listSoldiers } from '../../lib/soldiers'
@@ -8,11 +8,10 @@ import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { CopyButton } from '../../components/CopyButton'
 import type { Soldier } from '../../types/database'
-import type { Factor } from '@supabase/supabase-js'
 
 export function Security() {
   const { session } = useAuth()
-  const [factor, setFactor] = useState<Factor | null>(null)
+  const [factor, setFactor] = useState<{ id: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [enrolling, setEnrolling] = useState(false)
   const [pendingFactorId, setPendingFactorId] = useState<string | null>(null)
@@ -28,12 +27,11 @@ export function Security() {
   const [confirmingResetId, setConfirmingResetId] = useState<string | null>(null)
   const [resetSubmittingId, setResetSubmittingId] = useState<string | null>(null)
   const [resetStatus, setResetStatus] = useState<string | null>(null)
-  const [passkeyBusy, setPasskeyBusy] = useState(false)
 
   function refresh() {
     setLoading(true)
     setLoadError(null)
-    Promise.all([listVerifiedFactor(), listAdminProfiles(), listSoldiers()])
+    Promise.all([listVerifiedTotpFactor(), listAdminProfiles(), listSoldiers()])
       .then(([f, admins, allSoldiers]) => {
         setFactor(f)
         setOtherAdminIds(admins.map((a) => a.id).filter((id) => id !== session?.user.id))
@@ -44,19 +42,6 @@ export function Security() {
   }
 
   useEffect(refresh, [session])
-
-  async function startPasskey() {
-    setPasskeyBusy(true)
-    setError(null)
-    try {
-      await enrollPasskey('Passkey')
-      refresh()
-    } catch (err) {
-      setError(errorMessage(err, 'Failed to set up passkey'))
-    } finally {
-      setPasskeyBusy(false)
-    }
-  }
 
   async function startEnroll() {
     setError(null)
@@ -121,8 +106,8 @@ export function Security() {
   return (
     <div className="mx-auto max-w-[560px]">
       <p className="mb-5 text-[13px] text-ink-muted">
-        Two-factor authentication is required for admin accounts, using either a passkey (Face ID, Touch ID, Windows
-        Hello) or an authenticator app (Google Authenticator, Authy, etc).
+        Two-factor authentication is required for admin accounts using an authenticator app (Google Authenticator,
+        Authy, etc).
       </p>
 
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
@@ -138,20 +123,11 @@ export function Security() {
               REQUIRED
             </span>
           </div>
-          {browserSupportsPasskeys() && (
-            <button
-              onClick={startPasskey}
-              disabled={passkeyBusy}
-              className="mr-2 rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink disabled:opacity-50"
-            >
-              {passkeyBusy ? 'FOLLOW YOUR DEVICE PROMPT...' : 'USE A PASSKEY'}
-            </button>
-          )}
           <button
             onClick={startEnroll}
-            className="rounded-md bg-neutral-bg px-4 py-2 text-xs font-bold tracking-wide text-neutral-ink"
+            className="rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-ink"
           >
-            USE AN AUTHENTICATOR APP
+            ENABLE 2FA
           </button>
           {error && <p className="mt-3 text-sm text-bad-ink">{error}</p>}
         </div>
@@ -160,27 +136,29 @@ export function Security() {
       {enrolling && (
         <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-5">
           <div className="mb-3 text-sm font-semibold">Set up your authenticator app</div>
+          {uri && (
+            <a
+              href={uri}
+              className="mb-2 block w-full rounded-md bg-accent-soft py-2.5 text-center text-sm font-semibold tracking-wide text-accent-soft-ink"
+            >
+              OPEN IN AUTHENTICATOR APP
+            </a>
+          )}
+          <p className="mb-3 text-center text-[11px] text-ink-muted">
+            Setting up on this phone? Tap above. On a different device, scan the code below instead.
+          </p>
+          {qrCode && (
+            <div className="mb-3 flex justify-center rounded-lg bg-white p-3">
+              <img src={qrCode} alt="TOTP enrollment QR code" className="h-40 w-40" />
+            </div>
+          )}
           {secret && (
-            <div className="mb-2">
-              <p className="mb-1 text-center text-xs text-ink-muted">
-                Setting up on this phone? Copy this key, then in your authenticator app choose &ldquo;Enter a setup
-                key manually&rdquo; and paste it in:
-              </p>
+            <div className="mb-3">
+              <p className="mb-1 text-center text-xs text-ink-muted">Or enter this setup key manually in your app:</p>
               <div className="flex items-center justify-between gap-2 rounded-md border border-line bg-surface px-3 py-2">
                 <span className="min-w-0 break-all font-mono text-xs text-ink-dim">{secret}</span>
                 <CopyButton value={secret} />
               </div>
-            </div>
-          )}
-          {uri && (
-            <a href={uri} className="mb-3 block text-center text-[11px] text-ink-muted underline">
-              Or try opening directly in your app (works with some apps, e.g. 1Password)
-            </a>
-          )}
-          <p className="mb-2 text-center text-[11px] text-ink-muted">On a different device, scan this instead:</p>
-          {qrCode && (
-            <div className="mb-3 flex justify-center rounded-lg bg-white p-3">
-              <img src={qrCode} alt="TOTP enrollment QR code" className="h-40 w-40" />
             </div>
           )}
           <label className="mb-1 block text-xs font-semibold tracking-wide text-ink-dim">
@@ -218,9 +196,7 @@ export function Security() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold">Two-Factor Authentication</div>
-              <div className="text-xs text-ink-muted">
-                Enabled via {factor?.factor_type === 'webauthn' ? 'passkey' : 'authenticator app'}
-              </div>
+              <div className="text-xs text-ink-muted">Enabled via authenticator app</div>
             </div>
             <span className="flex-shrink-0 rounded-md bg-good-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-good-ink">
               ON

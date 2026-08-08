@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import type { Session, FactorType } from '@supabase/supabase-js'
+import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { listSutaRequests } from '../lib/sutaRequests'
 import { listEditRequests } from '../lib/editRequests'
@@ -18,7 +18,6 @@ interface AuthState {
   loading: boolean
   needsMfaChallenge: boolean
   mfaFactorId: string | null
-  mfaFactorType: FactorType | null
   clearMfaChallenge: () => void
   needsMfaEnrollment: boolean
   refreshMfaStatus: () => void
@@ -43,7 +42,6 @@ export const AuthContext = createContext<AuthState>({
   loading: true,
   needsMfaChallenge: false,
   mfaFactorId: null,
-  mfaFactorType: null,
   clearMfaChallenge: () => {},
   needsMfaEnrollment: false,
   refreshMfaStatus: () => {},
@@ -71,7 +69,6 @@ export function useAuthState(): AuthState {
   const [loading, setLoading] = useState(true)
   const [needsMfaChallenge, setNeedsMfaChallenge] = useState(false)
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
-  const [mfaFactorType, setMfaFactorType] = useState<FactorType | null>(null)
   const [needsMfaEnrollment, setNeedsMfaEnrollment] = useState(false)
   const [pendingSutaCount, setPendingSutaCount] = useState(0)
   const [pendingEditRequestCount, setPendingEditRequestCount] = useState(0)
@@ -148,15 +145,14 @@ export function useAuthState(): AuthState {
   useEffect(refreshSoldier, [refreshSoldier])
 
   // A Soldier can be signed in (aal1, password only) but still owe a second factor
-  // if their account has a verified factor enrolled (TOTP or passkey) -- block on
-  // that here so no protected route ever renders before it's satisfied. Admin
-  // accounts have a second case: aal1 with *no* factor to step up to at all means
-  // MFA is mandatory but never set up -- see needsMfaEnrollment / MfaEnrollmentRequired.
+  // if their account has a verified TOTP factor enrolled -- block on that here so
+  // no protected route ever renders before it's satisfied. Admin accounts have a
+  // second case: aal1 with *no* factor to step up to at all means MFA is
+  // mandatory but never set up -- see needsMfaEnrollment / MfaEnrollmentRequired.
   const refreshMfaStatus = useCallback(() => {
     if (!session) {
       setNeedsMfaChallenge(false)
       setMfaFactorId(null)
-      setMfaFactorType(null)
       setNeedsMfaEnrollment(false)
       return
     }
@@ -165,16 +161,14 @@ export function useAuthState(): AuthState {
       if (!data) return
       if (data.currentLevel === 'aal1' && data.nextLevel === 'aal2') {
         supabase.auth.mfa.listFactors().then(({ data: factorData }) => {
-          const factor = factorData?.all.find((f) => f.status === 'verified')
+          const factor = factorData?.totp.find((f) => f.status === 'verified')
           setMfaFactorId(factor?.id ?? null)
-          setMfaFactorType(factor?.factor_type ?? null)
           setNeedsMfaChallenge(true)
           setNeedsMfaEnrollment(false)
         })
       } else {
         setNeedsMfaChallenge(false)
         setMfaFactorId(null)
-        setMfaFactorType(null)
         setNeedsMfaEnrollment(role === 'admin' && data.currentLevel === 'aal1' && data.nextLevel === 'aal1')
       }
     })
@@ -236,7 +230,6 @@ export function useAuthState(): AuthState {
     loading,
     needsMfaChallenge,
     mfaFactorId,
-    mfaFactorType,
     clearMfaChallenge: () => setNeedsMfaChallenge(false),
     needsMfaEnrollment,
     refreshMfaStatus,
