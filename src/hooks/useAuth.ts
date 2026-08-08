@@ -8,6 +8,7 @@ import { listGearRequests } from '../lib/gearRequests'
 import { countPendingTaskVerifications } from '../lib/tasks'
 import { listUnreadNotifications } from '../lib/notifications'
 import { getOwnSoldierRecord } from '../lib/soldiers'
+import { listVerifiedFactors } from '../lib/mfa'
 import type { UserRole, Notification, Soldier } from '../types/database'
 
 interface AuthState {
@@ -164,8 +165,10 @@ export function useAuthState(): AuthState {
     supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data }) => {
       if (!data) return
       if (data.currentLevel === 'aal1' && data.nextLevel === 'aal2') {
-        supabase.auth.mfa.listFactors().then(({ data: factorData }) => {
-          const factor = factorData?.all.find((f) => f.status === 'verified')
+        listVerifiedFactors().then((factors) => {
+          // Prefer a passkey when both are enrolled -- it's the lower-friction
+          // option and the one we steer admins toward during enrollment.
+          const factor = factors.find((f) => f.factor_type === 'webauthn') ?? factors[0]
           setMfaFactorId(factor?.id ?? null)
           setMfaFactorType(factor?.factor_type ?? null)
           setNeedsMfaChallenge(true)
