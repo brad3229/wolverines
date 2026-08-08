@@ -139,7 +139,7 @@ export function Security() {
           {uri && (
             <a
               href={uri}
-              className="mb-2 block w-full rounded-md bg-accent-soft py-2.5 text-center text-sm font-semibold tracking-wide text-accent-ink"
+              className="mb-2 block w-full rounded-md bg-accent-soft py-2.5 text-center text-sm font-semibold tracking-wide text-accent-soft-ink"
             >
               OPEN IN AUTHENTICATOR APP
             </a>
