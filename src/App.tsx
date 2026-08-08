@@ -21,6 +21,7 @@ import {
   IconTasks,
   IconGear,
   IconSettings,
+  IconFitness,
 } from './components/icons'
 import { Login } from './routes/Login'
 
@@ -38,6 +39,7 @@ const AdminGearRequests = lazy(() =>
   import('./routes/admin/GearRequests').then((m) => ({ default: m.GearRequests })),
 )
 const AdminNcoer = lazy(() => import('./routes/admin/Ncoer').then((m) => ({ default: m.Ncoer })))
+const AdminAft = lazy(() => import('./routes/admin/Aft').then((m) => ({ default: m.Aft })))
 const Security = lazy(() => import('./routes/admin/Security').then((m) => ({ default: m.Security })))
 const AdminTaskLists = lazy(() => import('./routes/admin/TaskLists').then((m) => ({ default: m.TaskLists })))
 const AdminTaskListDetail = lazy(() =>
@@ -54,6 +56,7 @@ const SoldierGearRequests = lazy(() =>
   import('./routes/soldier/GearRequests').then((m) => ({ default: m.GearRequests })),
 )
 const SoldierTasks = lazy(() => import('./routes/soldier/Tasks').then((m) => ({ default: m.Tasks })))
+const SoldierAft = lazy(() => import('./routes/soldier/Aft').then((m) => ({ default: m.Aft })))
 const Settings = lazy(() => import('./routes/Settings').then((m) => ({ default: m.Settings })))
 
 function buildAdminNav(
@@ -107,6 +110,7 @@ function buildAdminNav(
       badge: pendingTaskVerificationCount,
       group: 'Requests & Readiness',
     },
+    { to: '/admin/aft', label: 'AFT', icon: <IconFitness />, group: 'Requests & Readiness' },
     { to: '/admin/security', label: 'Security', shortLabel: 'Sec', icon: <IconSecurity />, group: 'System' },
     { to: '/admin/settings', label: 'Settings', icon: <IconSettings />, group: 'System' },
   ]
@@ -121,6 +125,7 @@ const SOLDIER_NAV: NavItem[] = [
   { to: '/soldier/pay-issues', label: 'Pay Issues', shortLabel: 'Pay', icon: <IconPay /> },
   { to: '/soldier/gear-requests', label: 'Gear Requests', shortLabel: 'Gear', icon: <IconGear /> },
   { to: '/soldier/tasks', label: 'Tasks', icon: <IconTasks /> },
+  { to: '/soldier/aft', label: 'AFT', icon: <IconFitness /> },
   { to: '/soldier/settings', label: 'Settings', icon: <IconSettings /> },
 ]
 
@@ -277,6 +282,16 @@ function App() {
             }
           />
           <Route
+            path="/admin/aft"
+            element={
+              <RequireRole allow={['admin']}>
+                <Layout navItems={adminNav} mobileNav="menu">
+                  <AdminAft />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
             path="/admin/tasks"
             element={
               <RequireRole allow={['admin']}>
@@ -403,6 +418,16 @@ function App() {
               <RequireRole allow={['soldier']}>
                 <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <SoldierTasks />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/soldier/aft"
+            element={
+              <RequireRole allow={['soldier']}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
+                  <SoldierAft />
                 </Layout>
               </RequireRole>
             }

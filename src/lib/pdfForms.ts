@@ -2,7 +2,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import type { PDFForm } from 'pdf-lib'
 import { GEAR_CATEGORY_LABEL } from './gearRequests'
 import { SUTA_REQUEST_TYPE_LABEL, SUTA_DUTY_LOCATION_ADDRESS } from './sutaRequests'
-import type { DrillEvent, GearRequest, Soldier, SutaRequest, SutaRequestType } from '../types/database'
+import type { AftRunEventType, AftTest, DrillEvent, GearRequest, Soldier, SutaRequest, SutaRequestType } from '../types/database'
 
 // Maps a SUTA request type to the export value of its radio widget on
 // NC ARNG Form 350-2R's Group14 -- determined by inspecting the template's
@@ -42,6 +42,10 @@ function selectDropdownIfOption(form: PDFForm, fieldNamePrefix: string, value: s
 function mmddyyyy(dateStr: string): string {
   const [year, month, day] = dateStr.split('-')
   return `${month}/${day}/${year}`
+}
+
+function yyyymmdd(dateStr: string): string {
+  return dateStr.replace(/-/g, '')
 }
 
 function lastFirstMi(soldier: Soldier): string {
@@ -165,6 +169,78 @@ export async function fillSutaCertificate(soldier: Soldier, request: SutaRequest
   // neighboring name/date field.
   if (request.signature_name) {
     await stampSignature(pdf, form, 'Signature5', request.signature_name)
+  }
+
+  form.updateFieldAppearances()
+  return pdf.save()
+}
+
+// DA FORM 705-AFT's field names carry the full XFA-style path (e.g.
+// "form1[0].Page1[0].Test_One_Date[0]") -- this always fills the "Test One"
+// slot on page 1, leaving Two/Three/Four blank, since each generated PDF
+// represents a single test record, same one-record-to-one-copy shape as the
+// CCDF/SUTA forms. Verified against the template by inspecting every Test_One
+// widget's on-page position, not just its name -- field numbering (Points1,
+// Points3, Points4...) skips around and doesn't match visual event order.
+function aftField(name: string) {
+  return `form1[0].Page1[0].${name}[0]`
+}
+
+// The template's own dropdown option strings -- not the same wording as
+// AFT_RUN_EVENT_LABEL (e.g. "2.5 MI Walk" vs "2.5 Mile Walk").
+const AFT_RUN_EVENT_DROPDOWN_OPTION: Partial<Record<AftRunEventType, string>> = {
+  row_5k: '5K Row',
+  swim_1k: '1K Swim',
+  bike_12k: '12K Bike',
+  walk_2_5mi: '2.5 MI Walk',
+}
+
+export async function fillAftScorecard(soldier: Soldier, test: AftTest): Promise<Uint8Array> {
+  const pdf = await loadTemplate('forms/da705-aft.pdf')
+  const form = pdf.getForm()
+
+  form.getTextField(aftField('Name')).setText(lastFirstMi(soldier))
+  form.getTextField(aftField('Unit_Location')).setText('A CO 1-120 IN')
+  if (soldier.sex === 'male') form.getCheckBox(aftField('Male')).check()
+  if (soldier.sex === 'female') form.getCheckBox(aftField('Female')).check()
+
+  form.getTextField(aftField('Test_One_Date')).setText(yyyymmdd(test.test_date))
+  if (test.aoc_mos) form.getTextField(aftField('Test_One_AOC_MOS')).setText(test.aoc_mos)
+  if (test.rank_at_test) form.getTextField(aftField('Test_One_Rank_Grade')).setText(test.rank_at_test)
+  if (test.age != null) form.getTextField(aftField('Test_One_Age')).setText(String(test.age))
+  form.getCheckBox(aftField(test.standard === 'combat' ? 'Check_Standard_Combat' : 'Check_Standard_General')).check()
+
+  if (test.deadlift_lbs != null) {
+    form.getTextField(aftField('Test_One_First_Attempt')).setText(String(test.deadlift_lbs))
+    form.getCheckBox(aftField('Test_One_First_Attempt_Check')).check()
+  }
+  if (test.deadlift_points != null) form.getTextField(aftField('Test_One_Points1')).setText(String(test.deadlift_points))
+
+  if (test.pushup_reps != null) form.getTextField(aftField('Test_One_Repetitions')).setText(String(test.pushup_reps))
+  if (test.pushup_points != null) form.getTextField(aftField('Test_One_Points3')).setText(String(test.pushup_points))
+
+  if (test.sdc_time) form.getTextField(aftField('Test_One_Time1')).setText(test.sdc_time)
+  if (test.sdc_points != null) form.getTextField(aftField('Test_One_Points4')).setText(String(test.sdc_points))
+
+  if (test.plank_time) form.getTextField(aftField('Test_One_Time2')).setText(test.plank_time)
+  if (test.plank_points != null) form.getTextField(aftField('Test_One_Points5')).setText(String(test.plank_points))
+
+  if (test.run_event_type === 'two_mile_run') {
+    if (test.run_event_time) form.getTextField(aftField('Test_One_Time3')).setText(test.run_event_time)
+    if (test.run_event_points != null) form.getTextField(aftField('Test_One_Points6')).setText(String(test.run_event_points))
+  } else {
+    const option = AFT_RUN_EVENT_DROPDOWN_OPTION[test.run_event_type]
+    if (option) {
+      const dropdown = form.getDropdown(aftField('Test_One_Row_Swim_Bike_Walk'))
+      if (dropdown.getOptions().includes(option)) dropdown.select(option)
+    }
+    if (test.run_event_time) form.getTextField(aftField('Test_One_Time4')).setText(test.run_event_time)
+    if (test.run_event_points != null) form.getTextField(aftField('Test_One_Points7')).setText(String(test.run_event_points))
+  }
+
+  if (test.total_points != null) form.getTextField(aftField('Test_One_Total_Points')).setText(String(test.total_points))
+  if (test.overall_result) {
+    form.getCheckBox(aftField(test.overall_result === 'go' ? 'Test_One_Final_Go' : 'Test_One_Final_NoGo')).check()
   }
 
   form.updateFieldAppearances()

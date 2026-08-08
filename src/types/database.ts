@@ -18,6 +18,10 @@ export type PayIssueStatus = 'open' | 'in_progress' | 'resolved'
 export type TaskCompletionStatus = 'incomplete' | 'self_reported' | 'verified'
 export type GearRequestCategory = 'initial_issue' | 'missing_lost' | 'damaged' | 'wrong_size' | 'other'
 export type GearRequestStatus = 'open' | 'in_progress' | 'resolved'
+export type Sex = 'male' | 'female'
+export type AftStandard = 'combat' | 'general'
+export type AftRunEventType = 'two_mile_run' | 'row_5k' | 'swim_1k' | 'bike_12k' | 'walk_2_5mi'
+export type AftResult = 'go' | 'nogo'
 
 export interface Profile {
   id: string
@@ -51,6 +55,7 @@ export interface Soldier {
   blood_type: BloodType | null
   cac_expiration_date: string | null
   receives_drill_pay: boolean
+  sex: Sex | null
   avatar_url: string | null
   ocp_top_size: string | null
   ocp_bottom_size: string | null
@@ -193,6 +198,31 @@ export interface SoldierTaskCompletion {
   verified_by: string | null
   verified_at: string | null
   notes: string | null
+}
+
+export interface AftTest {
+  id: string
+  soldier_id: string
+  test_date: string
+  standard: AftStandard
+  aoc_mos: string | null
+  rank_at_test: string | null
+  age: number | null
+  deadlift_lbs: number | null
+  deadlift_points: number | null
+  pushup_reps: number | null
+  pushup_points: number | null
+  sdc_time: string | null
+  sdc_points: number | null
+  plank_time: string | null
+  plank_points: number | null
+  run_event_type: AftRunEventType
+  run_event_time: string | null
+  run_event_points: number | null
+  total_points: number | null
+  overall_result: AftResult | null
+  created_by: string | null
+  created_at: string
 }
 
 export interface Notification {

@@ -174,6 +174,15 @@ export function IconCamera(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconFitness(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M6.5 8.5v7M4 10v4M17.5 8.5v7M20 10v4" strokeLinecap="round" />
+      <path d="M6.5 12h11" strokeLinecap="round" />
+    </Icon>
+  )
+}
+
 export function IconAlertTriangle(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

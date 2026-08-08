@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { BloodType, Soldier } from '../types/database'
+import type { BloodType, Sex, Soldier } from '../types/database'
 import { errorMessage } from '../lib/errors'
 
 export const BLOOD_TYPES: BloodType[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
@@ -147,6 +147,7 @@ export interface SoldierFormValues {
   blood_type: BloodType | ''
   cac_expiration_date: string
   receives_drill_pay: boolean
+  sex: Sex | ''
   ocp_top_size: string
   ocp_bottom_size: string
   tshirt_size: string
@@ -186,6 +187,7 @@ export function soldierFormValuesToPayload(values: SoldierFormValues): Partial<S
     blood_type: values.blood_type || null,
     cac_expiration_date: values.cac_expiration_date || null,
     receives_drill_pay: values.receives_drill_pay,
+    sex: values.sex || null,
     ocp_top_size: values.ocp_top_size || null,
     ocp_bottom_size: values.ocp_bottom_size || null,
     tshirt_size: values.tshirt_size || null,
@@ -236,6 +238,7 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
     blood_type: initial?.blood_type ?? '',
     cac_expiration_date: initial?.cac_expiration_date ?? '',
     receives_drill_pay: initial?.receives_drill_pay ?? true,
+    sex: initial?.sex ?? '',
     ocp_top_size: initial?.ocp_top_size ?? '',
     ocp_bottom_size: initial?.ocp_bottom_size ?? '',
     tshirt_size: initial?.tshirt_size ?? '',
@@ -460,6 +463,19 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
 
       <div className="sm:col-span-2 mt-2 border-t border-line pt-4">
         <h3 className="font-display text-xs font-semibold tracking-wide text-ink-muted">ADDITIONAL INFO</h3>
+      </div>
+      <div>
+        <label className={labelClass}>Sex</label>
+        <select
+          value={values.sex}
+          onChange={(e) => set('sex', e.target.value as SoldierFormValues['sex'])}
+          className={inputClass}
+        >
+          <option value="">Unknown</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+        <p className="mt-1 text-[11px] text-ink-faint">Used for the AFT scorecard (standards are sex-adjusted).</p>
       </div>
       <div>
         <label className={labelClass}>Blood type</label>

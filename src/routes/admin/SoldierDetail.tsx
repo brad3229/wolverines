@@ -13,12 +13,15 @@ import { listOwnSutaRequests } from '../../lib/sutaRequests'
 import { listOwnGearRequests } from '../../lib/gearRequests'
 import { listOwnPayIssues } from '../../lib/payIssues'
 import { listActiveTaskLists, listTaskItems, listOwnCompletions } from '../../lib/tasks'
+import { listAftTestsForSoldier, deleteAftTest, AFT_STANDARD_LABEL, AFT_RESULT_LABEL } from '../../lib/aft'
+import { formatDate } from '../../lib/dates'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
 import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { AftScoreModal } from '../../components/AftScoreModal'
 import { IconAttendance, IconSuta, IconGear, IconPay, IconTasks, IconNote } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
-import type { EditRequest, Soldier, UserRole } from '../../types/database'
+import type { AftTest, EditRequest, Soldier, UserRole } from '../../types/database'
 
 interface ReadinessSnapshot {
   sutaPending: number
@@ -84,6 +87,10 @@ export function SoldierDetail() {
   const [readiness, setReadiness] = useState<ReadinessSnapshot | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [noteModal, setNoteModal] = useState<{ name: string; reason: string } | null>(null)
+  const [aftTests, setAftTests] = useState<AftTest[]>([])
+  const [aftModalMode, setAftModalMode] = useState<'new' | 'edit' | null>(null)
+  const [aftEditingTest, setAftEditingTest] = useState<AftTest | null>(null)
+  const [confirmingDeleteAft, setConfirmingDeleteAft] = useState<string | null>(null)
 
   function refresh() {
     if (!id) return
@@ -102,6 +109,10 @@ export function SoldierDetail() {
         loadReadinessSnapshot(s.id)
           .then(setReadiness)
           .catch(() => setReadiness(null))
+
+        listAftTestsForSoldier(s.id)
+          .then(setAftTests)
+          .catch(() => setAftTests([]))
       })
       .catch((err) => setLoadError(errorMessage(err, 'Failed to load Soldier')))
     listEditRequests()
@@ -177,6 +188,37 @@ export function SoldierDetail() {
       refreshPendingCounts()
     } catch (err) {
       setLoadError(errorMessage(err, 'Failed to review request'))
+    }
+  }
+
+  function openNewAftModal() {
+    setAftEditingTest(null)
+    setAftModalMode('new')
+  }
+
+  function openEditAftModal(test: AftTest) {
+    setAftEditingTest(test)
+    setAftModalMode('edit')
+  }
+
+  async function handleDeleteAft(testId: string) {
+    try {
+      await deleteAftTest(testId)
+      setConfirmingDeleteAft(null)
+      refresh()
+    } catch (err) {
+      setLoadError(errorMessage(err, 'Failed to delete AFT score'))
+    }
+  }
+
+  async function handlePreviewAft(test: AftTest) {
+    if (!soldier) return
+    try {
+      const { fillAftScorecard, previewPdf } = await import('../../lib/pdfForms')
+      const bytes = await fillAftScorecard(soldier, test)
+      previewPdf(bytes)
+    } catch (err) {
+      setLoadError(errorMessage(err, 'Failed to generate form'))
     }
   }
 
@@ -521,6 +563,85 @@ export function SoldierDetail() {
         )}
       </div>
 
+      <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-[15px] font-semibold tracking-wide text-ink-dim">AFT SCORES</h2>
+          <button
+            onClick={openNewAftModal}
+            className="rounded-md bg-accent px-3 py-1.5 text-[11px] font-bold tracking-wide text-accent-ink"
+          >
+            + ADD TEST
+          </button>
+        </div>
+        {aftTests.length === 0 ? (
+          <p className="text-sm text-ink-muted">No AFT scores on record.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {aftTests.map((t) => (
+              <div
+                key={t.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold">
+                    {formatDate(t.test_date)} — {AFT_STANDARD_LABEL[t.standard]}
+                  </div>
+                  <div className="text-xs text-ink-muted">
+                    {t.total_points != null ? `${t.total_points} pts` : 'No total recorded'}
+                  </div>
+                </div>
+                <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+                  {t.overall_result && (
+                    <span
+                      className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
+                        t.overall_result === 'go' ? 'bg-good-bg text-good-ink' : 'bg-bad-bg text-bad-ink'
+                      }`}
+                    >
+                      {AFT_RESULT_LABEL[t.overall_result]}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handlePreviewAft(t)}
+                    className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    PREVIEW
+                  </button>
+                  <button
+                    onClick={() => openEditAftModal(t)}
+                    className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    EDIT
+                  </button>
+                  {confirmingDeleteAft === t.id ? (
+                    <>
+                      <button
+                        onClick={() => handleDeleteAft(t.id)}
+                        className="rounded-md bg-bad-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-bad-ink"
+                      >
+                        CONFIRM
+                      </button>
+                      <button
+                        onClick={() => setConfirmingDeleteAft(null)}
+                        className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
+                      >
+                        CANCEL
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmingDeleteAft(t.id)}
+                      className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-bad-ink"
+                    >
+                      DELETE
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="rounded-xl border border-line bg-panel p-4 sm:p-6">
         <h2 className="mb-4 font-display text-[15px] font-semibold tracking-wide text-ink-dim">DETAILS</h2>
         <SoldierForm
@@ -533,6 +654,18 @@ export function SoldierDetail() {
           }}
         />
       </div>
+
+      {aftModalMode && (
+        <AftScoreModal
+          soldier={soldier}
+          existing={aftEditingTest}
+          onClose={() => setAftModalMode(null)}
+          onSaved={() => {
+            setAftModalMode(null)
+            refresh()
+          }}
+        />
+      )}
 
       {noteModal && (
         <div
