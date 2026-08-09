@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
 import { signInWithPasskey, browserSupportsPasskeys } from '../lib/passkey'
 import { errorMessage } from '../lib/errors'
+import { LoadingScreen } from '../components/LoadingScreen'
 
 export function Login() {
   const { session, role, loading } = useAuth()
@@ -13,7 +14,16 @@ export function Login() {
   const [submitting, setSubmitting] = useState(false)
   const [passkeyBusy, setPasskeyBusy] = useState(false)
 
-  if (!loading && session && role) {
+  // Don't render the form (and its interactive sign-in buttons) until we
+  // definitively know whether a session already exists -- otherwise there's
+  // a window where the form is live while an existing session is still being
+  // checked in the background, and a click can land right as it redirects,
+  // making an unrelated stale session look like it came from that click.
+  if (loading) {
+    return <LoadingScreen />
+  }
+
+  if (session && role) {
     return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/soldier/dashboard'} replace />
   }
 
