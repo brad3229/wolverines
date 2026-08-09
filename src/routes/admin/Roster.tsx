@@ -6,6 +6,7 @@ import { flagForDate, ncoerDueDate, ETS_WARNING_DAYS, CAC_WARNING_DAYS, NCOER_WA
 import { formatDate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { SoldierAvatar } from '../../components/SoldierAvatar'
 import { IconPhone } from '../../components/icons'
 import type { Soldier } from '../../types/database'
 
@@ -100,9 +101,12 @@ export function Roster() {
               <div key={s.id} className="rounded-xl border border-line bg-panel p-4">
                 <Link to={`/admin/roster/${s.id}`} className="block">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-semibold">
-                      {s.rank} {s.last_name}, {s.first_name}
-                    </p>
+                    <div className="flex min-w-0 items-center gap-2.5 font-semibold">
+                      <SoldierAvatar soldier={s} />
+                      <span className="truncate">
+                        {s.rank} {s.last_name}, {s.first_name}
+                      </span>
+                    </div>
                     <div className="flex flex-shrink-0 gap-1.5">
                       {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
                         <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
@@ -162,7 +166,8 @@ export function Roster() {
                     className="cursor-pointer border-t border-line hover:bg-surface-raised focus:outline-none"
                   >
                     <td className="px-4 py-3 font-medium">
-                      <span className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <SoldierAvatar soldier={s} className="h-7 w-7" />
                         {s.last_name}, {s.first_name}
                         {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
                           <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
@@ -174,7 +179,7 @@ export function Roster() {
                             NCOER
                           </span>
                         )}
-                      </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-ink-dim">{s.rank}</td>
                     <td className={`px-4 py-3 ${etsClass(s) || 'text-ink-dim'}`}>{formatDate(s.ets_date)}</td>

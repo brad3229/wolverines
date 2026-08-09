@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import { createAftTest, updateAftTest } from '../lib/aft'
 import type { AftTestInput } from '../lib/aft'
-import { deadliftPoints, pushupPoints, sdcPoints, plankPoints, runEventPoints, parseMmSsToSeconds } from '../lib/aftScoring'
+import {
+  deadliftPoints,
+  pushupPoints,
+  sdcPoints,
+  plankPoints,
+  runEventPoints,
+  parseMmSsToSeconds,
+  overallAftResult,
+} from '../lib/aftScoring'
+import { AFT_RESULT_LABEL } from '../lib/aft'
 import { errorMessage } from '../lib/errors'
 import { useAuth } from '../hooks/useAuth'
-import type { AftResult, AftRunEventType, AftStandard, AftTest, Soldier } from '../types/database'
+import type { AftRunEventType, AftStandard, AftTest, Soldier } from '../types/database'
 
 interface AftFormValues {
   test_date: string
@@ -18,7 +27,6 @@ interface AftFormValues {
   plank_time: string
   run_event_type: AftRunEventType
   run_event_time: string
-  overall_result: AftResult | ''
 }
 
 function emptyAftForm(soldier: Soldier): AftFormValues {
@@ -34,7 +42,6 @@ function emptyAftForm(soldier: Soldier): AftFormValues {
     plank_time: '',
     run_event_type: 'two_mile_run',
     run_event_time: '',
-    overall_result: '',
   }
 }
 
@@ -51,7 +58,6 @@ function aftTestToForm(test: AftTest): AftFormValues {
     plank_time: test.plank_time ?? '',
     run_event_type: test.run_event_type,
     run_event_time: test.run_event_time ?? '',
-    overall_result: test.overall_result ?? '',
   }
 }
 
@@ -82,22 +88,28 @@ export function AftScoreModal({ soldier, existing, onClose, onSaved }: AftScoreM
   // Points are calculated live from the official AFT score tables (HQDA
   // EXORD 218-25, effective 1 June 2025) as raw values are entered -- not
   // editable directly, so there's no way for the displayed score to drift
-  // from what the Soldier actually did.
+  // from what the Soldier actually did. Combat standard scores sex-neutral
+  // (same column as male), so standard has to be picked before scoring can
+  // start, same as age/sex.
   const age = form.age ? Number(form.age) : null
   const sex = soldier.sex
-  const canScore = age != null && sex != null
+  const standard = form.standard || null
+  const canScore = age != null && sex != null && standard != null
 
-  const dlPoints = canScore && form.deadlift_lbs ? deadliftPoints(Number(form.deadlift_lbs), age, sex) : null
-  const puPoints = canScore && form.pushup_reps ? pushupPoints(Number(form.pushup_reps), age, sex) : null
+  const dlPoints =
+    canScore && form.deadlift_lbs ? deadliftPoints(Number(form.deadlift_lbs), age, sex, standard) : null
+  const puPoints = canScore && form.pushup_reps ? pushupPoints(Number(form.pushup_reps), age, sex, standard) : null
   const sdcSeconds = parseMmSsToSeconds(form.sdc_time)
-  const sdcPts = canScore && sdcSeconds != null ? sdcPoints(sdcSeconds, age, sex) : null
+  const sdcPts = canScore && sdcSeconds != null ? sdcPoints(sdcSeconds, age, sex, standard) : null
   const plankSeconds = parseMmSsToSeconds(form.plank_time)
-  const plankPts = canScore && plankSeconds != null ? plankPoints(plankSeconds, age, sex) : null
+  const plankPts = canScore && plankSeconds != null ? plankPoints(plankSeconds, age, sex, standard) : null
   const runSeconds = parseMmSsToSeconds(form.run_event_time)
-  const runPts = canScore && runSeconds != null ? runEventPoints(form.run_event_type, runSeconds, age, sex) : null
+  const runPts =
+    canScore && runSeconds != null ? runEventPoints(form.run_event_type, runSeconds, age, sex, standard) : null
 
   const allScored = [dlPoints, puPoints, sdcPts, plankPts, runPts].every((p) => p != null)
   const totalPoints = allScored ? dlPoints! + puPoints! + sdcPts! + plankPts! + runPts! : null
+  const overallResult = standard ? overallAftResult(standard, [dlPoints, puPoints, sdcPts, plankPts, runPts]) : null
 
   async function handleSubmit() {
     if (!form.test_date || !form.standard || !session) return
@@ -122,7 +134,7 @@ export function AftScoreModal({ soldier, existing, onClose, onSaved }: AftScoreM
       runEventTime: form.run_event_time || null,
       runEventPoints: runPts,
       totalPoints,
-      overallResult: form.overall_result || null,
+      overallResult,
     }
     try {
       if (existing) {
@@ -206,15 +218,17 @@ export function AftScoreModal({ soldier, existing, onClose, onSaved }: AftScoreM
           </div>
           <div>
             <label className={labelClass}>OVERALL RESULT</label>
-            <select
-              value={form.overall_result}
-              onChange={(e) => setForm((p) => ({ ...p, overall_result: e.target.value as AftResult }))}
-              className={inputClass}
+            <div
+              className={`flex h-[38px] w-full items-center rounded-md border border-line-soft px-3 text-sm font-bold ${
+                overallResult === 'go'
+                  ? 'bg-good-bg text-good-ink'
+                  : overallResult === 'nogo'
+                    ? 'bg-bad-bg text-bad-ink'
+                    : 'bg-surface/60 text-ink-dim'
+              }`}
             >
-              <option value="">Not set</option>
-              <option value="go">GO</option>
-              <option value="nogo">NO-GO</option>
-            </select>
+              {overallResult ? AFT_RESULT_LABEL[overallResult] : '—'}
+            </div>
           </div>
 
           <div className="col-span-2 mt-1 border-t border-line pt-2">

@@ -17,6 +17,7 @@ import { listAftTestsForSoldier, deleteAftTest, AFT_STANDARD_LABEL, AFT_RESULT_L
 import { formatDate } from '../../lib/dates'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
 import { BackButton } from '../../components/BackButton'
+import { SoldierAvatar } from '../../components/SoldierAvatar'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { AftScoreModal } from '../../components/AftScoreModal'
 import { IconAttendance, IconSuta, IconGear, IconPay, IconTasks, IconNote } from '../../components/icons'
@@ -230,9 +231,12 @@ export function SoldierDetail() {
   return (
     <div>
       <BackButton to="/admin/roster" label="Back to roster" />
-      <h1 className="mb-5 font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">
-        {soldier.rank} {soldier.first_name} {soldier.last_name}
-      </h1>
+      <div className="mb-5 flex items-center gap-3">
+        <SoldierAvatar soldier={soldier} className="h-12 w-12" textClassName="text-base" />
+        <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">
+          {soldier.rank} {soldier.first_name} {soldier.last_name}
+        </h1>
+      </div>
 
       {loadError && <p className="mb-4 text-sm text-bad-ink">{loadError}</p>}
 
