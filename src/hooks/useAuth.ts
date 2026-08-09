@@ -109,18 +109,33 @@ export function useAuthState(): AuthState {
     }
 
     let active = true
+    let attempt = 0
     setLoading(true)
 
-    supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single()
-      .then(({ data, error }) => {
-        if (!active) return
-        setRole(error ? null : (data?.role ?? null))
-        setLoading(false)
-      })
+    // A transient failure here (most likely right after a fresh sign-in,
+    // before anything has settled) previously gave up silently -- role
+    // stayed null with no error shown anywhere, leaving the user stuck
+    // looking at the login form with zero indication anything went wrong.
+    // A couple of quick retries absorb a one-off blip before giving up.
+    function fetchRole() {
+      supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session!.user.id)
+        .single()
+        .then(({ data, error }) => {
+          if (!active) return
+          if (error && attempt < 2) {
+            attempt += 1
+            setTimeout(fetchRole, 500)
+            return
+          }
+          setRole(error ? null : (data?.role ?? null))
+          setLoading(false)
+        })
+    }
+
+    fetchRole()
 
     return () => {
       active = false
