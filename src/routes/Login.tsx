@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { signInWithPasskey, browserSupportsPasskeys } from '../lib/passkey'
 import { errorMessage } from '../lib/errors'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { IconPasskey } from '../components/icons'
 
 export function Login() {
   const { session, role, loading } = useAuth()
@@ -52,9 +53,6 @@ export function Login() {
     <div className="flex min-h-dvh items-center justify-center bg-surface px-4 py-10">
       <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl border border-line bg-panel p-8">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-12 min-w-12 items-center justify-center rounded-lg bg-accent px-2 font-display text-base font-bold text-accent-ink">
-            AT
-          </div>
           <h1 className="font-display text-xl font-semibold tracking-wide">ATLAS</h1>
           <p className="text-sm text-ink-muted">A CO 1-120 IN</p>
         </div>
@@ -65,8 +63,9 @@ export function Login() {
               type="button"
               onClick={handlePasskey}
               disabled={passkeyBusy}
-              className="mb-4 w-full rounded-md bg-accent-soft py-2.5 text-sm font-semibold tracking-wide text-accent-soft-ink transition-opacity disabled:opacity-50"
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-md bg-accent-soft py-2.5 text-sm font-semibold tracking-wide text-accent-soft-ink transition-opacity disabled:opacity-50"
             >
+              <IconPasskey className="h-4 w-4" />
               {passkeyBusy ? 'FOLLOW YOUR DEVICE PROMPT...' : 'SIGN IN WITH A PASSKEY'}
             </button>
             <div className="mb-4 flex items-center gap-3">
