@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { SoldierAvatar } from '../../components/SoldierAvatar'
 import type { PayIssue, PayIssueCategory, Soldier } from '../../types/database'
 
 const CATEGORY_LABEL: Record<PayIssueCategory, string> = {
@@ -41,8 +42,9 @@ export function PayIssues() {
 
   useEffect(refresh, [])
 
+  const soldierFor = (id: string) => soldiers.find((s) => s.id === id) ?? null
   const soldierLabel = (id: string) => {
-    const s = soldiers.find((s) => s.id === id)
+    const s = soldierFor(id)
     return s ? `${s.rank} ${s.last_name}, ${s.first_name}` : 'Unknown Soldier'
   }
 
@@ -100,7 +102,10 @@ export function PayIssues() {
             <div key={i.id} className="rounded-xl border border-line bg-panel p-3.5">
               <div className="mb-2.5 flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px] flex-1">
-                  <div className="text-sm font-semibold">{soldierLabel(i.soldier_id)}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                  {soldierFor(i.soldier_id) && <SoldierAvatar soldier={soldierFor(i.soldier_id)!} className="h-6 w-6" />}
+                  {soldierLabel(i.soldier_id)}
+                </div>
                   <div className="text-xs text-ink-muted">{CATEGORY_LABEL[i.category]}</div>
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{i.description}&rdquo;</div>
                 </div>
@@ -138,7 +143,10 @@ export function PayIssues() {
           {inProgress.map((i) => (
             <div key={i.id} className="rounded-xl border border-line bg-panel p-3.5">
               <div className="mb-2.5">
-                <div className="text-sm font-semibold">{soldierLabel(i.soldier_id)}</div>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  {soldierFor(i.soldier_id) && <SoldierAvatar soldier={soldierFor(i.soldier_id)!} className="h-6 w-6" />}
+                  {soldierLabel(i.soldier_id)}
+                </div>
                 <div className="text-xs text-ink-muted">{CATEGORY_LABEL[i.category]}</div>
                 <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{i.description}&rdquo;</div>
               </div>
@@ -170,7 +178,10 @@ export function PayIssues() {
             <div key={i.id} className="rounded-xl border border-line bg-panel p-3.5 opacity-70">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px] flex-1">
-                  <div className="text-sm font-semibold">{soldierLabel(i.soldier_id)}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                  {soldierFor(i.soldier_id) && <SoldierAvatar soldier={soldierFor(i.soldier_id)!} className="h-6 w-6" />}
+                  {soldierLabel(i.soldier_id)}
+                </div>
                   <div className="text-xs text-ink-muted">{CATEGORY_LABEL[i.category]}</div>
                   {i.resolution_notes && <div className="mt-1 text-xs text-ink-dim">Resolution: {i.resolution_notes}</div>}
                 </div>

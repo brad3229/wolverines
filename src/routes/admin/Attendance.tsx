@@ -7,6 +7,7 @@ import { EventForm, eventFormValuesToPayload } from '../../components/EventForm'
 import { AttendanceSummary } from '../../components/AttendanceSummary'
 import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { SoldierAvatar } from '../../components/SoldierAvatar'
 import { IconNote } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
@@ -225,7 +226,8 @@ export function AttendancePage() {
           return (
             <div key={soldier.id} className={`rounded-xl border p-3.5 ${attendanceRowClass(record)}`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                  <SoldierAvatar soldier={soldier} className="h-7 w-7" />
                   {soldier.rank} {soldier.last_name}, {soldier.first_name}
                   {isSelfReported && (
                     <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
@@ -243,7 +245,7 @@ export function AttendancePage() {
                       <IconNote className="h-4 w-4" />
                     </button>
                   )}
-                </span>
+                </div>
                 <div className="grid grid-cols-4 gap-1.5 sm:flex">
                   {STATUS_OPTIONS.map((opt) => (
                     <button

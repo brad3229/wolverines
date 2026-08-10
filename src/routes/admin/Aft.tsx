@@ -6,6 +6,7 @@ import { errorMessage } from '../../lib/errors'
 import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { AftScoreModal } from '../../components/AftScoreModal'
+import { SoldierAvatar } from '../../components/SoldierAvatar'
 import type { AftTest, Soldier } from '../../types/database'
 
 export function Aft() {
@@ -70,7 +71,8 @@ export function Aft() {
         <div className="mb-7 flex flex-col gap-2">
           {neverTested.map((soldier) => (
             <button key={soldier.id} onClick={() => setModalSoldier(soldier)} className={rowClass}>
-              <div className="text-sm font-semibold">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <SoldierAvatar soldier={soldier} className="h-6 w-6" />
                 {soldier.rank} {soldier.last_name}, {soldier.first_name}
               </div>
               <span className="flex-shrink-0 rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink">
@@ -89,7 +91,8 @@ export function Aft() {
           {overdue.map(({ soldier, latest, days }) => (
             <button key={soldier.id} onClick={() => setModalSoldier(soldier)} className={rowClass}>
               <div className="min-w-0">
-                <div className="text-sm font-semibold">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <SoldierAvatar soldier={soldier} className="h-6 w-6" />
                   {soldier.rank} {soldier.last_name}, {soldier.first_name}
                 </div>
                 <div className="text-xs text-ink-muted">
@@ -113,7 +116,8 @@ export function Aft() {
           {upcoming.map(({ soldier, latest, days }) => (
             <button key={soldier.id} onClick={() => setModalSoldier(soldier)} className={rowClass}>
               <div className="min-w-0">
-                <div className="text-sm font-semibold">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <SoldierAvatar soldier={soldier} className="h-6 w-6" />
                   {soldier.rank} {soldier.last_name}, {soldier.first_name}
                 </div>
                 <div className="text-xs text-ink-muted">

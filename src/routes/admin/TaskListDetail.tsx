@@ -22,6 +22,7 @@ import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
 import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { SoldierAvatar } from '../../components/SoldierAvatar'
 import type { Soldier, TaskItem, TaskList, SoldierTaskCompletion, TaskCompletionStatus } from '../../types/database'
 
 function completionKey(soldierId: string, taskItemId: string) {
@@ -486,9 +487,10 @@ export function TaskListDetail() {
             return (
               <div key={s.id} className="rounded-xl border border-line bg-panel p-3.5">
                 <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-semibold">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <SoldierAvatar soldier={s} className="h-6 w-6" />
                     {s.rank} {s.last_name}, {s.first_name}
-                  </span>
+                  </div>
                   <span
                     className={`flex-shrink-0 text-xs font-semibold ${
                       verifiedCount === items.length ? 'text-good-ink' : 'text-ink-muted'

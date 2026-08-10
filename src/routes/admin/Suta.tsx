@@ -14,6 +14,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { SoldierAvatar } from '../../components/SoldierAvatar'
 import type { DrillEvent, Soldier, SutaRequest } from '../../types/database'
 
 export function Suta() {
@@ -44,8 +45,9 @@ export function Suta() {
 
   useEffect(refresh, [])
 
+  const soldierFor = (id: string) => soldiers.find((s) => s.id === id) ?? null
   const soldierLabel = (id: string) => {
-    const s = soldiers.find((s) => s.id === id)
+    const s = soldierFor(id)
     return s ? `${s.rank} ${s.last_name}, ${s.first_name}` : 'Unknown Soldier'
   }
   const eventLabel = (id: string) => {
@@ -150,7 +152,10 @@ export function Suta() {
             <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px] flex-1">
-                  <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    {soldierFor(r.soldier_id) && <SoldierAvatar soldier={soldierFor(r.soldier_id)!} className="h-6 w-6" />}
+                    {soldierLabel(r.soldier_id)}
+                  </div>
                   <div className="text-xs text-ink-muted">{eventLabel(r.drill_event_id)}</div>
                   {r.request_type && (
                     <div className="text-xs text-ink-muted">{SUTA_REQUEST_TYPE_LABEL[r.request_type]}</div>
@@ -214,7 +219,10 @@ export function Suta() {
             <div key={r.id} className="rounded-xl border border-warn-border bg-warn-bg/10 p-3.5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px] flex-1">
-                  <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    {soldierFor(r.soldier_id) && <SoldierAvatar soldier={soldierFor(r.soldier_id)!} className="h-6 w-6" />}
+                    {soldierLabel(r.soldier_id)}
+                  </div>
                   <div className="text-xs text-ink-muted">{eventLabel(r.drill_event_id)}</div>
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.reason}&rdquo;</div>
                   {r.correction_notes && (
@@ -243,6 +251,7 @@ export function Suta() {
               <div className="mb-2.5 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {soldierFor(r.soldier_id) && <SoldierAvatar soldier={soldierFor(r.soldier_id)!} className="h-6 w-6" />}
                     <span className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</span>
                     {isOverdue(r) && (
                       <span className="rounded-md bg-bad-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-bad-ink">
@@ -290,7 +299,10 @@ export function Suta() {
             <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5 opacity-70">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px] flex-1">
-                  <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    {soldierFor(r.soldier_id) && <SoldierAvatar soldier={soldierFor(r.soldier_id)!} className="h-6 w-6" />}
+                    {soldierLabel(r.soldier_id)}
+                  </div>
                   <div className="text-xs text-ink-muted">{eventLabel(r.drill_event_id)}</div>
                   {r.makeup_notes && <div className="mt-1 text-xs text-ink-dim">Make-up: {r.makeup_notes}</div>}
                 </div>

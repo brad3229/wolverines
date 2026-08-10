@@ -11,6 +11,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { SoldierAvatar } from '../../components/SoldierAvatar'
 import type { GearRequest, Soldier } from '../../types/database'
 
 export function GearRequests() {
@@ -39,8 +40,9 @@ export function GearRequests() {
 
   useEffect(refresh, [])
 
+  const soldierFor = (id: string) => soldiers.find((s) => s.id === id) ?? null
   const soldierLabel = (id: string) => {
-    const s = soldiers.find((s) => s.id === id)
+    const s = soldierFor(id)
     return s ? `${s.rank} ${s.last_name}, ${s.first_name}` : 'Unknown Soldier'
   }
 
@@ -131,7 +133,10 @@ export function GearRequests() {
             <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5">
               <div className="mb-2.5 flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px] flex-1">
-                  <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    {soldierFor(r.soldier_id) && <SoldierAvatar soldier={soldierFor(r.soldier_id)!} className="h-6 w-6" />}
+                    {soldierLabel(r.soldier_id)}
+                  </div>
                   <div className="text-xs text-ink-muted">{CATEGORY_LABEL[r.category]}</div>
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.description}&rdquo;</div>
                 </div>
@@ -193,7 +198,10 @@ export function GearRequests() {
             <div key={r.id} className="rounded-xl border border-warn-border bg-warn-bg/10 p-3.5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px] flex-1">
-                  <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    {soldierFor(r.soldier_id) && <SoldierAvatar soldier={soldierFor(r.soldier_id)!} className="h-6 w-6" />}
+                    {soldierLabel(r.soldier_id)}
+                  </div>
                   <div className="text-xs text-ink-muted">{CATEGORY_LABEL[r.category]}</div>
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.description}&rdquo;</div>
                   {r.correction_notes && (
@@ -221,7 +229,10 @@ export function GearRequests() {
             <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5">
               <div className="mb-2.5 flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px] flex-1">
-                  <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    {soldierFor(r.soldier_id) && <SoldierAvatar soldier={soldierFor(r.soldier_id)!} className="h-6 w-6" />}
+                    {soldierLabel(r.soldier_id)}
+                  </div>
                   <div className="text-xs text-ink-muted">{CATEGORY_LABEL[r.category]}</div>
                   <div className="mt-1 text-xs italic text-ink-dim">&ldquo;{r.description}&rdquo;</div>
                 </div>
@@ -275,7 +286,10 @@ export function GearRequests() {
             <div key={r.id} className="rounded-xl border border-line bg-panel p-3.5 opacity-70">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px] flex-1">
-                  <div className="text-sm font-semibold">{soldierLabel(r.soldier_id)}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    {soldierFor(r.soldier_id) && <SoldierAvatar soldier={soldierFor(r.soldier_id)!} className="h-6 w-6" />}
+                    {soldierLabel(r.soldier_id)}
+                  </div>
                   <div className="text-xs text-ink-muted">{CATEGORY_LABEL[r.category]}</div>
                   {r.resolution_notes && <div className="mt-1 text-xs text-ink-dim">Resolution: {r.resolution_notes}</div>}
                 </div>
