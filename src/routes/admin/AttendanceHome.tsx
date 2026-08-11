@@ -4,6 +4,7 @@ import { listDrillEvents, formatEventDateRange } from '../../lib/drillEvents'
 import { listAttendanceForEvent, markAttendance, deleteAttendance, attendanceRowClass } from '../../lib/attendance'
 import { AttendanceSummary } from '../../components/AttendanceSummary'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
+import { SQUADS } from '../../components/SoldierForm'
 import { IconNote } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
@@ -27,6 +28,11 @@ export function AttendanceHome() {
   const [pending, setPending] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const [noteModal, setNoteModal] = useState<{ name: string; reason: string } | null>(null)
+
+  // Unassigned soldiers get their own trailing group instead of being hidden.
+  const squadGroups = [...SQUADS, null]
+    .map((squad) => ({ squad, soldiers: soldiers.filter((s) => s.squad === squad) }))
+    .filter((g) => g.soldiers.length > 0)
 
   useEffect(() => {
     Promise.all([listDrillEvents(), listSoldiers()])
@@ -183,71 +189,84 @@ export function AttendanceHome() {
 
           <AttendanceSummary soldiers={soldiers} records={records} />
 
-          <div className="flex flex-col gap-2">
-            {soldiers.map((soldier) => {
-              const record = records[soldier.id]
-              const status = record?.status
-              const isSelfReported = !!record && !record.confirmed_by && (status === 'present' || status === 'late')
-              const needsReason = status === 'late' || status === 'excused'
-              return (
-                <div
-                  key={soldier.id}
-                  className={`flex flex-col gap-2.5 rounded-xl border p-3.5 ${attendanceRowClass(record)}`}
-                >
-                  <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                    <SoldierAvatar soldier={soldier} className="h-7 w-7" />
-                    {soldier.rank} {soldier.last_name}, {soldier.first_name}
-                    {isSelfReported && (
-                      <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                        SELF-REPORTED
-                      </span>
-                    )}
-                    {record?.reason && (
-                      <button
-                        onClick={() =>
-                          setNoteModal({ name: `${soldier.rank} ${soldier.last_name}`, reason: record.reason as string })
-                        }
-                        title="View comment"
-                        className="text-info-ink"
+          <div className="flex flex-col gap-4">
+            {squadGroups.map((group) => (
+              <div key={group.squad ?? 'unassigned'}>
+                <h2 className="mb-2 font-display text-[13px] font-semibold tracking-wide text-ink-muted">
+                  {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
+                </h2>
+                <div className="flex flex-col gap-2">
+                  {group.soldiers.map((soldier) => {
+                    const record = records[soldier.id]
+                    const status = record?.status
+                    const isSelfReported =
+                      !!record && !record.confirmed_by && (status === 'present' || status === 'late')
+                    const needsReason = status === 'late' || status === 'excused'
+                    return (
+                      <div
+                        key={soldier.id}
+                        className={`flex flex-col gap-2.5 rounded-xl border p-3.5 ${attendanceRowClass(record)}`}
                       >
-                        <IconNote className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {STATUS_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => toggleStatus(soldier.id, opt.value)}
-                        disabled={pending.has(soldier.id)}
-                        className={`rounded-md border px-1 py-2.5 text-center text-[10px] font-bold tracking-wide transition-colors disabled:opacity-50 ${
-                          status === opt.value ? opt.activeClass : 'border-line bg-neutral-bg text-ink-muted'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                  {needsReason && record && (
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <input
-                        placeholder={record.reason ? 'Add or replace comment' : 'Reason (e.g. traffic, appointment)'}
-                        value={reasonDrafts[soldier.id] ?? ''}
-                        onChange={(e) => setReasonDrafts((prev) => ({ ...prev, [soldier.id]: e.target.value }))}
-                        className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
-                      />
-                      <button
-                        onClick={() => saveReason(soldier.id, status)}
-                        disabled={pending.has(soldier.id)}
-                        className="rounded-md bg-neutral-bg px-3 py-2 text-xs font-semibold text-neutral-ink disabled:opacity-50"
-                      >
-                        {pending.has(soldier.id) ? 'Saving...' : 'Save reason'}
-                      </button>
-                    </div>
-                  )}
+                        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                          <SoldierAvatar soldier={soldier} className="h-7 w-7" />
+                          {soldier.rank} {soldier.last_name}, {soldier.first_name}
+                          {isSelfReported && (
+                            <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                              SELF-REPORTED
+                            </span>
+                          )}
+                          {record?.reason && (
+                            <button
+                              onClick={() =>
+                                setNoteModal({
+                                  name: `${soldier.rank} ${soldier.last_name}`,
+                                  reason: record.reason as string,
+                                })
+                              }
+                              title="View comment"
+                              className="text-info-ink"
+                            >
+                              <IconNote className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {STATUS_OPTIONS.map((opt) => (
+                            <button
+                              key={opt.value}
+                              onClick={() => toggleStatus(soldier.id, opt.value)}
+                              disabled={pending.has(soldier.id)}
+                              className={`rounded-md border px-1 py-2.5 text-center text-[10px] font-bold tracking-wide transition-colors disabled:opacity-50 ${
+                                status === opt.value ? opt.activeClass : 'border-line bg-neutral-bg text-ink-muted'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                        {needsReason && record && (
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <input
+                              placeholder={record.reason ? 'Add or replace comment' : 'Reason (e.g. traffic, appointment)'}
+                              value={reasonDrafts[soldier.id] ?? ''}
+                              onChange={(e) => setReasonDrafts((prev) => ({ ...prev, [soldier.id]: e.target.value }))}
+                              className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+                            />
+                            <button
+                              onClick={() => saveReason(soldier.id, status)}
+                              disabled={pending.has(soldier.id)}
+                              className="rounded-md bg-neutral-bg px-3 py-2 text-xs font-semibold text-neutral-ink disabled:opacity-50"
+                            >
+                              {pending.has(soldier.id) ? 'Saving...' : 'Save reason'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-              )
-            })}
+              </div>
+            ))}
             {soldiers.length === 0 && <p className="text-sm text-ink-muted">No active Soldiers on the roster.</p>}
           </div>
         </>

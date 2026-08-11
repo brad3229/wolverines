@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listSoldiers, createSoldier } from '../../lib/soldiers'
-import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
+import { SoldierForm, soldierFormValuesToPayload, SQUADS } from '../../components/SoldierForm'
 import { flagForDate, ncoerDueDate, ETS_WARNING_DAYS, CAC_WARNING_DAYS, NCOER_WARNING_DAYS } from '../../lib/expirations'
 import { formatDate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
@@ -43,6 +43,11 @@ export function Roster() {
   const filtered = soldiers
     .filter((s) => s.status === (showInactive ? 'inactive' : 'active'))
     .filter((s) => `${s.rank} ${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()))
+
+  // Unassigned soldiers get their own trailing group instead of being hidden.
+  const squadGroups = [...SQUADS, null]
+    .map((squad) => ({ squad, soldiers: filtered.filter((s) => s.squad === squad) }))
+    .filter((g) => g.soldiers.length > 0)
 
   return (
     <div>
@@ -96,48 +101,57 @@ export function Roster() {
       ) : (
         <>
           {/* Card list — mobile */}
-          <div className="space-y-2 sm:hidden">
-            {filtered.map((s) => (
-              <div key={s.id} className="rounded-xl border border-line bg-panel p-4">
-                <Link to={`/admin/roster/${s.id}`} className="block">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2.5 font-semibold">
-                      <SoldierAvatar soldier={s} />
-                      <span className="truncate">
-                        {s.rank} {s.last_name}, {s.first_name}
-                      </span>
+          <div className="space-y-4 sm:hidden">
+            {squadGroups.map((group) => (
+              <div key={group.squad ?? 'unassigned'}>
+                <h2 className="mb-2 font-display text-[13px] font-semibold tracking-wide text-ink-muted">
+                  {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
+                </h2>
+                <div className="space-y-2">
+                  {group.soldiers.map((s) => (
+                    <div key={s.id} className="rounded-xl border border-line bg-panel p-4">
+                      <Link to={`/admin/roster/${s.id}`} className="block">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-2.5 font-semibold">
+                            <SoldierAvatar soldier={s} />
+                            <span className="truncate">
+                              {s.rank} {s.last_name}, {s.first_name}
+                            </span>
+                          </div>
+                          <div className="flex flex-shrink-0 gap-1.5">
+                            {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
+                              <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                                CAC
+                              </span>
+                            )}
+                            {ncoerFlag(s) && (
+                              <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                                NCOER
+                              </span>
+                            )}
+                            {!s.receives_drill_pay && (
+                              <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                                DO NOT PAY
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <p className={`mt-1 text-sm ${etsClass(s) || 'text-ink-muted'}`}>
+                          ETS {formatDate(s.ets_date)} &middot; {s.status}
+                        </p>
+                      </Link>
+                      {s.phone_number && (
+                        <a
+                          href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
+                          className="mt-2.5 flex items-center gap-2 rounded-lg bg-accent-soft px-3 py-2.5 text-base font-bold text-accent-soft-ink"
+                        >
+                          <IconPhone className="h-5 w-5" />
+                          {s.phone_number}
+                        </a>
+                      )}
                     </div>
-                    <div className="flex flex-shrink-0 gap-1.5">
-                      {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
-                        <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                          CAC
-                        </span>
-                      )}
-                      {ncoerFlag(s) && (
-                        <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                          NCOER
-                        </span>
-                      )}
-                      {!s.receives_drill_pay && (
-                        <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                          DO NOT PAY
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <p className={`mt-1 text-sm ${etsClass(s) || 'text-ink-muted'}`}>
-                    ETS {formatDate(s.ets_date)} &middot; {s.status}
-                  </p>
-                </Link>
-                {s.phone_number && (
-                  <a
-                    href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
-                    className="mt-2.5 flex items-center gap-2 rounded-lg bg-accent-soft px-3 py-2.5 text-base font-bold text-accent-soft-ink"
-                  >
-                    <IconPhone className="h-5 w-5" />
-                    {s.phone_number}
-                  </a>
-                )}
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -155,52 +169,63 @@ export function Roster() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((s) => (
-                  <tr
-                    key={s.id}
-                    onClick={() => navigate(`/admin/roster/${s.id}`)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') navigate(`/admin/roster/${s.id}`)
-                    }}
-                    tabIndex={0}
-                    className="cursor-pointer border-t border-line hover:bg-surface-raised focus:outline-none"
-                  >
-                    <td className="px-4 py-3 font-medium">
-                      <div className="flex items-center gap-2">
-                        <SoldierAvatar soldier={s} className="h-7 w-7" />
-                        {s.last_name}, {s.first_name}
-                        {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
-                          <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
-                            CAC
-                          </span>
-                        )}
-                        {ncoerFlag(s) && (
-                          <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
-                            NCOER
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-ink-dim">{s.rank}</td>
-                    <td className={`px-4 py-3 ${etsClass(s) || 'text-ink-dim'}`}>{formatDate(s.ets_date)}</td>
-                    <td className={`px-4 py-3 ${s.receives_drill_pay ? 'text-ink-dim' : 'font-semibold text-warn-ink'}`}>
-                      {s.receives_drill_pay ? 'Yes' : 'No'}
-                    </td>
-                    <td className="px-4 py-3 text-ink-dim">
-                      {s.phone_number ? (
-                        <a
-                          href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1.5 font-semibold text-accent-soft-ink hover:underline"
+                {squadGroups.map((group) => (
+                  <Fragment key={group.squad ?? 'unassigned'}>
+                    <tr className="border-t border-line bg-surface">
+                      <td colSpan={5} className="px-4 py-2 text-[11px] font-semibold tracking-wide text-ink-muted">
+                        {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
+                      </td>
+                    </tr>
+                    {group.soldiers.map((s) => (
+                      <tr
+                        key={s.id}
+                        onClick={() => navigate(`/admin/roster/${s.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') navigate(`/admin/roster/${s.id}`)
+                        }}
+                        tabIndex={0}
+                        className="cursor-pointer border-t border-line hover:bg-surface-raised focus:outline-none"
+                      >
+                        <td className="px-4 py-3 font-medium">
+                          <div className="flex items-center gap-2">
+                            <SoldierAvatar soldier={s} className="h-7 w-7" />
+                            {s.last_name}, {s.first_name}
+                            {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
+                              <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
+                                CAC
+                              </span>
+                            )}
+                            {ncoerFlag(s) && (
+                              <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
+                                NCOER
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-ink-dim">{s.rank}</td>
+                        <td className={`px-4 py-3 ${etsClass(s) || 'text-ink-dim'}`}>{formatDate(s.ets_date)}</td>
+                        <td
+                          className={`px-4 py-3 ${s.receives_drill_pay ? 'text-ink-dim' : 'font-semibold text-warn-ink'}`}
                         >
-                          <IconPhone className="h-3.5 w-3.5" />
-                          {s.phone_number}
-                        </a>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                  </tr>
+                          {s.receives_drill_pay ? 'Yes' : 'No'}
+                        </td>
+                        <td className="px-4 py-3 text-ink-dim">
+                          {s.phone_number ? (
+                            <a
+                              href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1.5 font-semibold text-accent-soft-ink hover:underline"
+                            >
+                              <IconPhone className="h-3.5 w-3.5" />
+                              {s.phone_number}
+                            </a>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
