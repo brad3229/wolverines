@@ -19,6 +19,9 @@ export type TaskCompletionStatus = 'incomplete' | 'self_reported' | 'verified'
 export type GearRequestCategory = 'initial_issue' | 'missing_lost' | 'damaged' | 'wrong_size' | 'other'
 export type GearRequestStatus = 'open' | 'in_progress' | 'resolved'
 export type Sex = 'male' | 'female'
+export type Platoon = '1st Platoon' | '2nd Platoon' | '3rd Platoon' | 'HQ Platoon'
+export type Squad = '1st Squad' | '2nd Squad' | '3rd Squad' | '4th Squad'
+export type Team = 'Alpha Team' | 'Bravo Team'
 export type AftStandard = 'combat' | 'general'
 export type AftRunEventType = 'two_mile_run' | 'row_5k' | 'swim_1k' | 'bike_12k' | 'walk_2_5mi'
 export type AftResult = 'go' | 'nogo'
@@ -57,6 +60,9 @@ export interface Soldier {
   receives_drill_pay: boolean
   sex: Sex | null
   avatar_url: string | null
+  platoon: Platoon | null
+  squad: Squad | null
+  team: Team | null
   ocp_top_size: string | null
   ocp_bottom_size: string | null
   tshirt_size: string | null
