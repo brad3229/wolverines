@@ -36,8 +36,8 @@ export function Login() {
   if (loading || !splashMinElapsed) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-2 bg-surface">
-        <AtlasMark className="h-14 w-14 text-[#D13048] opacity-0 [animation:logo-pop_0.6s_ease-out_forwards]" />
-        <h1 className="font-display text-xl font-semibold tracking-wide opacity-0 [animation:fade-in-up_0.4s_ease-out_0.25s_forwards]">
+        <AtlasMark className="h-32 w-32 text-[#D13048] opacity-0 [animation:logo-pop_0.6s_ease-out_forwards]" />
+        <h1 className="font-display text-4xl font-semibold tracking-wide opacity-0 [animation:fade-in-up_0.4s_ease-out_0.25s_forwards]">
           ATLAS
         </h1>
       </div>
