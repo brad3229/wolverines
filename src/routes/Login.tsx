@@ -56,7 +56,6 @@ export function Login() {
         <div className="mb-6 flex flex-col items-center text-center">
           <AtlasMark className="mb-2 h-10 w-10 text-[#D13048]" />
           <h1 className="font-display text-xl font-semibold tracking-wide">ATLAS</h1>
-          <p className="text-sm text-ink-muted">A CO 1-120 IN</p>
         </div>
 
         {browserSupportsPasskeys() && (
