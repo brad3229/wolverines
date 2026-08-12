@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
 import { signInWithPasskey, browserSupportsPasskeys } from '../lib/passkey'
 import { errorMessage } from '../lib/errors'
-import { LoadingScreen } from '../components/LoadingScreen'
 import { IconPasskey } from '../components/icons'
 import { AtlasMark } from '../components/AtlasMark'
+
+// Minimum time the pre-login splash holds before handing off to the sign-in
+// form, so the logo animation always gets to play out even when the auth
+// check itself resolves near-instantly (e.g. a cached session).
+const SPLASH_MIN_MS = 900
 
 export function Login() {
   const { session, role, loading } = useAuth()
@@ -15,14 +19,29 @@ export function Login() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [passkeyBusy, setPasskeyBusy] = useState(false)
+  const [splashMinElapsed, setSplashMinElapsed] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setSplashMinElapsed(true), SPLASH_MIN_MS)
+    return () => clearTimeout(t)
+  }, [])
 
   // Don't render the form (and its interactive sign-in buttons) until we
   // definitively know whether a session already exists -- otherwise there's
   // a window where the form is live while an existing session is still being
   // checked in the background, and a click can land right as it redirects,
   // making an unrelated stale session look like it came from that click.
-  if (loading) {
-    return <LoadingScreen />
+  // The same branded splash also covers the minimum hold time below, so the
+  // logo animation isn't cut short by a fast auth check.
+  if (loading || !splashMinElapsed) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-2 bg-surface">
+        <AtlasMark className="h-14 w-14 text-[#D13048] opacity-0 [animation:logo-pop_0.6s_ease-out_forwards]" />
+        <h1 className="font-display text-xl font-semibold tracking-wide opacity-0 [animation:fade-in-up_0.4s_ease-out_0.25s_forwards]">
+          ATLAS
+        </h1>
+      </div>
+    )
   }
 
   if (session && role) {
@@ -52,7 +71,10 @@ export function Login() {
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-surface px-4 py-10">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl border border-line bg-panel p-8">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-sm rounded-xl border border-line bg-panel p-8 opacity-0 [animation:fade-in-up_0.4s_ease-out_forwards]"
+      >
         <div className="mb-6 flex flex-col items-center text-center">
           <AtlasMark className="mb-2 h-10 w-10 text-[#D13048]" />
           <h1 className="font-display text-xl font-semibold tracking-wide">ATLAS</h1>
