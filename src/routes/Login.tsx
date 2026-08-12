@@ -10,7 +10,7 @@ import { AtlasMark } from '../components/AtlasMark'
 // Minimum time the pre-login splash holds before handing off to the sign-in
 // form, so the logo animation always gets to play out even when the auth
 // check itself resolves near-instantly (e.g. a cached session).
-const SPLASH_MIN_MS = 900
+const SPLASH_MIN_MS = 1000
 
 export function Login() {
   const { session, role, loading } = useAuth()
