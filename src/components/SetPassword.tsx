@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { errorMessage } from '../lib/errors'
+import { AtlasMark } from './AtlasMark'
 
 interface PasswordRequirement {
   label: string
@@ -51,6 +52,7 @@ export function SetPassword({ onDone }: { onDone: () => void }) {
     <div className="flex min-h-dvh items-center justify-center bg-surface px-4 py-10">
       <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl border border-line bg-panel p-8">
         <div className="mb-6 flex flex-col items-center text-center">
+          <AtlasMark className="mb-2 h-10 w-10 text-[#D13048]" />
           <h1 className="mb-1 font-display text-xl font-semibold tracking-wide">Welcome to ATLAS</h1>
           <p className="text-sm text-ink-muted">Set a password to finish setting up your account</p>
         </div>

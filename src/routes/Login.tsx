@@ -6,6 +6,7 @@ import { signInWithPasskey, browserSupportsPasskeys } from '../lib/passkey'
 import { errorMessage } from '../lib/errors'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { IconPasskey } from '../components/icons'
+import { AtlasMark } from '../components/AtlasMark'
 
 export function Login() {
   const { session, role, loading } = useAuth()
@@ -53,6 +54,7 @@ export function Login() {
     <div className="flex min-h-dvh items-center justify-center bg-surface px-4 py-10">
       <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl border border-line bg-panel p-8">
         <div className="mb-6 flex flex-col items-center text-center">
+          <AtlasMark className="mb-2 h-10 w-10 text-[#D13048]" />
           <h1 className="font-display text-xl font-semibold tracking-wide">ATLAS</h1>
           <p className="text-sm text-ink-muted">A CO 1-120 IN</p>
         </div>
