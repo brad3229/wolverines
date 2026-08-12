@@ -32,6 +32,19 @@ export interface Profile {
   created_at: string
 }
 
+// What platoonmates_directory() returns -- deliberately just enough for a
+// phone directory, not a full Soldier record. same_squad lets the UI list
+// the caller's own squad first, then the rest of the platoon.
+export interface Platoonmate {
+  id: string
+  first_name: string
+  last_name: string
+  rank: string
+  phone_number: string | null
+  avatar_url: string | null
+  same_squad: boolean
+}
+
 export interface Soldier {
   id: string
   profile_id: string | null

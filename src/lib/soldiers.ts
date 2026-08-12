@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import type { Soldier } from '../types/database'
+import type { Soldier, Platoonmate } from '../types/database'
 
 export async function listSoldiers() {
   const { data, error } = await supabase
@@ -24,6 +24,14 @@ export async function getOwnSoldierRecord(profileId: string) {
     .single()
   if (error) throw error
   return data as Soldier
+}
+
+// Phone directory for the caller's own platoon -- name/rank/phone/avatar
+// only, via a security-definer function, not the full Soldier record.
+export async function listPlatoonmates() {
+  const { data, error } = await supabase.rpc('platoonmates_directory')
+  if (error) throw error
+  return data as Platoonmate[]
 }
 
 export async function createSoldier(soldier: Partial<Soldier>) {
