@@ -13,9 +13,11 @@ import type { EditRequest, Soldier } from '../../types/database'
 type FieldKey =
   | 'name'
   | 'rank'
+  | 'date_of_rank'
   | 'dod_id'
   | 'ets_date'
   | 'last_ncoer_date'
+  | 'sex'
   | 'phone_number'
   | 'personal_email'
   | 'mil_email'
@@ -29,9 +31,11 @@ type FieldKey =
 const FIELD_LABEL: Record<FieldKey, string> = {
   name: 'NAME',
   rank: 'RANK',
+  date_of_rank: 'DATE OF RANK',
   dod_id: 'DoD ID',
   ets_date: 'ETS DATE',
   last_ncoer_date: 'LAST NCOER DATE',
+  sex: 'SEX',
   phone_number: 'PHONE NUMBER',
   personal_email: 'PERSONAL EMAIL',
   mil_email: '.MIL EMAIL',
@@ -48,9 +52,11 @@ const RAW_FIELD_LABEL: Record<string, string> = {
   last_name: 'Last name',
   middle_initial: 'Middle initial',
   rank: 'Rank',
+  date_of_rank: 'Date of rank',
   dod_id: 'DoD ID',
   ets_date: 'ETS date',
   last_ncoer_date: 'Last NCOER date',
+  sex: 'Sex',
   phone_number: 'Phone number',
   personal_email: 'Personal email',
   mil_email: '.mil email',
@@ -67,7 +73,7 @@ const RAW_FIELD_LABEL: Record<string, string> = {
   ...Object.fromEntries(UNIFORM_SIZE_FIELDS.map(({ key, label }) => [key, label])),
 }
 
-const DATE_FIELDS = new Set<FieldKey>(['ets_date', 'last_ncoer_date', 'cac_expiration_date'])
+const DATE_FIELDS = new Set<FieldKey>(['ets_date', 'last_ncoer_date', 'cac_expiration_date', 'date_of_rank'])
 
 export function Profile() {
   const { session } = useAuth()
@@ -268,12 +274,22 @@ export function Profile() {
       editable: true,
     },
     { key: 'rank', display: soldier.rank, editable: true },
+    { key: 'date_of_rank', display: formatDate(soldier.date_of_rank), editable: true },
     { key: 'dod_id', display: soldier.dod_id, editable: true },
     { key: 'ets_date', display: formatDate(soldier.ets_date), editable: true },
+    ...(soldier.is_nco
+      ? [
+          {
+            key: 'last_ncoer_date' as const,
+            display: soldier.last_ncoer_date ? formatDate(soldier.last_ncoer_date) : '—',
+            editable: true,
+          },
+        ]
+      : []),
     {
-      key: 'last_ncoer_date',
-      display: soldier.last_ncoer_date ? formatDate(soldier.last_ncoer_date) : '—',
-      editable: soldier.is_nco,
+      key: 'sex',
+      display: soldier.sex === 'male' ? 'Male' : soldier.sex === 'female' ? 'Female' : 'Unknown',
+      editable: true,
     },
     { key: 'receives_drill_pay', display: soldier.receives_drill_pay ? 'Yes' : 'No', editable: true },
   ]
@@ -344,10 +360,27 @@ export function Profile() {
             )}
           </div>
         ))}
+      </div>
+
+      <h2 className="mb-2.5 font-display text-sm font-semibold tracking-wide text-ink-dim">UNIT ASSIGNMENT</h2>
+      <p className="mb-2.5 text-xs text-ink-faint">Set by your chain of command, not requestable here.</p>
+      <div className="mb-6 rounded-xl border border-line bg-panel p-1.5">
+        <div className="flex items-center justify-between gap-2.5 border-b border-line-soft px-3 py-3">
+          <div className="min-w-0">
+            <div className="mb-0.5 text-[11px] tracking-wide text-ink-faint">PLATOON</div>
+            <div className="text-sm font-medium">{soldier.platoon ?? 'Unassigned'}</div>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2.5 border-b border-line-soft px-3 py-3">
+          <div className="min-w-0">
+            <div className="mb-0.5 text-[11px] tracking-wide text-ink-faint">SQUAD</div>
+            <div className="text-sm font-medium">{soldier.squad ?? 'Unassigned'}</div>
+          </div>
+        </div>
         <div className="flex items-center justify-between gap-2.5 px-3 py-3">
           <div className="min-w-0">
-            <div className="mb-0.5 text-[11px] tracking-wide text-ink-faint">NCO STATUS</div>
-            <div className="text-sm font-medium">{soldier.is_nco ? 'NCO' : 'Not NCO'}</div>
+            <div className="mb-0.5 text-[11px] tracking-wide text-ink-faint">TEAM</div>
+            <div className="text-sm font-medium">{soldier.team ?? 'Unassigned'}</div>
           </div>
         </div>
       </div>
@@ -523,6 +556,19 @@ export function Profile() {
                 </option>
               ))}
             </select>
+          ) : editingField === 'sex' ? (
+            <>
+              <select
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+              >
+                <option value="">Unknown</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+              <p className="text-[11px] text-ink-faint">Used for the AFT scorecard (standards are sex-adjusted).</p>
+            </>
           ) : editingField === 'receives_drill_pay' ? (
             <select
               value={value}

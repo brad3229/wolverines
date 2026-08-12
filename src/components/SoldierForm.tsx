@@ -123,9 +123,9 @@ export const UNIFORM_SIZE_FIELDS: {
   { key: 'apfu_shorts_size', label: 'APFU shorts', options: SHIRT_SIZE_OPTIONS },
 ]
 
-// Corporal and above (enlisted) are NCOs; specialists and below, warrant officers, and
-// commissioned officers are not.
-const NCO_RANKS = new Set(['CPL', 'SGT', 'SSG', 'SFC', 'MSG', '1SG', 'SGM', 'CSM', 'SMA'])
+// Sergeant and above get NCOERs; Corporal and below (including junior
+// enlisted, warrant officers, and commissioned officers) don't.
+const NCO_RANKS = new Set(['SGT', 'SSG', 'SFC', 'MSG', '1SG', 'SGM', 'CSM', 'SMA'])
 
 export interface SoldierFormValues {
   first_name: string
