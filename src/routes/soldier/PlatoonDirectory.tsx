@@ -4,6 +4,7 @@ import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
 import { IconPhone } from '../../components/icons'
+import { formatPhoneNumber } from '../../lib/phone'
 import type { Platoonmate } from '../../types/database'
 
 function DirectoryRow({ mate }: { mate: Platoonmate }) {
@@ -18,7 +19,7 @@ function DirectoryRow({ mate }: { mate: Platoonmate }) {
       {mate.phone_number ? (
         <span className="flex flex-shrink-0 items-center gap-2 text-sm font-bold text-accent-soft-ink">
           <IconPhone className="h-4 w-4" />
-          {mate.phone_number}
+          {formatPhoneNumber(mate.phone_number)}
         </span>
       ) : (
         <span className="flex-shrink-0 text-xs text-ink-faint">No number on file</span>

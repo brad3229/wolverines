@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { BloodType, Platoon, Squad, Team, Sex, Soldier } from '../types/database'
 import { errorMessage } from '../lib/errors'
+import { formatPhoneAsTyped } from '../lib/phone'
 
 export const BLOOD_TYPES: BloodType[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 export const PLATOONS: Platoon[] = ['1st Platoon', '2nd Platoon', '3rd Platoon', 'HQ Platoon']
@@ -444,7 +445,7 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
         <input
           type="tel"
           value={values.phone_number}
-          onChange={(e) => set('phone_number', e.target.value)}
+          onChange={(e) => set('phone_number', formatPhoneAsTyped(e.target.value))}
           className={inputClass}
         />
       </div>
@@ -517,7 +518,7 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
         <input
           type="tel"
           value={values.emergency_contact_phone}
-          onChange={(e) => set('emergency_contact_phone', e.target.value)}
+          onChange={(e) => set('emergency_contact_phone', formatPhoneAsTyped(e.target.value))}
           className={inputClass}
         />
       </div>

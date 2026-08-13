@@ -3,6 +3,7 @@ import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { submitEditRequest, listOwnEditRequests, formatEditRequestValue } from '../../lib/editRequests'
 import { flagForDate, CAC_WARNING_DAYS } from '../../lib/expirations'
 import { formatDate } from '../../lib/dates'
+import { formatPhoneNumber, formatPhoneAsTyped } from '../../lib/phone'
 import { BLOOD_TYPES, UNIFORM_SIZE_FIELDS } from '../../components/SoldierForm'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
@@ -297,7 +298,7 @@ export function Profile() {
   const cacFlag = flagForDate(soldier.cac_expiration_date, CAC_WARNING_DAYS)
 
   const contactRows: { key: FieldKey; display: string; editable: boolean; flag?: 'expired' | 'soon' | null }[] = [
-    { key: 'phone_number', display: soldier.phone_number ?? '—', editable: true },
+    { key: 'phone_number', display: soldier.phone_number ? formatPhoneNumber(soldier.phone_number) : '—', editable: true },
     { key: 'personal_email', display: soldier.personal_email ?? '—', editable: true },
     { key: 'mil_email', display: soldier.mil_email ?? '—', editable: true },
     {
@@ -322,7 +323,7 @@ export function Profile() {
         ? [
             soldier.emergency_contact_name,
             soldier.emergency_contact_relationship ? `(${soldier.emergency_contact_relationship})` : '',
-            soldier.emergency_contact_phone,
+            formatPhoneNumber(soldier.emergency_contact_phone),
           ]
             .filter(Boolean)
             .join(' ')
@@ -538,7 +539,7 @@ export function Profile() {
               <input
                 type="tel"
                 value={ecPhone}
-                onChange={(e) => setEcPhone(e.target.value)}
+                onChange={(e) => setEcPhone(formatPhoneAsTyped(e.target.value))}
                 placeholder="Phone number"
                 className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
               />
@@ -590,7 +591,9 @@ export function Profile() {
                       : 'text'
               }
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(e) =>
+                setValue(editingField === 'phone_number' ? formatPhoneAsTyped(e.target.value) : e.target.value)
+              }
               placeholder="New value"
               className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
             />

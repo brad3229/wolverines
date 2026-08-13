@@ -3,6 +3,7 @@ import type { PDFForm } from 'pdf-lib'
 import { GEAR_CATEGORY_LABEL } from './gearRequests'
 import { SUTA_REQUEST_TYPE_LABEL, SUTA_DUTY_LOCATION_ADDRESS } from './sutaRequests'
 import { todayLocalDateString } from './dates'
+import { formatPhoneNumber } from './phone'
 import type { AftRunEventType, AftTest, DrillEvent, GearRequest, Soldier, SutaRequest, SutaRequestType } from '../types/database'
 
 // Maps a SUTA request type to the export value of its radio widget on
@@ -90,7 +91,7 @@ export async function fillCcdfOrderForm(soldier: Soldier, request: GearRequest):
   setTextByPrefix(form, 'Date', mmddyyyy(todayLocalDateString()))
   setTextByPrefix(form, 'DOD ID', soldier.dod_id)
   setTextByPrefix(form, 'EMAIL', soldier.mil_email || soldier.personal_email || '')
-  setTextByPrefix(form, 'Phone Number', soldier.phone_number || '')
+  setTextByPrefix(form, 'Phone Number', formatPhoneNumber(soldier.phone_number))
   setTextByPrefix(form, 'Action Needed', `${GEAR_CATEGORY_LABEL[request.category]} -- ${request.description}`)
 
   setTextByPrefix(form, 'ACU Top', soldier.ocp_top_size || '')

@@ -4,6 +4,7 @@ import { listSoldiers, createSoldier } from '../../lib/soldiers'
 import { SoldierForm, soldierFormValuesToPayload, SQUADS } from '../../components/SoldierForm'
 import { flagForDate, ncoerDueDate, ETS_WARNING_DAYS, CAC_WARNING_DAYS, NCOER_WARNING_DAYS } from '../../lib/expirations'
 import { formatDate } from '../../lib/dates'
+import { formatPhoneNumber } from '../../lib/phone'
 import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
@@ -146,7 +147,7 @@ export function Roster() {
                           className="mt-2.5 flex items-center gap-2 rounded-lg bg-accent-soft px-3 py-2.5 text-base font-bold text-accent-soft-ink"
                         >
                           <IconPhone className="h-5 w-5" />
-                          {s.phone_number}
+                          {formatPhoneNumber(s.phone_number)}
                         </a>
                       )}
                     </div>
@@ -217,7 +218,7 @@ export function Roster() {
                               className="inline-flex items-center gap-1.5 font-semibold text-accent-soft-ink hover:underline"
                             >
                               <IconPhone className="h-3.5 w-3.5" />
-                              {s.phone_number}
+                              {formatPhoneNumber(s.phone_number)}
                             </a>
                           ) : (
                             '—'

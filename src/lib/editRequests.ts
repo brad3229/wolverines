@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { formatPhoneNumber } from './phone'
 import type { EditRequest, Soldier } from '../types/database'
 
 // Boolean-backed soldier fields are stored on edit_requests as the text 'true'/'false'
@@ -6,6 +7,7 @@ import type { EditRequest, Soldier } from '../types/database'
 // keep the string<->boolean conversion in one place instead of repeating it at every
 // approval/display call site.
 const BOOLEAN_FIELDS = new Set<string>(['receives_drill_pay'])
+const PHONE_FIELDS = new Set<string>(['phone_number', 'emergency_contact_phone'])
 
 export function coerceEditRequestValue(fieldName: string, value: string): Partial<Soldier>[keyof Soldier] {
   return BOOLEAN_FIELDS.has(fieldName) ? value === 'true' : value
@@ -13,7 +15,9 @@ export function coerceEditRequestValue(fieldName: string, value: string): Partia
 
 export function formatEditRequestValue(fieldName: string, value: string | null) {
   if (value === null) return '—'
-  return BOOLEAN_FIELDS.has(fieldName) ? (value === 'true' ? 'Yes' : 'No') : value
+  if (BOOLEAN_FIELDS.has(fieldName)) return value === 'true' ? 'Yes' : 'No'
+  if (PHONE_FIELDS.has(fieldName)) return formatPhoneNumber(value)
+  return value
 }
 
 export async function listEditRequests() {
