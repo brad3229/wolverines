@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
 import { signInWithPasskey, browserSupportsPasskeys } from '../lib/passkey'
 import { errorMessage } from '../lib/errors'
+import { initialAuthError } from '../lib/authFlow'
 import { IconPasskey } from '../components/icons'
 import { AtlasMark } from '../components/AtlasMark'
 
@@ -12,11 +13,16 @@ import { AtlasMark } from '../components/AtlasMark'
 // check itself resolves near-instantly (e.g. a cached session).
 const SPLASH_MIN_MS = 1500
 
+// Covers expired/already-used invite and password-reset links alike -- Supabase's
+// redirect doesn't reliably tell us which flow the link was for, just that it failed.
+const AUTH_LINK_ERROR_MESSAGE =
+  'That link is invalid or has expired. Ask your unit admin to send you a new invite or password reset.'
+
 export function Login() {
   const { session, role, loading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(() => (initialAuthError ? AUTH_LINK_ERROR_MESSAGE : null))
   const [submitting, setSubmitting] = useState(false)
   const [passkeyBusy, setPasskeyBusy] = useState(false)
   const [splashMinElapsed, setSplashMinElapsed] = useState(false)
