@@ -15,6 +15,7 @@ import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
+import { todayLocalDateString } from '../../lib/dates'
 import type { DrillEvent, Soldier, SutaRequest } from '../../types/database'
 
 export function Suta() {
@@ -124,7 +125,7 @@ export function Suta() {
 
   if (loading) return <LoadingScreen />
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalDateString()
   const isOverdue = (r: SutaRequest) => {
     const cutoff = r.requested_makeup_end_date || r.requested_makeup_date
     return !!cutoff && cutoff < today

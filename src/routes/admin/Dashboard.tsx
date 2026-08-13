@@ -9,6 +9,7 @@ import { updateSoldier } from '../../lib/soldiers'
 import { getExpiringSoldiers } from '../../lib/expirations'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
+import { todayLocalDateString } from '../../lib/dates'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { IconRoster, IconCalendar, IconInbox, IconAttendance, IconAlertTriangle, IconEvaluation } from '../../components/icons'
@@ -40,7 +41,7 @@ export function Dashboard() {
         setEditRequests(requestData.filter((r) => r.status === 'pending'))
         setLoading(false)
 
-        const today = new Date().toISOString().slice(0, 10)
+        const today = todayLocalDateString()
         const lastEvent =
           eventData.find((e) => e.event_date <= today && today <= e.end_date) ??
           [...eventData].reverse().find((e) => e.end_date < today)
@@ -93,7 +94,7 @@ export function Dashboard() {
 
   if (loading) return <LoadingScreen />
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalDateString()
   const activeCount = soldiers.filter((s) => s.status === 'active').length
   const upcomingEvents = events.filter((e) => e.end_date >= today).slice(0, 3)
   const nextEvent = upcomingEvents[0]

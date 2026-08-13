@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import { flagForDate, daysUntil, type ExpirationFlag } from './expirations'
+import { toLocalDateString } from './dates'
 import type { AftRunEventType, AftResult, AftStandard, AftTest } from '../types/database'
 
 export const AFT_STANDARD_LABEL: Record<AftStandard, string> = {
@@ -28,7 +29,7 @@ export const AFT_WARNING_DAYS = 30
 export function aftDueDate(lastTestDate: string): string {
   const due = new Date(`${lastTestDate}T00:00:00`)
   due.setDate(due.getDate() + AFT_CYCLE_DAYS)
-  return due.toISOString().slice(0, 10)
+  return toLocalDateString(due)
 }
 
 export function aftFlag(lastTestDate: string | null): { flag: ExpirationFlag; days: number | null } {

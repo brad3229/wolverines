@@ -12,6 +12,7 @@ import {
   SUTA_ACKNOWLEDGMENTS,
 } from '../../lib/sutaRequests'
 import { errorMessage } from '../../lib/errors'
+import { todayLocalDateString } from '../../lib/dates'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import type {
@@ -108,7 +109,7 @@ export function Suta() {
     )
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalDateString()
   const requestedEventIds = new Set(requests.map((r) => r.drill_event_id))
   const eligibleEvents = events.filter((e) => e.end_date >= today && !requestedEventIds.has(e.id))
   const editEligibleEvents = events.filter((e) => e.end_date >= today && (!requestedEventIds.has(e.id) || e.id === editEventId))

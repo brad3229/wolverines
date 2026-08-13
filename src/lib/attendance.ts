@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import { listDrillEvents } from './drillEvents'
+import { todayLocalDateString } from './dates'
 import type { Attendance, AttendanceStatus, DrillEvent } from '../types/database'
 
 export async function listAttendanceForEvent(drillEventId: string) {
@@ -63,7 +64,7 @@ export async function getAttendanceHistory(
   soldierId: string,
 ): Promise<{ history: AttendanceHistoryEntry[]; rate: number | null }> {
   const [records, events] = await Promise.all([listAttendanceForSoldier(soldierId), listDrillEvents()])
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalDateString()
   const pastEvents = [...events.filter((e) => e.end_date < today)].sort((a, b) =>
     a.event_date < b.event_date ? 1 : -1,
   )

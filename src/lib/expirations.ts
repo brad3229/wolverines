@@ -1,4 +1,5 @@
 import type { Soldier } from '../types/database'
+import { toLocalDateString } from './dates'
 
 export const CAC_WARNING_DAYS = 30
 export const ETS_WARNING_DAYS = 90
@@ -9,7 +10,8 @@ export type ExpirationFlag = 'expired' | 'soon' | null
 
 export function daysUntil(dateStr: string): number {
   const msPerDay = 24 * 60 * 60 * 1000
-  const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00`)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const target = new Date(`${dateStr}T00:00:00`)
   return Math.round((target.getTime() - today.getTime()) / msPerDay)
 }
@@ -28,7 +30,7 @@ export function flagForDate(dateStr: string | null, warningDays: number): Expira
 export function ncoerDueDate(lastNcoerDate: string): string {
   const due = new Date(`${lastNcoerDate}T00:00:00`)
   due.setDate(due.getDate() + NCOER_CYCLE_DAYS)
-  return due.toISOString().slice(0, 10)
+  return toLocalDateString(due)
 }
 
 export interface SoldierExpiration {

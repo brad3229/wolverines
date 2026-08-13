@@ -4,7 +4,7 @@ import { getDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange, isEventOpenForCh
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listAttendanceForEvent, markAttendance, deleteAttendance } from '../../lib/attendance'
 import { errorMessage } from '../../lib/errors'
-import { formatDate } from '../../lib/dates'
+import { formatDate, todayLocalDateString } from '../../lib/dates'
 import { useAuth } from '../../hooks/useAuth'
 import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
@@ -78,7 +78,7 @@ export function CheckIn() {
     return error ? <p className="text-sm text-bad-ink">{error}</p> : <LoadingScreen />
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalDateString()
   const isOpen = isEventOpenForCheckIn(event)
   const isFuture = event.event_date > today
   const badge =

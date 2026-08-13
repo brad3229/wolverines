@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import { formatDate } from './dates'
+import { formatDate, todayLocalDateString } from './dates'
 import type { DrillEvent, DrillEventType } from '../types/database'
 
 export const EVENT_TYPE_LABEL: Record<DrillEventType, string> = {
@@ -46,6 +46,6 @@ export async function updateDrillEvent(id: string, updates: Partial<DrillEvent>)
 }
 
 export function isEventOpenForCheckIn(event: DrillEvent) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalDateString()
   return event.event_date <= today && today <= event.end_date
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createAftTest, updateAftTest } from '../lib/aft'
+import { todayLocalDateString } from '../lib/dates'
 import type { AftTestInput } from '../lib/aft'
 import {
   deadliftPoints,
@@ -31,7 +32,7 @@ interface AftFormValues {
 
 function emptyAftForm(soldier: Soldier): AftFormValues {
   return {
-    test_date: new Date().toISOString().slice(0, 10),
+    test_date: todayLocalDateString(),
     standard: '',
     aoc_mos: '',
     rank_at_test: soldier.rank,

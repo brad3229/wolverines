@@ -2,6 +2,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import type { PDFForm } from 'pdf-lib'
 import { GEAR_CATEGORY_LABEL } from './gearRequests'
 import { SUTA_REQUEST_TYPE_LABEL, SUTA_DUTY_LOCATION_ADDRESS } from './sutaRequests'
+import { todayLocalDateString } from './dates'
 import type { AftRunEventType, AftTest, DrillEvent, GearRequest, Soldier, SutaRequest, SutaRequestType } from '../types/database'
 
 // Maps a SUTA request type to the export value of its radio widget on
@@ -86,7 +87,7 @@ export async function fillCcdfOrderForm(soldier: Soldier, request: GearRequest):
 
   setTextByPrefix(form, 'Name (Last, First, MI)', lastFirstMi(soldier))
   selectDropdownIfOption(form, 'Rank_', soldier.rank)
-  setTextByPrefix(form, 'Date', mmddyyyy(new Date().toISOString().slice(0, 10)))
+  setTextByPrefix(form, 'Date', mmddyyyy(todayLocalDateString()))
   setTextByPrefix(form, 'DOD ID', soldier.dod_id)
   setTextByPrefix(form, 'EMAIL', soldier.mil_email || soldier.personal_email || '')
   setTextByPrefix(form, 'Phone Number', soldier.phone_number || '')
@@ -130,7 +131,7 @@ export async function fillSutaCertificate(soldier: Soldier, request: SutaRequest
   form.getTextField('DUTY').setText(
     `${event.title} (${mmddyyyy(event.event_date)}) -- ${SUTA_REQUEST_TYPE_LABEL[request.request_type ?? 'suta_before']}: ${request.reason}`,
   )
-  form.getTextField('REQUEST DATE').setText(mmddyyyy(new Date().toISOString().slice(0, 10)))
+  form.getTextField('REQUEST DATE').setText(mmddyyyy(todayLocalDateString()))
 
   if (request.request_type) {
     try {

@@ -3,6 +3,7 @@ import { listDrillEvents, formatEventDateRange, EVENT_TYPE_LABEL } from '../../l
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listAttendanceForEvent, markAttendance } from '../../lib/attendance'
 import { errorMessage } from '../../lib/errors'
+import { todayLocalDateString } from '../../lib/dates'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import type { Attendance, DrillEvent, Soldier } from '../../types/database'
@@ -21,7 +22,7 @@ export function CheckInHome() {
     if (!session) return
     setError(null)
     try {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = todayLocalDateString()
       const [events, ownSoldier] = await Promise.all([listDrillEvents(), getOwnSoldierRecord(session.user.id)])
       const drill = events.find((e) => e.event_date <= today && today <= e.end_date) ?? null
       setTodayEvent(drill)

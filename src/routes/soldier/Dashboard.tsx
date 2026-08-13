@@ -7,7 +7,7 @@ import { listOwnSutaRequests } from '../../lib/sutaRequests'
 import { getAttendanceHistory, attendanceBadge, listAttendanceForEvent } from '../../lib/attendance'
 import type { AttendanceHistoryEntry } from '../../lib/attendance'
 import { flagForDate, daysUntil, ETS_WARNING_DAYS, CAC_WARNING_DAYS } from '../../lib/expirations'
-import { formatDate } from '../../lib/dates'
+import { formatDate, todayLocalDateString } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
@@ -54,7 +54,7 @@ export function Dashboard() {
             setHistory(attendance.history)
             setRate(attendance.rate)
 
-            const today = new Date().toISOString().slice(0, 10)
+            const today = todayLocalDateString()
             const next = eventData.filter((e) => e.end_date >= today)[0]
             if (next) {
               listAttendanceForEvent(next.id)
@@ -94,7 +94,7 @@ export function Dashboard() {
     )
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalDateString()
   const nextEvent = events.filter((e) => e.end_date >= today)[0]
   const isCurrent = !!nextEvent && isEventOpenForCheckIn(nextEvent)
   const nextEventLabel = isCurrent ? 'CURRENT EVENT' : 'NEXT DRILL'

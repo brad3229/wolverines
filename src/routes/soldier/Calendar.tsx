@@ -4,6 +4,7 @@ import { listDrillEvents, isEventOpenForCheckIn, formatEventDateRange } from '..
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listAttendanceForSoldier, attendanceBadge } from '../../lib/attendance'
 import { errorMessage } from '../../lib/errors'
+import { todayLocalDateString } from '../../lib/dates'
 import { useAuth } from '../../hooks/useAuth'
 import type { Attendance, DrillEvent } from '../../types/database'
 
@@ -39,7 +40,7 @@ export function SoldierCalendar() {
       })
   }, [session])
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalDateString()
   const upcoming = events.filter((e) => e.end_date >= today)
 
   return (

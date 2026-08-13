@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { listDrillEvents, createDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange } from '../../lib/drillEvents'
 import { EventForm, eventFormValuesToPayload } from '../../components/EventForm'
 import { errorMessage } from '../../lib/errors'
+import { todayLocalDateString } from '../../lib/dates'
 import type { DrillEvent } from '../../types/database'
 
 function monthDayLabel(dateStr: string) {
@@ -26,7 +27,7 @@ export function Calendar() {
   useEffect(refresh, [])
 
   const { todayEvents, upcomingEvents, pastEvents } = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayLocalDateString()
     return {
       todayEvents: events.filter((e) => e.event_date <= today && today <= e.end_date),
       upcomingEvents: events.filter((e) => e.event_date > today),

@@ -14,7 +14,7 @@ import { listOwnGearRequests } from '../../lib/gearRequests'
 import { listOwnPayIssues } from '../../lib/payIssues'
 import { listActiveTaskLists, listTaskItems, listOwnCompletions } from '../../lib/tasks'
 import { listAftTestsForSoldier, deleteAftTest, AFT_STANDARD_LABEL, AFT_RESULT_LABEL } from '../../lib/aft'
-import { formatDate } from '../../lib/dates'
+import { formatDate, todayLocalDateString } from '../../lib/dates'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
 import { BackButton } from '../../components/BackButton'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
@@ -41,7 +41,7 @@ const READINESS_TONE_CLASS: Record<'good' | 'warn' | 'bad' | 'neutral', string> 
 }
 
 async function loadReadinessSnapshot(soldierId: string): Promise<ReadinessSnapshot> {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalDateString()
   const [sutaRequests, gearRequests, payIssues, taskLists, completions] = await Promise.all([
     listOwnSutaRequests(soldierId),
     listOwnGearRequests(soldierId),

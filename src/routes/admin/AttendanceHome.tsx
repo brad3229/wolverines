@@ -9,6 +9,7 @@ import { IconNote } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
+import { todayLocalDateString } from '../../lib/dates'
 import type { Attendance, AttendanceStatus, DrillEvent, Soldier } from '../../types/database'
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; activeClass: string }[] = [
@@ -39,7 +40,7 @@ export function AttendanceHome() {
       .then(([eventData, soldierData]) => {
         setEvents(eventData)
         setSoldiers(soldierData.filter((s) => s.status === 'active'))
-        const today = new Date().toISOString().slice(0, 10)
+        const today = todayLocalDateString()
         const defaultEvent =
           eventData.find((e) => e.event_date <= today && today <= e.end_date) ??
           eventData.find((e) => e.event_date > today) ??

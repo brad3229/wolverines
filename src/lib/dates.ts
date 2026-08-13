@@ -8,3 +8,18 @@ export function formatDate(dateStr: string): string {
     year: 'numeric',
   })
 }
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+// The write-side equivalent of the parsing pitfall above: formatting via toISOString()
+// converts to UTC first, which can land on the wrong calendar day near midnight
+// depending on the timezone -- this reads the local Y/M/D fields directly instead.
+export function toLocalDateString(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+export function todayLocalDateString(): string {
+  return toLocalDateString(new Date())
+}
