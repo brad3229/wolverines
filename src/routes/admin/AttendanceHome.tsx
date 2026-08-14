@@ -193,7 +193,7 @@ export function AttendanceHome() {
           <div className="flex flex-col gap-4">
             {squadGroups.map((group) => (
               <div key={group.squad ?? 'unassigned'}>
-                <h2 className="mb-2 font-display text-[13px] font-semibold tracking-wide text-ink-muted">
+                <h2 className="mb-2 font-display text-[15px] font-semibold tracking-wide text-ink-muted">
                   {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
                 </h2>
                 <div className="flex flex-col gap-2">

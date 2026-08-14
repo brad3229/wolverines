@@ -105,7 +105,7 @@ export function Roster() {
           <div className="space-y-4 sm:hidden">
             {squadGroups.map((group) => (
               <div key={group.squad ?? 'unassigned'}>
-                <h2 className="mb-2 font-display text-[13px] font-semibold tracking-wide text-ink-muted">
+                <h2 className="mb-2 font-display text-[15px] font-semibold tracking-wide text-ink-muted">
                   {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
                 </h2>
                 <div className="space-y-2">
@@ -173,7 +173,7 @@ export function Roster() {
                 {squadGroups.map((group) => (
                   <Fragment key={group.squad ?? 'unassigned'}>
                     <tr className="border-t border-line bg-surface">
-                      <td colSpan={5} className="px-4 py-2 text-[11px] font-semibold tracking-wide text-ink-muted">
+                      <td colSpan={5} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
                         {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
                       </td>
                     </tr>
