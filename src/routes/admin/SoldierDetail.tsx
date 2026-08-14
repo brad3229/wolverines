@@ -234,7 +234,7 @@ export function SoldierDetail() {
       <div className="mb-5 flex items-center gap-3">
         <SoldierAvatar soldier={soldier} className="h-12 w-12" textClassName="text-base" />
         <h1 className="font-display text-2xl font-semibold uppercase tracking-wide sm:text-[26px]">
-          {soldier.rank} {soldier.first_name} {soldier.last_name}
+          {soldier.rank} {soldier.last_name}, {soldier.first_name}
         </h1>
       </div>
 
