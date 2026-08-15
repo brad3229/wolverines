@@ -6,7 +6,7 @@ import type { EditRequest, Soldier } from '../types/database'
 // (old_value/new_value are text columns shared by every field type) -- these two helpers
 // keep the string<->boolean conversion in one place instead of repeating it at every
 // approval/display call site.
-const BOOLEAN_FIELDS = new Set<string>(['receives_drill_pay'])
+const BOOLEAN_FIELDS = new Set<string>(['receives_drill_pay', 'has_gtcc'])
 const PHONE_FIELDS = new Set<string>(['phone_number', 'emergency_contact_phone'])
 
 export function coerceEditRequestValue(fieldName: string, value: string): Partial<Soldier>[keyof Soldier] {

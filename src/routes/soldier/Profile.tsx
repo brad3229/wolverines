@@ -27,6 +27,7 @@ type FieldKey =
   | 'cac_expiration_date'
   | 'emergency_contact'
   | 'receives_drill_pay'
+  | 'has_gtcc'
   | 'uniform_sizes'
 
 const FIELD_LABEL: Record<FieldKey, string> = {
@@ -45,6 +46,7 @@ const FIELD_LABEL: Record<FieldKey, string> = {
   cac_expiration_date: 'CAC EXPIRATION DATE',
   emergency_contact: 'EMERGENCY CONTACT',
   receives_drill_pay: 'RECEIVES DRILL PAY',
+  has_gtcc: 'HAS GTCC',
   uniform_sizes: 'UNIFORM SIZES',
 }
 
@@ -71,6 +73,7 @@ const RAW_FIELD_LABEL: Record<string, string> = {
   emergency_contact_relationship: 'Emergency contact relationship',
   emergency_contact_phone: 'Emergency contact phone',
   receives_drill_pay: 'Receives drill pay',
+  has_gtcc: 'Has GTCC',
   ...Object.fromEntries(UNIFORM_SIZE_FIELDS.map(({ key, label }) => [key, label])),
 }
 
@@ -144,6 +147,8 @@ export function Profile() {
       setValue('')
     } else if (field === 'receives_drill_pay') {
       setValue(soldier.receives_drill_pay ? 'true' : 'false')
+    } else if (field === 'has_gtcc') {
+      setValue(soldier.has_gtcc ? 'true' : 'false')
     } else {
       setValue((soldier[field] as string) ?? '')
     }
@@ -257,7 +262,11 @@ export function Profile() {
               ? soldier.receives_drill_pay
                 ? 'true'
                 : 'false'
-              : ((soldier[editingField] as string) ?? null),
+              : editingField === 'has_gtcc'
+                ? soldier.has_gtcc
+                  ? 'true'
+                  : 'false'
+                : ((soldier[editingField] as string) ?? null),
           newValue: value,
         })
       }
@@ -293,6 +302,7 @@ export function Profile() {
       editable: true,
     },
     { key: 'receives_drill_pay', display: soldier.receives_drill_pay ? 'Yes' : 'No', editable: true },
+    { key: 'has_gtcc', display: soldier.has_gtcc ? 'Yes' : 'No', editable: true },
   ]
 
   const cacFlag = flagForDate(soldier.cac_expiration_date, CAC_WARNING_DAYS)
@@ -578,6 +588,15 @@ export function Profile() {
             >
               <option value="true">Yes</option>
               <option value="false">No — waive drill pay (e.g. VA disability)</option>
+            </select>
+          ) : editingField === 'has_gtcc' ? (
+            <select
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
+            >
+              <option value="false">No</option>
+              <option value="true">Yes</option>
             </select>
           ) : (
             <input

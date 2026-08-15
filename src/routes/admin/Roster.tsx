@@ -135,6 +135,11 @@ export function Roster() {
                                 DO NOT PAY
                               </span>
                             )}
+                            {!s.has_gtcc && (
+                              <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                                NO GTCC
+                              </span>
+                            )}
                           </div>
                         </div>
                         <p className={`mt-1 text-sm ${etsClass(s) || 'text-ink-muted'}`}>
@@ -166,6 +171,7 @@ export function Roster() {
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">RANK</th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">ETS DATE</th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PAY-OUT</th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">GTCC</th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PHONE</th>
                 </tr>
               </thead>
@@ -173,7 +179,7 @@ export function Roster() {
                 {squadGroups.map((group) => (
                   <Fragment key={group.squad ?? 'unassigned'}>
                     <tr className="border-t border-line bg-surface">
-                      <td colSpan={5} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
+                      <td colSpan={6} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
                         {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
                       </td>
                     </tr>
@@ -209,6 +215,9 @@ export function Roster() {
                           className={`px-4 py-3 ${s.receives_drill_pay ? 'text-ink-dim' : 'font-semibold text-warn-ink'}`}
                         >
                           {s.receives_drill_pay ? 'Yes' : 'No'}
+                        </td>
+                        <td className={`px-4 py-3 ${s.has_gtcc ? 'text-ink-dim' : 'font-semibold text-warn-ink'}`}>
+                          {s.has_gtcc ? 'Yes' : 'No'}
                         </td>
                         <td className="px-4 py-3 text-ink-dim">
                           {s.phone_number ? (

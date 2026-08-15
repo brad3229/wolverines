@@ -71,6 +71,7 @@ export interface Soldier {
   blood_type: BloodType | null
   cac_expiration_date: string | null
   receives_drill_pay: boolean
+  has_gtcc: boolean
   sex: Sex | null
   avatar_url: string | null
   platoon: Platoon | null

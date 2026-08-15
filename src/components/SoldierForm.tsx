@@ -151,6 +151,7 @@ export interface SoldierFormValues {
   blood_type: BloodType | ''
   cac_expiration_date: string
   receives_drill_pay: boolean
+  has_gtcc: boolean
   sex: Sex | ''
   platoon: Platoon | ''
   squad: Squad | ''
@@ -194,6 +195,7 @@ export function soldierFormValuesToPayload(values: SoldierFormValues): Partial<S
     blood_type: values.blood_type || null,
     cac_expiration_date: values.cac_expiration_date || null,
     receives_drill_pay: values.receives_drill_pay,
+    has_gtcc: values.has_gtcc,
     sex: values.sex || null,
     platoon: values.platoon || null,
     squad: values.squad || null,
@@ -248,6 +250,7 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
     blood_type: initial?.blood_type ?? '',
     cac_expiration_date: initial?.cac_expiration_date ?? '',
     receives_drill_pay: initial?.receives_drill_pay ?? true,
+    has_gtcc: initial?.has_gtcc ?? false,
     sex: initial?.sex ?? '',
     platoon: initial?.platoon ?? '',
     squad: initial?.squad ?? '',
@@ -572,6 +575,17 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
         >
           <option value="yes">Yes</option>
           <option value="no">No — waived (e.g. VA disability)</option>
+        </select>
+      </div>
+      <div>
+        <label className={labelClass}>Has GTCC</label>
+        <select
+          value={values.has_gtcc ? 'yes' : 'no'}
+          onChange={(e) => set('has_gtcc', e.target.value === 'yes')}
+          className={inputClass}
+        >
+          <option value="no">No</option>
+          <option value="yes">Yes</option>
         </select>
       </div>
 
