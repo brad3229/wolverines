@@ -8,7 +8,7 @@ import { formatPhoneNumber } from '../../lib/phone'
 import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
-import { IconPhone } from '../../components/icons'
+import { IconPhone, IconCheck } from '../../components/icons'
 import type { Soldier } from '../../types/database'
 
 function etsClass(s: Soldier) {
@@ -114,7 +114,17 @@ export function Roster() {
                       <Link to={`/admin/roster/${s.id}`} className="block">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex min-w-0 items-center gap-2.5 font-semibold">
-                            <SoldierAvatar soldier={s} />
+                            <div className="relative flex-shrink-0">
+                              <SoldierAvatar soldier={s} />
+                              {s.profile_id && (
+                                <span
+                                  title="Account linked"
+                                  className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-good-ink ring-2 ring-panel"
+                                >
+                                  <IconCheck className="h-2 w-2 text-panel" />
+                                </span>
+                              )}
+                            </div>
                             <span className="truncate">
                               {s.rank} {s.last_name}, {s.first_name}
                             </span>
@@ -195,7 +205,17 @@ export function Roster() {
                       >
                         <td className="px-4 py-3 font-medium">
                           <div className="flex items-center gap-2">
-                            <SoldierAvatar soldier={s} className="h-7 w-7" />
+                            <div className="relative flex-shrink-0">
+                              <SoldierAvatar soldier={s} className="h-7 w-7" />
+                              {s.profile_id && (
+                                <span
+                                  title="Account linked"
+                                  className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-good-ink ring-2 ring-panel"
+                                >
+                                  <IconCheck className="h-1.5 w-1.5 text-panel" />
+                                </span>
+                              )}
+                            </div>
                             {s.last_name}, {s.first_name}
                             {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
                               <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">

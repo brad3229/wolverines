@@ -126,6 +126,14 @@ export function IconPhone(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconCheck(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon strokeWidth={3} {...props}>
+      <path d="M4 12l5 5L20 6" />
+    </Icon>
+  )
+}
+
 export function IconBell(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
