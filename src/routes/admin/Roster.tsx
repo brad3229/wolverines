@@ -33,6 +33,10 @@ function ncoerFlag(s: Soldier) {
   return flagForDate(ncoerDueDate(s.last_ncoer_date), NCOER_WARNING_DAYS)
 }
 
+function mrcFlagged(s: Soldier) {
+  return s.mrc_status === '3' || s.mrc_status === '4'
+}
+
 // A drag-in-progress needs its own transform applied to the original element
 // (dnd-kit doesn't move the DOM node itself) -- dragging the pointer/finger past
 // the sensors' activation threshold below is what starts a drag; a plain tap or
@@ -88,6 +92,11 @@ function MobileSoldierCard({ soldier: s }: { soldier: Soldier }) {
               {ncoerFlag(s) && (
                 <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
                   NCOER
+                </span>
+              )}
+              {mrcFlagged(s) && (
+                <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                  MRC {s.mrc_status}
                 </span>
               )}
               {!s.receives_drill_pay && (
@@ -176,6 +185,11 @@ function DesktopSoldierRow({ soldier: s, onOpen }: { soldier: Soldier; onOpen: (
           {ncoerFlag(s) && (
             <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
               NCOER
+            </span>
+          )}
+          {mrcFlagged(s) && (
+            <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
+              MRC {s.mrc_status}
             </span>
           )}
         </div>

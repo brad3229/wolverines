@@ -25,6 +25,7 @@ export type Team = 'Alpha Team' | 'Bravo Team'
 export type AftStandard = 'combat' | 'general'
 export type AftRunEventType = 'two_mile_run' | 'row_5k' | 'swim_1k' | 'bike_12k' | 'walk_2_5mi'
 export type AftResult = 'go' | 'nogo'
+export type MrcStatus = '1' | '2' | '3' | '4'
 
 export interface Profile {
   id: string
@@ -72,6 +73,7 @@ export interface Soldier {
   cac_expiration_date: string | null
   receives_drill_pay: boolean
   has_gtcc: boolean
+  mrc_status: MrcStatus | null
   sex: Sex | null
   avatar_url: string | null
   platoon: Platoon | null

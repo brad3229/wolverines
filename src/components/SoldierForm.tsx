@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { BloodType, Platoon, Squad, Team, Sex, Soldier } from '../types/database'
+import type { BloodType, Platoon, Squad, Team, Sex, MrcStatus, Soldier } from '../types/database'
 import { errorMessage } from '../lib/errors'
 import { formatPhoneAsTyped } from '../lib/phone'
 
@@ -152,6 +152,7 @@ export interface SoldierFormValues {
   cac_expiration_date: string
   receives_drill_pay: boolean
   has_gtcc: boolean
+  mrc_status: MrcStatus | ''
   sex: Sex | ''
   platoon: Platoon | ''
   squad: Squad | ''
@@ -196,6 +197,7 @@ export function soldierFormValuesToPayload(values: SoldierFormValues): Partial<S
     cac_expiration_date: values.cac_expiration_date || null,
     receives_drill_pay: values.receives_drill_pay,
     has_gtcc: values.has_gtcc,
+    mrc_status: values.mrc_status || null,
     sex: values.sex || null,
     platoon: values.platoon || null,
     squad: values.squad || null,
@@ -251,6 +253,7 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
     cac_expiration_date: initial?.cac_expiration_date ?? '',
     receives_drill_pay: initial?.receives_drill_pay ?? true,
     has_gtcc: initial?.has_gtcc ?? false,
+    mrc_status: initial?.mrc_status ?? '',
     sex: initial?.sex ?? '',
     platoon: initial?.platoon ?? '',
     squad: initial?.squad ?? '',
@@ -587,6 +590,21 @@ export function SoldierForm({ initial, submitLabel, onSubmit }: SoldierFormProps
           <option value="no">No</option>
           <option value="yes">Yes</option>
         </select>
+      </div>
+      <div>
+        <label className={labelClass}>MRC status</label>
+        <select
+          value={values.mrc_status}
+          onChange={(e) => set('mrc_status', e.target.value as SoldierFormValues['mrc_status'])}
+          className={inputClass}
+        >
+          <option value="">Unknown</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+        <p className="mt-1 text-[11px] text-ink-faint">A 3 or 4 flags the soldier as not medically ready.</p>
       </div>
 
       <div className="sm:col-span-2 mt-2 border-t border-line pt-4">
