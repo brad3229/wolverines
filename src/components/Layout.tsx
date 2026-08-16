@@ -224,7 +224,7 @@ export function Layout({
           {navGroups.map((group, gi) => (
             <div key={gi} className="mt-[18px] first:mt-0">
               {group.name && (
-                <div className="mb-1.5 px-2.5 font-display text-[10px] font-semibold tracking-[0.12em] text-ink-faint">
+                <div className="mb-1.5 px-2.5 font-display text-[11.5px] font-semibold tracking-[0.1em] text-ink-faint">
                   {group.name}
                 </div>
               )}
