@@ -193,27 +193,27 @@ export function AttendancePage() {
             }}
           />
         ) : (
-          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <dt className="text-xs tracking-wide text-ink-muted">DATE</dt>
-              <dd className="font-medium">{formatEventDateRange(event)}</dd>
+              <dt className="text-[13px] font-semibold tracking-wide text-ink-dim">DATE</dt>
+              <dd className="text-lg font-semibold">{formatEventDateRange(event)}</dd>
             </div>
             {event.start_time && (
               <div>
-                <dt className="text-xs tracking-wide text-ink-muted">FIRST FORMATION</dt>
-                <dd className="font-medium">{event.start_time}</dd>
+                <dt className="text-[13px] font-semibold tracking-wide text-ink-dim">FIRST FORMATION</dt>
+                <dd className="text-lg font-semibold">{event.start_time}</dd>
               </div>
             )}
             {event.location && (
               <div>
-                <dt className="text-xs tracking-wide text-ink-muted">LOCATION</dt>
-                <dd className="font-medium">{event.location}</dd>
+                <dt className="text-[13px] font-semibold tracking-wide text-ink-dim">LOCATION</dt>
+                <dd className="text-lg font-semibold">{event.location}</dd>
               </div>
             )}
             {event.notes && (
               <div className="sm:col-span-2">
-                <dt className="text-xs tracking-wide text-ink-muted">NOTES</dt>
-                <dd className="whitespace-pre-wrap font-medium">{event.notes}</dd>
+                <dt className="text-[13px] font-semibold tracking-wide text-ink-dim">NOTES</dt>
+                <dd className="whitespace-pre-wrap text-lg font-semibold">{event.notes}</dd>
               </div>
             )}
           </dl>
