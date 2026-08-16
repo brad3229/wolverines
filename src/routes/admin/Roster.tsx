@@ -1,6 +1,18 @@
 import { Fragment, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { listSoldiers, createSoldier } from '../../lib/soldiers'
+import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  pointerWithin,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { listSoldiers, createSoldier, updateSoldier } from '../../lib/soldiers'
 import { SoldierForm, soldierFormValuesToPayload, SQUADS } from '../../components/SoldierForm'
 import { flagForDate, ncoerDueDate, ETS_WARNING_DAYS, CAC_WARNING_DAYS, NCOER_WARNING_DAYS } from '../../lib/expirations'
 import { formatDate } from '../../lib/dates'
@@ -8,7 +20,7 @@ import { formatPhoneNumber } from '../../lib/phone'
 import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
-import { IconPhone, IconCheck } from '../../components/icons'
+import { IconPhone, IconCheck, IconGripVertical } from '../../components/icons'
 import type { Soldier } from '../../types/database'
 
 function etsClass(s: Soldier) {
@@ -21,6 +33,179 @@ function ncoerFlag(s: Soldier) {
   return flagForDate(ncoerDueDate(s.last_ncoer_date), NCOER_WARNING_DAYS)
 }
 
+// A drag-in-progress needs its own transform applied to the original element
+// (dnd-kit doesn't move the DOM node itself) -- dragging the pointer/finger past
+// the sensors' activation threshold below is what starts a drag; a plain tap or
+// click stays under that threshold, so navigation and tap-to-call underneath
+// still work normally.
+function dragStyle(transform: { x: number; y: number } | null) {
+  return transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, position: 'relative' as const, zIndex: 10 }
+    : undefined
+}
+
+function DroppableSquadLabel({ squad, children }: { squad: Soldier['squad']; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `squad-${squad ?? 'unassigned'}`, data: { squad } })
+  return (
+    <span ref={setNodeRef} className={`rounded-md px-1 py-0.5 ${isOver ? 'bg-accent-soft text-accent-soft-ink' : ''}`}>
+      {children}
+    </span>
+  )
+}
+
+function MobileSoldierCard({ soldier: s }: { soldier: Soldier }) {
+  // The grip is its own drag source, separate from the Link/tel: anchors below --
+  // dnd-kit's sensors won't start a drag from inside an <a>, so making the whole
+  // card draggable would silently break and just navigate instead.
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: s.id })
+  return (
+    <div ref={setNodeRef} style={dragStyle(transform)} className={`rounded-xl border border-line bg-panel p-4 ${isDragging ? 'opacity-60' : ''}`}>
+      <div className="flex items-start gap-2">
+        <Link to={`/admin/roster/${s.id}`} className="block min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2.5 font-semibold">
+              <div className="relative flex-shrink-0">
+                <SoldierAvatar soldier={s} />
+                {s.profile_id && (
+                  <span
+                    title="Account linked"
+                    className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-good-ink ring-2 ring-panel"
+                  >
+                    <IconCheck className="h-2 w-2 text-panel" />
+                  </span>
+                )}
+              </div>
+              <span className="truncate">
+                {s.rank} {s.last_name}, {s.first_name}
+              </span>
+            </div>
+            <div className="flex flex-shrink-0 gap-1.5">
+              {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
+                <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                  CAC
+                </span>
+              )}
+              {ncoerFlag(s) && (
+                <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                  NCOER
+                </span>
+              )}
+              {!s.receives_drill_pay && (
+                <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                  DO NOT PAY
+                </span>
+              )}
+              {!s.has_gtcc && (
+                <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
+                  NO GTCC
+                </span>
+              )}
+            </div>
+          </div>
+          <p className={`mt-1 text-sm ${etsClass(s) || 'text-ink-muted'}`}>
+            ETS {formatDate(s.ets_date)} &middot; {s.status}
+          </p>
+        </Link>
+        <div
+          {...listeners}
+          {...attributes}
+          title="Drag to reassign squad"
+          className={`flex-shrink-0 rounded-md p-1.5 text-ink-faint ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        >
+          <IconGripVertical />
+        </div>
+      </div>
+      {s.phone_number && (
+        <a
+          href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
+          className="mt-2.5 flex items-center gap-2 rounded-lg bg-accent-soft px-3 py-2.5 text-base font-bold text-accent-soft-ink"
+        >
+          <IconPhone className="h-5 w-5" />
+          {formatPhoneNumber(s.phone_number)}
+        </a>
+      )}
+    </div>
+  )
+}
+
+function DesktopSoldierRow({ soldier: s, onOpen }: { soldier: Soldier; onOpen: () => void }) {
+  // Same reasoning as MobileSoldierCard -- the grip is its own drag source
+  // rather than the whole row, so it doesn't fight with the tel: link cell.
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: s.id })
+  return (
+    <tr
+      ref={setNodeRef}
+      style={dragStyle(transform)}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onOpen()
+      }}
+      tabIndex={0}
+      className={`cursor-pointer border-t border-line hover:bg-surface-raised focus:outline-none ${isDragging ? 'opacity-60' : ''}`}
+    >
+      <td className="w-8 px-2 py-3">
+        <div
+          {...listeners}
+          {...attributes}
+          onClick={(e) => e.stopPropagation()}
+          title="Drag to reassign squad"
+          className={`inline-flex rounded-md p-1 text-ink-faint ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        >
+          <IconGripVertical className="h-4 w-4" />
+        </div>
+      </td>
+      <td className="px-4 py-3 font-medium">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-shrink-0">
+            <SoldierAvatar soldier={s} className="h-7 w-7" />
+            {s.profile_id && (
+              <span
+                title="Account linked"
+                className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-good-ink ring-2 ring-panel"
+              >
+                <IconCheck className="h-1.5 w-1.5 text-panel" />
+              </span>
+            )}
+          </div>
+          {s.last_name}, {s.first_name}
+          {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
+            <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
+              CAC
+            </span>
+          )}
+          {ncoerFlag(s) && (
+            <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
+              NCOER
+            </span>
+          )}
+        </div>
+      </td>
+      <td className="px-4 py-3 text-ink-dim">{s.rank}</td>
+      <td className={`px-4 py-3 ${etsClass(s) || 'text-ink-dim'}`}>{formatDate(s.ets_date)}</td>
+      <td className={`px-4 py-3 ${s.receives_drill_pay ? 'text-ink-dim' : 'font-semibold text-warn-ink'}`}>
+        {s.receives_drill_pay ? 'Yes' : 'No'}
+      </td>
+      <td className={`px-4 py-3 ${s.has_gtcc ? 'text-ink-dim' : 'font-semibold text-warn-ink'}`}>
+        {s.has_gtcc ? 'Yes' : 'No'}
+      </td>
+      <td className="px-4 py-3 text-ink-dim">
+        {s.phone_number ? (
+          <a
+            href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 font-semibold text-accent-soft-ink hover:underline"
+          >
+            <IconPhone className="h-3.5 w-3.5" />
+            {formatPhoneNumber(s.phone_number)}
+          </a>
+        ) : (
+          '—'
+        )}
+      </td>
+    </tr>
+  )
+}
+
 export function Roster() {
   const navigate = useNavigate()
   const [soldiers, setSoldiers] = useState<Soldier[]>([])
@@ -29,6 +214,11 @@ export function Roster() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  )
 
   function refresh() {
     setLoading(true)
@@ -40,6 +230,25 @@ export function Roster() {
   }
 
   useEffect(refresh, [])
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over) return
+    const targetSquad = over.data.current?.squad as Soldier['squad'] | undefined
+    if (targetSquad === undefined) return
+    const soldierId = active.id as string
+    const soldier = soldiers.find((s) => s.id === soldierId)
+    if (!soldier || soldier.squad === targetSquad) return
+    // Optimistic update -- reassigning a squad should feel instant, and the
+    // in-flight request rarely fails for a simple column update like this.
+    setSoldiers((prev) => prev.map((s) => (s.id === soldierId ? { ...s, squad: targetSquad } : s)))
+    try {
+      await updateSoldier(soldierId, { squad: targetSquad })
+    } catch (err) {
+      setLoadError(errorMessage(err, 'Failed to move soldier to that squad'))
+      refresh()
+    }
+  }
 
   const filtered = soldiers
     .filter((s) => s.status === (showInactive ? 'inactive' : 'active'))
@@ -100,72 +309,23 @@ export function Roster() {
       ) : filtered.length === 0 ? (
         <p className="rounded-xl border border-line bg-panel p-6 text-center text-sm text-ink-muted">No Soldiers found.</p>
       ) : (
-        <>
+        <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+          <p className="mb-3 text-xs text-ink-faint">
+            Drag a soldier by the <IconGripVertical className="inline h-3 w-3 align-text-bottom" /> grip onto a squad name to reassign them.
+          </p>
+
           {/* Card list — mobile */}
           <div className="space-y-4 sm:hidden">
             {squadGroups.map((group) => (
               <div key={group.squad ?? 'unassigned'}>
                 <h2 className="mb-2 font-display text-[15px] font-semibold tracking-wide text-ink-muted">
-                  {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
+                  <DroppableSquadLabel squad={group.squad}>
+                    {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
+                  </DroppableSquadLabel>
                 </h2>
                 <div className="space-y-2">
                   {group.soldiers.map((s) => (
-                    <div key={s.id} className="rounded-xl border border-line bg-panel p-4">
-                      <Link to={`/admin/roster/${s.id}`} className="block">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex min-w-0 items-center gap-2.5 font-semibold">
-                            <div className="relative flex-shrink-0">
-                              <SoldierAvatar soldier={s} />
-                              {s.profile_id && (
-                                <span
-                                  title="Account linked"
-                                  className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-good-ink ring-2 ring-panel"
-                                >
-                                  <IconCheck className="h-2 w-2 text-panel" />
-                                </span>
-                              )}
-                            </div>
-                            <span className="truncate">
-                              {s.rank} {s.last_name}, {s.first_name}
-                            </span>
-                          </div>
-                          <div className="flex flex-shrink-0 gap-1.5">
-                            {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
-                              <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                                CAC
-                              </span>
-                            )}
-                            {ncoerFlag(s) && (
-                              <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                                NCOER
-                              </span>
-                            )}
-                            {!s.receives_drill_pay && (
-                              <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                                DO NOT PAY
-                              </span>
-                            )}
-                            {!s.has_gtcc && (
-                              <span className="rounded-md bg-warn-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-warn-ink">
-                                NO GTCC
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <p className={`mt-1 text-sm ${etsClass(s) || 'text-ink-muted'}`}>
-                          ETS {formatDate(s.ets_date)} &middot; {s.status}
-                        </p>
-                      </Link>
-                      {s.phone_number && (
-                        <a
-                          href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
-                          className="mt-2.5 flex items-center gap-2 rounded-lg bg-accent-soft px-3 py-2.5 text-base font-bold text-accent-soft-ink"
-                        >
-                          <IconPhone className="h-5 w-5" />
-                          {formatPhoneNumber(s.phone_number)}
-                        </a>
-                      )}
-                    </div>
+                    <MobileSoldierCard key={s.id} soldier={s} />
                   ))}
                 </div>
               </div>
@@ -177,6 +337,7 @@ export function Roster() {
             <table className="w-full text-left text-sm">
               <thead className="bg-surface-raised">
                 <tr>
+                  <th className="w-8 px-2 py-3" aria-hidden="true"></th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">NAME</th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">RANK</th>
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">ETS DATE</th>
@@ -189,78 +350,21 @@ export function Roster() {
                 {squadGroups.map((group) => (
                   <Fragment key={group.squad ?? 'unassigned'}>
                     <tr className="border-t border-line bg-surface">
-                      <td colSpan={6} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
-                        {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
+                      <td colSpan={7} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
+                        <DroppableSquadLabel squad={group.squad}>
+                          {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
+                        </DroppableSquadLabel>
                       </td>
                     </tr>
                     {group.soldiers.map((s) => (
-                      <tr
-                        key={s.id}
-                        onClick={() => navigate(`/admin/roster/${s.id}`)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') navigate(`/admin/roster/${s.id}`)
-                        }}
-                        tabIndex={0}
-                        className="cursor-pointer border-t border-line hover:bg-surface-raised focus:outline-none"
-                      >
-                        <td className="px-4 py-3 font-medium">
-                          <div className="flex items-center gap-2">
-                            <div className="relative flex-shrink-0">
-                              <SoldierAvatar soldier={s} className="h-7 w-7" />
-                              {s.profile_id && (
-                                <span
-                                  title="Account linked"
-                                  className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-good-ink ring-2 ring-panel"
-                                >
-                                  <IconCheck className="h-1.5 w-1.5 text-panel" />
-                                </span>
-                              )}
-                            </div>
-                            {s.last_name}, {s.first_name}
-                            {flagForDate(s.cac_expiration_date, CAC_WARNING_DAYS) && (
-                              <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
-                                CAC
-                              </span>
-                            )}
-                            {ncoerFlag(s) && (
-                              <span className="rounded-md bg-warn-bg px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-warn-ink">
-                                NCOER
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-ink-dim">{s.rank}</td>
-                        <td className={`px-4 py-3 ${etsClass(s) || 'text-ink-dim'}`}>{formatDate(s.ets_date)}</td>
-                        <td
-                          className={`px-4 py-3 ${s.receives_drill_pay ? 'text-ink-dim' : 'font-semibold text-warn-ink'}`}
-                        >
-                          {s.receives_drill_pay ? 'Yes' : 'No'}
-                        </td>
-                        <td className={`px-4 py-3 ${s.has_gtcc ? 'text-ink-dim' : 'font-semibold text-warn-ink'}`}>
-                          {s.has_gtcc ? 'Yes' : 'No'}
-                        </td>
-                        <td className="px-4 py-3 text-ink-dim">
-                          {s.phone_number ? (
-                            <a
-                              href={`tel:${s.phone_number.replace(/[^\d+]/g, '')}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1.5 font-semibold text-accent-soft-ink hover:underline"
-                            >
-                              <IconPhone className="h-3.5 w-3.5" />
-                              {formatPhoneNumber(s.phone_number)}
-                            </a>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                      </tr>
+                      <DesktopSoldierRow key={s.id} soldier={s} onOpen={() => navigate(`/admin/roster/${s.id}`)} />
                     ))}
                   </Fragment>
                 ))}
               </tbody>
             </table>
           </div>
-        </>
+        </DndContext>
       )}
     </div>
   )
