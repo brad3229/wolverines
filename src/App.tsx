@@ -24,6 +24,7 @@ import {
   IconSettings,
   IconFitness,
   IconPhone,
+  IconAlertTriangle,
 } from './components/icons'
 import { Login } from './routes/Login'
 
@@ -41,6 +42,7 @@ const AdminGearRequests = lazy(() =>
   import('./routes/admin/GearRequests').then((m) => ({ default: m.GearRequests })),
 )
 const AdminNcoer = lazy(() => import('./routes/admin/Ncoer').then((m) => ({ default: m.Ncoer })))
+const AdminReadiness = lazy(() => import('./routes/admin/Readiness').then((m) => ({ default: m.Readiness })))
 const AdminAft = lazy(() => import('./routes/admin/Aft').then((m) => ({ default: m.Aft })))
 const Security = lazy(() => import('./routes/admin/Security').then((m) => ({ default: m.Security })))
 const AdminTaskLists = lazy(() => import('./routes/admin/TaskLists').then((m) => ({ default: m.TaskLists })))
@@ -116,6 +118,7 @@ function buildAdminNav(
       group: 'Requests & Readiness',
     },
     { to: '/admin/aft', label: 'AFT', icon: <IconFitness />, group: 'Requests & Readiness' },
+    { to: '/admin/readiness', label: 'Readiness Matrix', shortLabel: 'Ready', icon: <IconAlertTriangle />, group: 'Requests & Readiness' },
     { to: '/admin/security', label: 'Security', shortLabel: 'Sec', icon: <IconSecurity />, group: 'System' },
     { to: '/admin/settings', label: 'Settings', icon: <IconSettings />, group: 'System' },
   ]
@@ -301,6 +304,16 @@ function App() {
               <RequireRole allow={['admin']}>
                 <Layout navItems={adminNav} mobileNav="menu">
                   <AdminAft />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/admin/readiness"
+            element={
+              <RequireRole allow={['admin']}>
+                <Layout navItems={adminNav} mobileNav="menu">
+                  <AdminReadiness />
                 </Layout>
               </RequireRole>
             }
