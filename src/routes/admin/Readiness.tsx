@@ -180,6 +180,64 @@ const CATEGORY_LABEL: Record<CategoryKey, string> = {
   ncoer: 'NCOER',
 }
 
+// Same AFT+MRC-only rule as isFlagged below, just split into three tiers
+// (good/warn/bad) instead of a flagged/not-flagged boolean.
+function deployStatus(r: ReadinessRow): Tone {
+  if (r.aft.tone === 'bad' || r.mrc.tone === 'bad') return 'bad'
+  if (r.aft.tone === 'warn' || r.mrc.tone === 'warn') return 'warn'
+  return 'good'
+}
+
+function DeployabilitySummary({ rows }: { rows: ReadinessRow[] }) {
+  const total = rows.length
+  const goCount = rows.filter((r) => deployStatus(r) === 'good').length
+  const atRiskCount = rows.filter((r) => deployStatus(r) === 'warn').length
+  const noGoCount = rows.filter((r) => deployStatus(r) === 'bad').length
+  const pct = total > 0 ? Math.round((goCount / total) * 100) : 0
+
+  return (
+    <div className="mb-4 rounded-xl border border-line bg-panel p-4 sm:mb-5 sm:p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex-shrink-0">
+          <div className="text-[11px] font-semibold tracking-wide text-ink-faint">DEPLOYABLE</div>
+          <div className="font-display text-4xl font-bold text-accent">{pct}%</div>
+          <div className="text-xs text-ink-muted">
+            {goCount} of {total} soldier{total === 1 ? '' : 's'} GO
+          </div>
+        </div>
+        {total > 0 && (
+          <div className="flex h-8 flex-1 overflow-hidden rounded-lg text-[11px] font-bold tracking-wide">
+            {goCount > 0 && (
+              <div
+                className="flex items-center justify-center bg-good-bg text-good-ink"
+                style={{ flexGrow: goCount }}
+              >
+                GO {goCount}
+              </div>
+            )}
+            {atRiskCount > 0 && (
+              <div
+                className="flex items-center justify-center bg-warn-bg text-warn-ink"
+                style={{ flexGrow: atRiskCount }}
+              >
+                AT RISK {atRiskCount}
+              </div>
+            )}
+            {noGoCount > 0 && (
+              <div
+                className="flex items-center justify-center bg-bad-bg text-bad-ink"
+                style={{ flexGrow: noGoCount }}
+              >
+                NO-GO {noGoCount}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function DetailPanel({ row, category }: { row: ReadinessRow | null; category: CategoryKey | null }) {
   if (!row || !category) {
     return (
@@ -247,9 +305,8 @@ export function Readiness() {
   const rows = soldiers.map((s) => buildRow(s, latestAftBySoldier.get(s.id) ?? null))
   // Deployability only turns on AFT and MRC -- CAC/GTCC/NCOER are tracked here too
   // (still shown, still colored) but don't affect whether a soldier counts as flagged.
-  const isFlagged = (r: ReadinessRow) => [r.aft, r.mrc].some((c) => c.tone === 'bad' || c.tone === 'warn')
+  const isFlagged = (r: ReadinessRow) => deployStatus(r) !== 'good'
   const visibleRows = flaggedOnly ? rows.filter(isFlagged) : rows
-  const flaggedCount = rows.filter(isFlagged).length
   const selectedRow = rows.find((r) => r.soldier.id === selectedCell?.soldierId) ?? null
 
   const squadGroups = [...SQUADS, null]
@@ -258,10 +315,9 @@ export function Readiness() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-        <p className="text-sm font-semibold text-ink-dim">
-          {flaggedCount} of {rows.length} soldiers flagged
-        </p>
+      <DeployabilitySummary rows={rows} />
+
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-3 sm:mb-5">
         <label className="flex items-center gap-2 text-sm text-ink-dim">
           <input
             type="checkbox"
