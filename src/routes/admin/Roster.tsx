@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   DndContext,
+  DragOverlay,
   MouseSensor,
   TouchSensor,
   useSensor,
@@ -10,6 +11,8 @@ import {
   useDraggable,
   useDroppable,
   pointerWithin,
+  type DragStartEvent,
+  type DragOverEvent,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { listSoldiers, createSoldier, updateSoldier } from '../../lib/soldiers'
@@ -48,12 +51,28 @@ function dragStyle(transform: { x: number; y: number } | null) {
     : undefined
 }
 
-function DroppableSquadLabel({ squad, children }: { squad: Soldier['squad']; children: ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `squad-${squad ?? 'unassigned'}`, data: { squad } })
+// A squad's drop target isn't just its header -- every row belonging to that
+// squad is droppable too (see DesktopSoldierRow/MobileSoldierCard), so you can
+// drop a soldier anywhere in that squad's block, not just on the thin label.
+function useSquadDroppable(squad: Soldier['squad'], key: string) {
+  return useDroppable({ id: `squad-${squad ?? 'unassigned'}-${key}`, data: { squad } })
+}
+
+function DroppableSquadSection({ squad, children }: { squad: Soldier['squad']; children: ReactNode }) {
+  const { setNodeRef, isOver } = useSquadDroppable(squad, 'section')
   return (
-    <span ref={setNodeRef} className={`rounded-md px-1 py-0.5 ${isOver ? 'bg-accent-soft text-accent-soft-ink' : ''}`}>
+    <div ref={setNodeRef} className={`rounded-xl ${isOver ? 'bg-accent-soft/20' : ''}`}>
       {children}
-    </span>
+    </div>
+  )
+}
+
+function DroppableSquadHeaderRow({ squad, children }: { squad: Soldier['squad']; children: ReactNode }) {
+  const { setNodeRef, isOver } = useSquadDroppable(squad, 'header')
+  return (
+    <tr ref={setNodeRef} className={`border-t border-line ${isOver ? 'bg-accent-soft' : 'bg-surface'}`}>
+      {children}
+    </tr>
   )
 }
 
@@ -135,17 +154,25 @@ function MobileSoldierCard({ soldier: s }: { soldier: Soldier }) {
 function DesktopSoldierRow({ soldier: s, onOpen }: { soldier: Soldier; onOpen: () => void }) {
   // Same reasoning as MobileSoldierCard -- the grip is its own drag source
   // rather than the whole row, so it doesn't fight with the tel: link cell.
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: s.id })
+  const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({ id: s.id })
+  // Every row is also a drop target for its own squad, not just the header --
+  // dragging a soldier onto any other soldier in 2nd Squad still means "move to 2nd Squad."
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: `row-${s.id}`, data: { squad: s.squad } })
   return (
     <tr
-      ref={setNodeRef}
+      ref={(node) => {
+        setDragRef(node)
+        setDropRef(node)
+      }}
       style={dragStyle(transform)}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onOpen()
       }}
       tabIndex={0}
-      className={`cursor-pointer border-t border-line hover:bg-surface-raised focus:outline-none ${isDragging ? 'opacity-60' : ''}`}
+      className={`cursor-pointer border-t border-line focus:outline-none ${
+        isDragging ? 'opacity-60' : isOver ? 'bg-accent-soft' : 'hover:bg-surface-raised'
+      }`}
     >
       <td className="w-8 px-2 py-3">
         <div
@@ -220,6 +247,8 @@ export function Roster() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [activeSoldier, setActiveSoldier] = useState<Soldier | null>(null)
+  const [overSquad, setOverSquad] = useState<Soldier['squad'] | undefined>(undefined)
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -237,7 +266,18 @@ export function Roster() {
 
   useEffect(refresh, [])
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveSoldier(soldiers.find((s) => s.id === event.active.id) ?? null)
+    setOverSquad(undefined)
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    setOverSquad(event.over?.data.current?.squad as Soldier['squad'] | undefined)
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
+    setActiveSoldier(null)
+    setOverSquad(undefined)
     const { active, over } = event
     if (!over) return
     const targetSquad = over.data.current?.squad as Soldier['squad'] | undefined
@@ -315,7 +355,13 @@ export function Roster() {
       ) : filtered.length === 0 ? (
         <p className="rounded-xl border border-line bg-panel p-6 text-center text-sm text-ink-muted">No Soldiers found.</p>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
           <p className="mb-3 text-xs text-ink-faint">
             Drag a soldier by the <IconGripVertical className="inline h-3 w-3 align-text-bottom" /> grip onto a squad name to reassign them.
           </p>
@@ -323,18 +369,16 @@ export function Roster() {
           {/* Card list — mobile */}
           <div className="space-y-4 sm:hidden">
             {squadGroups.map((group) => (
-              <div key={group.squad ?? 'unassigned'}>
+              <DroppableSquadSection key={group.squad ?? 'unassigned'} squad={group.squad}>
                 <h2 className="mb-2 font-display text-[15px] font-semibold tracking-wide text-ink-muted">
-                  <DroppableSquadLabel squad={group.squad}>
-                    {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
-                  </DroppableSquadLabel>
+                  {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
                 </h2>
                 <div className="space-y-2">
                   {group.soldiers.map((s) => (
                     <MobileSoldierCard key={s.id} soldier={s} />
                   ))}
                 </div>
-              </div>
+              </DroppableSquadSection>
             ))}
           </div>
 
@@ -354,13 +398,11 @@ export function Roster() {
               <tbody>
                 {squadGroups.map((group) => (
                   <Fragment key={group.squad ?? 'unassigned'}>
-                    <tr className="border-t border-line bg-surface">
+                    <DroppableSquadHeaderRow squad={group.squad}>
                       <td colSpan={6} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
-                        <DroppableSquadLabel squad={group.squad}>
-                          {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
-                        </DroppableSquadLabel>
+                        {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
                       </td>
-                    </tr>
+                    </DroppableSquadHeaderRow>
                     {group.soldiers.map((s) => (
                       <DesktopSoldierRow key={s.id} soldier={s} onOpen={() => navigate(`/admin/roster/${s.id}`)} />
                     ))}
@@ -369,6 +411,16 @@ export function Roster() {
               </tbody>
             </table>
           </div>
+
+          <DragOverlay>
+            {activeSoldier && (
+              <div className="pointer-events-none whitespace-nowrap rounded-lg bg-accent px-4 py-2.5 text-sm font-bold text-accent-ink opacity-0 shadow-lg [animation:logo-pop_0.15s_ease-out_forwards]">
+                {overSquad !== undefined
+                  ? `Add ${activeSoldier.last_name}, ${activeSoldier.first_name} to ${overSquad ?? 'Unassigned'}`
+                  : `${activeSoldier.rank} ${activeSoldier.last_name}, ${activeSoldier.first_name}`}
+              </div>
+            )}
+          </DragOverlay>
         </DndContext>
       )}
     </div>
