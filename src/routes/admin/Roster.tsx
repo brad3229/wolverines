@@ -509,15 +509,12 @@ export function Roster() {
           <DragOverlay>
             {activeSoldier && (
               <div
-                className={`pointer-events-none w-40 rounded-lg px-3 py-2 text-center text-xs font-bold leading-snug opacity-0 shadow-lg [animation:logo-pop_0.15s_ease-out_forwards] ${
+                className={`pointer-events-none flex items-center gap-2 whitespace-nowrap rounded-full py-1.5 pl-1.5 pr-4 text-sm font-bold opacity-0 shadow-lg [animation:logo-pop_0.15s_ease-out_forwards] ${
                   overTarget && 'action' in overTarget ? 'bg-bad-bg text-bad-ink' : 'bg-accent text-accent-ink'
                 }`}
               >
-                {overTarget
-                  ? 'action' in overTarget
-                    ? 'Mark inactive'
-                    : `Add to ${overTarget.squad ?? 'Unassigned'}`
-                  : `${activeSoldier.rank} ${activeSoldier.last_name}, ${activeSoldier.first_name}`}
+                <SoldierAvatar soldier={activeSoldier} className="h-7 w-7" />
+                {activeSoldier.last_name}, {activeSoldier.first_name}
               </div>
             )}
           </DragOverlay>
