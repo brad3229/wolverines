@@ -28,7 +28,6 @@ type FieldKey =
   | 'emergency_contact'
   | 'receives_drill_pay'
   | 'has_gtcc'
-  | 'mrc_status'
   | 'uniform_sizes'
 
 const FIELD_LABEL: Record<FieldKey, string> = {
@@ -48,7 +47,6 @@ const FIELD_LABEL: Record<FieldKey, string> = {
   emergency_contact: 'EMERGENCY CONTACT',
   receives_drill_pay: 'RECEIVES DRILL PAY',
   has_gtcc: 'HAS GTCC',
-  mrc_status: 'MRC STATUS',
   uniform_sizes: 'UNIFORM SIZES',
 }
 
@@ -76,7 +74,6 @@ const RAW_FIELD_LABEL: Record<string, string> = {
   emergency_contact_phone: 'Emergency contact phone',
   receives_drill_pay: 'Receives drill pay',
   has_gtcc: 'Has GTCC',
-  mrc_status: 'MRC status',
   ...Object.fromEntries(UNIFORM_SIZE_FIELDS.map(({ key, label }) => [key, label])),
 }
 
@@ -306,7 +303,6 @@ export function Profile() {
     },
     { key: 'receives_drill_pay', display: soldier.receives_drill_pay ? 'Yes' : 'No', editable: true },
     { key: 'has_gtcc', display: soldier.has_gtcc ? 'Yes' : 'No', editable: true },
-    { key: 'mrc_status', display: soldier.mrc_status ?? 'Unknown', editable: true },
   ]
 
   const cacFlag = flagForDate(soldier.cac_expiration_date, CAC_WARNING_DAYS)
@@ -570,18 +566,6 @@ export function Profile() {
                   {type}
                 </option>
               ))}
-            </select>
-          ) : editingField === 'mrc_status' ? (
-            <select
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none"
-            >
-              <option value="">Unknown</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
             </select>
           ) : editingField === 'sex' ? (
             <>
