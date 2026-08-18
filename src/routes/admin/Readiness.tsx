@@ -238,14 +238,7 @@ function DeployabilitySummary({ rows }: { rows: ReadinessRow[] }) {
   )
 }
 
-function DetailPanel({ row, category }: { row: ReadinessRow | null; category: CategoryKey | null }) {
-  if (!row || !category) {
-    return (
-      <div className="hidden w-72 flex-shrink-0 rounded-xl border border-line bg-panel p-5 sm:block">
-        <p className="text-sm text-ink-muted">Select a cell to see that category's detail here.</p>
-      </div>
-    )
-  }
+function DetailPanel({ row, category }: { row: ReadinessRow; category: CategoryKey }) {
   const { soldier } = row
   const cell = row[category]
   return (
@@ -423,7 +416,7 @@ export function Readiness() {
                 </tbody>
               </table>
             </div>
-            <DetailPanel row={selectedRow} category={selectedCell?.category ?? null} />
+            {selectedRow && selectedCell && <DetailPanel row={selectedRow} category={selectedCell.category} />}
           </div>
         </>
       )}
