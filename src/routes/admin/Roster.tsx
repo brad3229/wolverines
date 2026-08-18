@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -41,25 +41,55 @@ function mrcFlagged(s: Soldier) {
 }
 
 // A squad's drop target isn't just its header -- every row belonging to that
-// squad is droppable too (see DesktopSoldierRow/MobileSoldierCard), so you can
-// drop a soldier anywhere in that squad's block, not just on the thin label.
+// squad is droppable too (see DesktopSoldierRow/MobileSoldierCard). Styling is
+// driven by the parent's centrally-tracked overTarget rather than each
+// droppable's own isOver, so the *whole* squad block highlights together no
+// matter which specific row/header the pointer happens to be over.
 function useSquadDroppable(squad: Soldier['squad'], key: string) {
   return useDroppable({ id: `squad-${squad ?? 'unassigned'}-${key}`, data: { squad } })
 }
 
-function DroppableSquadSection({ squad, children }: { squad: Soldier['squad']; children: ReactNode }) {
-  const { setNodeRef, isOver } = useSquadDroppable(squad, 'section')
+function squadLabel(squad: Soldier['squad']) {
+  return squad ?? 'Unassigned'
+}
+
+function DroppableSquadSection({
+  squad,
+  isTarget,
+  label,
+  children,
+}: {
+  squad: Soldier['squad']
+  isTarget: boolean
+  label: ReactNode
+  children: ReactNode
+}) {
+  const { setNodeRef } = useSquadDroppable(squad, 'section')
   return (
-    <div ref={setNodeRef} className={`rounded-xl ${isOver ? 'bg-accent-soft/20' : ''}`}>
+    <div
+      ref={setNodeRef}
+      className={`rounded-xl p-1.5 transition-colors ${
+        isTarget ? 'border-2 border-dashed border-accent bg-accent-soft/20' : 'border-2 border-transparent'
+      }`}
+    >
+      <h2 className="mb-2 font-display text-[15px] font-semibold tracking-wide text-ink-muted">{label}</h2>
       {children}
     </div>
   )
 }
 
-function DroppableSquadHeaderRow({ squad, children }: { squad: Soldier['squad']; children: ReactNode }) {
-  const { setNodeRef, isOver } = useSquadDroppable(squad, 'header')
+function DroppableSquadHeaderRow({
+  squad,
+  isTarget,
+  children,
+}: {
+  squad: Soldier['squad']
+  isTarget: boolean
+  children: ReactNode
+}) {
+  const { setNodeRef } = useSquadDroppable(squad, 'header')
   return (
-    <tr ref={setNodeRef} className={`border-t border-line ${isOver ? 'bg-accent-soft' : 'bg-surface'}`}>
+    <tr ref={setNodeRef} className={`border-t border-line ${isTarget ? 'bg-accent-soft' : 'bg-surface'}`}>
       {children}
     </tr>
   )
@@ -162,13 +192,21 @@ function MobileSoldierCard({ soldier: s }: { soldier: Soldier }) {
   )
 }
 
-function DesktopSoldierRow({ soldier: s, onOpen }: { soldier: Soldier; onOpen: () => void }) {
+function DesktopSoldierRow({
+  soldier: s,
+  isTarget,
+  onOpen,
+}: {
+  soldier: Soldier
+  isTarget: boolean
+  onOpen: () => void
+}) {
   // Same reasoning as MobileSoldierCard -- the grip is its own drag source
   // rather than the whole row, so it doesn't fight with the tel: link cell.
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: s.id })
   // Every row is also a drop target for its own squad, not just the header --
   // dragging a soldier onto any other soldier in 2nd Squad still means "move to 2nd Squad."
-  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: `row-${s.id}`, data: { squad: s.squad } })
+  const { setNodeRef: setDropRef } = useDroppable({ id: `row-${s.id}`, data: { squad: s.squad } })
   return (
     <tr
       ref={(node) => {
@@ -181,7 +219,7 @@ function DesktopSoldierRow({ soldier: s, onOpen }: { soldier: Soldier; onOpen: (
       }}
       tabIndex={0}
       className={`cursor-pointer border-t border-line focus:outline-none ${
-        isDragging ? 'opacity-40' : isOver ? 'bg-accent-soft' : 'hover:bg-surface-raised'
+        isDragging ? 'opacity-40' : isTarget ? 'bg-accent-soft' : 'hover:bg-surface-raised'
       }`}
     >
       <td className="w-8 px-2 py-3">
@@ -332,6 +370,10 @@ export function Roster() {
     .map((squad) => ({ squad, soldiers: filtered.filter((s) => s.squad === squad) }))
     .filter((g) => g.soldiers.length > 0)
 
+  function isSquadTarget(squad: Soldier['squad']) {
+    return !!overTarget && 'squad' in overTarget && overTarget.squad === squad
+  }
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
@@ -398,18 +440,27 @@ export function Roster() {
 
           {/* Card list — mobile */}
           <div className="space-y-4 sm:hidden">
-            {squadGroups.map((group) => (
-              <DroppableSquadSection key={group.squad ?? 'unassigned'} squad={group.squad}>
-                <h2 className="mb-2 font-display text-[15px] font-semibold tracking-wide text-ink-muted">
-                  {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
-                </h2>
-                <div className="space-y-2">
-                  {group.soldiers.map((s) => (
-                    <MobileSoldierCard key={s.id} soldier={s} />
-                  ))}
-                </div>
-              </DroppableSquadSection>
-            ))}
+            {squadGroups.map((group) => {
+              const targeted = isSquadTarget(group.squad)
+              return (
+                <DroppableSquadSection
+                  key={group.squad ?? 'unassigned'}
+                  squad={group.squad}
+                  isTarget={targeted}
+                  label={
+                    targeted && activeSoldier
+                      ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${squadLabel(group.squad).toUpperCase()}`
+                      : `${group.squad ?? 'UNASSIGNED'} (${group.soldiers.length})`
+                  }
+                >
+                  <div className="space-y-2">
+                    {group.soldiers.map((s) => (
+                      <MobileSoldierCard key={s.id} soldier={s} />
+                    ))}
+                  </div>
+                </DroppableSquadSection>
+              )
+            })}
           </div>
 
           {/* Table — sm and up */}
@@ -425,20 +476,33 @@ export function Roster() {
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PHONE</th>
                 </tr>
               </thead>
-              <tbody>
-                {squadGroups.map((group) => (
-                  <Fragment key={group.squad ?? 'unassigned'}>
-                    <DroppableSquadHeaderRow squad={group.squad}>
+              {squadGroups.map((group) => {
+                const targeted = isSquadTarget(group.squad)
+                return (
+                  // A real <tbody> per squad (multiple tbody elements are valid HTML) so a
+                  // dotted outline can wrap exactly that squad's rows, not the whole table.
+                  <tbody
+                    key={group.squad ?? 'unassigned'}
+                    className={targeted ? 'rounded-xl outline outline-2 -outline-offset-2 outline-dashed outline-accent' : ''}
+                  >
+                    <DroppableSquadHeaderRow squad={group.squad} isTarget={targeted}>
                       <td colSpan={6} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
-                        {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
+                        {targeted && activeSoldier
+                          ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${squadLabel(group.squad).toUpperCase()}`
+                          : `${group.squad ?? 'UNASSIGNED'} (${group.soldiers.length})`}
                       </td>
                     </DroppableSquadHeaderRow>
                     {group.soldiers.map((s) => (
-                      <DesktopSoldierRow key={s.id} soldier={s} onOpen={() => navigate(`/admin/roster/${s.id}`)} />
+                      <DesktopSoldierRow
+                        key={s.id}
+                        soldier={s}
+                        isTarget={targeted}
+                        onOpen={() => navigate(`/admin/roster/${s.id}`)}
+                      />
                     ))}
-                  </Fragment>
-                ))}
-              </tbody>
+                  </tbody>
+                )
+              })}
             </table>
           </div>
 
