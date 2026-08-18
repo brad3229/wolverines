@@ -29,6 +29,20 @@ function StatusPill({ tone, label }: { tone: Tone; label: string }) {
   )
 }
 
+// The matrix cells themselves -- a solid color block per soldier/category, the
+// tone doing the talking rather than a text badge. Good is left blank on
+// purpose (nothing to flag); warn/bad/neutral get a one-character glyph.
+// MRC is the exception -- its number (1-4) is itself the informative part,
+// so it always shows even on a "good" 1 or 2.
+function StatusBlock({ tone, label, numeric }: { tone: Tone; label: string; numeric?: boolean }) {
+  const glyph = numeric ? label : tone === 'warn' ? '!' : tone === 'bad' ? '×' : tone === 'neutral' ? '–' : ''
+  return (
+    <div className={`flex h-9 items-center justify-center rounded-lg text-sm font-extrabold ${TONE_CLASS[tone]}`}>
+      {glyph}
+    </div>
+  )
+}
+
 function toneForFlag(flag: ExpirationFlag): Tone {
   return flag === 'expired' ? 'bad' : flag === 'soon' ? 'warn' : 'good'
 }
@@ -238,7 +252,7 @@ export function Readiness() {
                           return (
                             <div key={label}>
                               <div className="mb-1 text-[9px] tracking-wide text-ink-faint">{label}</div>
-                              <StatusPill tone={cell.tone} label={cell.label} />
+                              <StatusBlock tone={cell.tone} label={cell.label} numeric={label === 'MRC'} />
                             </div>
                           )
                         })}
@@ -290,20 +304,20 @@ export function Readiness() {
                               {r.soldier.last_name}, {r.soldier.first_name}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <StatusPill tone={r.aft.tone} label={r.aft.label} />
+                          <td className="p-1.5">
+                            <StatusBlock tone={r.aft.tone} label={r.aft.label} />
                           </td>
-                          <td className="px-4 py-3">
-                            <StatusPill tone={r.mrc.tone} label={r.mrc.label} />
+                          <td className="p-1.5">
+                            <StatusBlock tone={r.mrc.tone} label={r.mrc.label} numeric />
                           </td>
-                          <td className="px-4 py-3">
-                            <StatusPill tone={r.cac.tone} label={r.cac.label} />
+                          <td className="p-1.5">
+                            <StatusBlock tone={r.cac.tone} label={r.cac.label} />
                           </td>
-                          <td className="px-4 py-3">
-                            <StatusPill tone={r.gtcc.tone} label={r.gtcc.label} />
+                          <td className="p-1.5">
+                            <StatusBlock tone={r.gtcc.tone} label={r.gtcc.label} />
                           </td>
-                          <td className="px-4 py-3">
-                            <StatusPill tone={r.ncoer.tone} label={r.ncoer.label} />
+                          <td className="p-1.5">
+                            <StatusBlock tone={r.ncoer.tone} label={r.ncoer.label} />
                           </td>
                         </tr>
                       ))}
