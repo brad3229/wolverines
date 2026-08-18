@@ -40,17 +40,6 @@ function mrcFlagged(s: Soldier) {
   return s.mrc_status === '3' || s.mrc_status === '4'
 }
 
-// A drag-in-progress needs its own transform applied to the original element
-// (dnd-kit doesn't move the DOM node itself) -- dragging the pointer/finger past
-// the sensors' activation threshold below is what starts a drag; a plain tap or
-// click stays under that threshold, so navigation and tap-to-call underneath
-// still work normally.
-function dragStyle(transform: { x: number; y: number } | null) {
-  return transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, position: 'relative' as const, zIndex: 10 }
-    : undefined
-}
-
 // A squad's drop target isn't just its header -- every row belonging to that
 // squad is droppable too (see DesktopSoldierRow/MobileSoldierCard), so you can
 // drop a soldier anywhere in that squad's block, not just on the thin label.
@@ -80,9 +69,9 @@ function MobileSoldierCard({ soldier: s }: { soldier: Soldier }) {
   // The grip is its own drag source, separate from the Link/tel: anchors below --
   // dnd-kit's sensors won't start a drag from inside an <a>, so making the whole
   // card draggable would silently break and just navigate instead.
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: s.id })
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: s.id })
   return (
-    <div ref={setNodeRef} style={dragStyle(transform)} className={`rounded-xl border border-line bg-panel p-4 ${isDragging ? 'opacity-60' : ''}`}>
+    <div ref={setNodeRef} className={`rounded-xl border border-line bg-panel p-4 ${isDragging ? 'opacity-40' : ''}`}>
       <div className="flex items-start gap-2">
         <Link to={`/admin/roster/${s.id}`} className="block min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
@@ -154,7 +143,7 @@ function MobileSoldierCard({ soldier: s }: { soldier: Soldier }) {
 function DesktopSoldierRow({ soldier: s, onOpen }: { soldier: Soldier; onOpen: () => void }) {
   // Same reasoning as MobileSoldierCard -- the grip is its own drag source
   // rather than the whole row, so it doesn't fight with the tel: link cell.
-  const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({ id: s.id })
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: s.id })
   // Every row is also a drop target for its own squad, not just the header --
   // dragging a soldier onto any other soldier in 2nd Squad still means "move to 2nd Squad."
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: `row-${s.id}`, data: { squad: s.squad } })
@@ -164,14 +153,13 @@ function DesktopSoldierRow({ soldier: s, onOpen }: { soldier: Soldier; onOpen: (
         setDragRef(node)
         setDropRef(node)
       }}
-      style={dragStyle(transform)}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onOpen()
       }}
       tabIndex={0}
       className={`cursor-pointer border-t border-line focus:outline-none ${
-        isDragging ? 'opacity-60' : isOver ? 'bg-accent-soft' : 'hover:bg-surface-raised'
+        isDragging ? 'opacity-40' : isOver ? 'bg-accent-soft' : 'hover:bg-surface-raised'
       }`}
     >
       <td className="w-8 px-2 py-3">
@@ -250,6 +238,8 @@ export function Roster() {
   const [activeSoldier, setActiveSoldier] = useState<Soldier | null>(null)
   const [overSquad, setOverSquad] = useState<Soldier['squad'] | undefined>(undefined)
 
+  // Distance/delay thresholds below are what let a plain tap or click still fall
+  // through to navigation and tap-to-call -- a drag only "activates" past them.
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
