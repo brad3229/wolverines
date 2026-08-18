@@ -68,13 +68,17 @@ function DroppableSquadHeaderRow({ squad, children }: { squad: Soldier['squad'];
 // What a soldier can be dropped onto: a squad (reassign) or this zone (deactivate).
 type DropTarget = { squad: Soldier['squad'] } | { action: 'inactivate' }
 
+// Fixed to the viewport (not the document) and only mounted while a drag is
+// actually in progress -- on a long roster, a zone sitting in normal document
+// flow near the top would scroll out of reach the moment you scroll down to
+// grab a soldier further down the list.
 function InactivateDropZone() {
   const { setNodeRef, isOver } = useDroppable({ id: 'inactivate-zone', data: { action: 'inactivate' } })
   return (
     <div
       ref={setNodeRef}
-      className={`mb-3 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed p-3 text-xs font-bold tracking-wide transition-colors ${
-        isOver ? 'border-bad-ink bg-bad-bg text-bad-ink' : 'border-line text-ink-faint'
+      className={`fixed inset-x-4 bottom-4 z-40 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-sm font-bold tracking-wide shadow-lg transition-colors sm:inset-x-auto sm:left-1/2 sm:w-[420px] sm:-translate-x-1/2 ${
+        isOver ? 'border-bad-ink bg-bad-bg text-bad-ink' : 'border-line bg-panel text-ink-faint'
       }`}
     >
       <IconBan className="h-4 w-4" />
@@ -387,10 +391,10 @@ export function Roster() {
         >
           <p className="mb-3 text-xs text-ink-faint">
             Drag a soldier by the <IconGripVertical className="inline h-3 w-3 align-text-bottom" /> grip onto a squad to reassign them, or
-            onto the zone below to mark them inactive.
+            keep dragging to mark them inactive.
           </p>
 
-          {!showInactive && <InactivateDropZone />}
+          {!showInactive && activeSoldier && <InactivateDropZone />}
 
           {/* Card list — mobile */}
           <div className="space-y-4 sm:hidden">
