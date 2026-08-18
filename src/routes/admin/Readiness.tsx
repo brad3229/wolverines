@@ -4,7 +4,14 @@ import { Link } from 'react-router-dom'
 import { listSoldiers } from '../../lib/soldiers'
 import { listAftTests } from '../../lib/aft'
 import { AFT_WARNING_DAYS, aftDueDate } from '../../lib/aft'
-import { flagForDate, ncoerDueDate, CAC_WARNING_DAYS, NCOER_WARNING_DAYS, type ExpirationFlag } from '../../lib/expirations'
+import {
+  flagForDate,
+  daysUntil,
+  ncoerDueDate,
+  CAC_WARNING_DAYS,
+  NCOER_WARNING_DAYS,
+  type ExpirationFlag,
+} from '../../lib/expirations'
 import { formatDate } from '../../lib/dates'
 import { SQUADS } from '../../components/SoldierForm'
 import { errorMessage } from '../../lib/errors'
@@ -34,10 +41,27 @@ function StatusPill({ tone, label }: { tone: Tone; label: string }) {
 // purpose (nothing to flag); warn/bad/neutral get a one-character glyph.
 // MRC is the exception -- its number (1-4) is itself the informative part,
 // so it always shows even on a "good" 1 or 2.
-function StatusBlock({ tone, label, numeric }: { tone: Tone; label: string; numeric?: boolean }) {
+function StatusBlock({
+  tone,
+  label,
+  numeric,
+  onClick,
+  selected,
+}: {
+  tone: Tone
+  label: string
+  numeric?: boolean
+  onClick?: () => void
+  selected?: boolean
+}) {
   const glyph = numeric ? label : tone === 'warn' ? '!' : tone === 'bad' ? '×' : tone === 'neutral' ? '–' : ''
   return (
-    <div className={`flex h-9 items-center justify-center rounded-lg text-sm font-extrabold ${TONE_CLASS[tone]}`}>
+    <div
+      onClick={onClick}
+      className={`flex h-9 items-center justify-center rounded-lg text-sm font-extrabold ${TONE_CLASS[tone]} ${
+        onClick ? 'cursor-pointer' : ''
+      } ${selected ? 'outline outline-2 outline-offset-1 outline-ink' : ''}`}
+    >
       {glyph}
     </div>
   )
@@ -54,8 +78,10 @@ function labelForFlag(flag: ExpirationFlag, overdueWord: string) {
 interface StatusCell {
   tone: Tone
   label: string
-  // Longer human-readable context for the detail panel -- the table/card pills
-  // only have room for a short code (OK/SOON/OVERDUE), not the date behind it.
+  // The word shown as a pill in the detail panel -- distinct from `label`,
+  // which is the short matrix-cell code/glyph trigger (OK/SOON/1-4/etc).
+  pillLabel: string
+  // Full sentence for the detail panel, day counts and all.
   detail: string
 }
 
@@ -70,68 +96,105 @@ interface ReadinessRow {
 
 function buildRow(soldier: Soldier, latestAftDate: string | null): ReadinessRow {
   const aft: StatusCell = (() => {
-    if (!latestAftDate) return { tone: 'neutral', label: 'NO TEST', detail: 'No AFT test on record.' }
-    const flag = flagForDate(aftDueDate(latestAftDate), AFT_WARNING_DAYS)
+    if (!latestAftDate) return { tone: 'neutral', label: 'NO TEST', pillLabel: 'NO DATA', detail: 'No AFT test on record.' }
+    const due = aftDueDate(latestAftDate)
+    const flag = flagForDate(due, AFT_WARNING_DAYS)
+    const days = daysUntil(due)
+    const detail =
+      flag === 'expired'
+        ? `AFT overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}.`
+        : flag === 'soon'
+          ? `AFT due in ${days} day${days === 1 ? '' : 's'}.`
+          : `Last test ${formatDate(latestAftDate)} · next due ${formatDate(due)}.`
     return {
       tone: toneForFlag(flag),
       label: labelForFlag(flag, 'OVERDUE'),
-      detail: `Last test ${formatDate(latestAftDate)} · next due ${formatDate(aftDueDate(latestAftDate))}.`,
+      pillLabel: flag === 'expired' ? 'OVERDUE' : flag === 'soon' ? 'DUE SOON' : 'CURRENT',
+      detail,
     }
   })()
 
   const mrc: StatusCell = (() => {
-    if (!soldier.mrc_status) return { tone: 'neutral', label: '—', detail: 'No MRC status on record.' }
-    const tone = soldier.mrc_status === '4' ? 'bad' : soldier.mrc_status === '3' ? 'warn' : 'good'
-    return { tone, label: soldier.mrc_status, detail: `Medical Readiness Classification ${soldier.mrc_status}.` }
+    if (!soldier.mrc_status) return { tone: 'neutral', label: '—', pillLabel: 'NOT RECORDED', detail: 'No MRC status on record.' }
+    const tone: Tone = soldier.mrc_status === '4' ? 'bad' : soldier.mrc_status === '3' ? 'warn' : 'good'
+    return {
+      tone,
+      label: soldier.mrc_status,
+      pillLabel: tone === 'good' ? 'READY' : 'FLAGGED',
+      detail: `Medical Readiness Classification ${soldier.mrc_status}.`,
+    }
   })()
 
   const cac: StatusCell = (() => {
     const flag = flagForDate(soldier.cac_expiration_date, CAC_WARNING_DAYS)
+    const days = soldier.cac_expiration_date ? daysUntil(soldier.cac_expiration_date) : null
+    const detail = !soldier.cac_expiration_date
+      ? 'No expiration date on file.'
+      : flag === 'expired'
+        ? `CAC expired ${Math.abs(days!)} day${Math.abs(days!) === 1 ? '' : 's'} ago.`
+        : flag === 'soon'
+          ? `CAC expires in ${days} day${days === 1 ? '' : 's'}.`
+          : `Expires ${formatDate(soldier.cac_expiration_date)}.`
     return {
       tone: toneForFlag(flag),
       label: labelForFlag(flag, 'EXPIRED'),
-      detail: soldier.cac_expiration_date ? `Expires ${formatDate(soldier.cac_expiration_date)}.` : 'No expiration date on file.',
+      pillLabel: flag === 'expired' ? 'EXPIRED' : flag === 'soon' ? 'EXPIRING SOON' : soldier.cac_expiration_date ? 'CURRENT' : 'NO DATA',
+      detail,
     }
   })()
 
   const gtcc: StatusCell = soldier.has_gtcc
-    ? { tone: 'good', label: 'YES', detail: 'Has a GTCC on file.' }
-    : { tone: 'bad', label: 'NO', detail: 'No GTCC on file.' }
+    ? { tone: 'good', label: 'YES', pillLabel: 'ON FILE', detail: 'Has a GTCC on file.' }
+    : { tone: 'bad', label: 'NO', pillLabel: 'MISSING', detail: 'No GTCC on file.' }
 
   const ncoer: StatusCell = (() => {
-    if (!soldier.is_nco) return { tone: 'neutral', label: 'N/A', detail: 'Not applicable below NCO.' }
-    if (!soldier.last_ncoer_date) return { tone: 'neutral', label: 'NO DATA', detail: 'No NCOER on file.' }
-    const flag = flagForDate(ncoerDueDate(soldier.last_ncoer_date), NCOER_WARNING_DAYS)
+    if (!soldier.is_nco) return { tone: 'neutral', label: 'N/A', pillLabel: 'N/A', detail: 'Not applicable below NCO.' }
+    if (!soldier.last_ncoer_date) return { tone: 'neutral', label: 'NO DATA', pillLabel: 'NO DATA', detail: 'No NCOER on file.' }
+    const due = ncoerDueDate(soldier.last_ncoer_date)
+    const flag = flagForDate(due, NCOER_WARNING_DAYS)
+    const days = daysUntil(due)
+    const detail =
+      flag === 'expired'
+        ? `NCOER overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}.`
+        : flag === 'soon'
+          ? `NCOER due in ${days} day${days === 1 ? '' : 's'}.`
+          : `Last NCOER ${formatDate(soldier.last_ncoer_date)} · next due ${formatDate(due)}.`
     return {
       tone: toneForFlag(flag),
       label: labelForFlag(flag, 'OVERDUE'),
-      detail: `Last NCOER ${formatDate(soldier.last_ncoer_date)} · next due ${formatDate(ncoerDueDate(soldier.last_ncoer_date))}.`,
+      pillLabel: flag === 'expired' ? 'LAPSED' : flag === 'soon' ? 'DUE SOON' : 'CURRENT',
+      detail,
     }
   })()
 
   return { soldier, aft, mrc, cac, gtcc, ncoer }
 }
 
-function DetailPanel({ row }: { row: ReadinessRow | null }) {
-  if (!row) {
+type CategoryKey = 'aft' | 'mrc' | 'cac' | 'gtcc' | 'ncoer'
+
+const CATEGORY_LABEL: Record<CategoryKey, string> = {
+  aft: 'AFT',
+  mrc: 'MRC',
+  cac: 'CAC',
+  gtcc: 'GTCC',
+  ncoer: 'NCOER',
+}
+
+function DetailPanel({ row, category }: { row: ReadinessRow | null; category: CategoryKey | null }) {
+  if (!row || !category) {
     return (
       <div className="hidden w-72 flex-shrink-0 rounded-xl border border-line bg-panel p-5 sm:block">
-        <p className="text-sm text-ink-muted">Select a soldier to see their full readiness detail here.</p>
+        <p className="text-sm text-ink-muted">Select a cell to see that category's detail here.</p>
       </div>
     )
   }
   const { soldier } = row
-  const categories: { label: string; cell: StatusCell }[] = [
-    { label: 'AFT', cell: row.aft },
-    { label: 'MRC', cell: row.mrc },
-    { label: 'CAC', cell: row.cac },
-    { label: 'GTCC', cell: row.gtcc },
-    { label: 'NCOER', cell: row.ncoer },
-  ]
+  const cell = row[category]
   return (
     <div className="hidden w-72 flex-shrink-0 sm:block">
       <div className="sticky top-0 rounded-xl border border-line bg-panel p-5">
-        <div className="mb-4 flex items-center gap-3">
+        <div className="mb-3 text-[11px] font-semibold tracking-wide text-ink-faint">{CATEGORY_LABEL[category]}</div>
+        <div className="mb-3 flex items-center gap-3">
           <SoldierAvatar soldier={soldier} className="h-11 w-11" />
           <div className="min-w-0">
             <div className="truncate font-display text-base font-semibold">
@@ -140,23 +203,13 @@ function DetailPanel({ row }: { row: ReadinessRow | null }) {
             <div className="text-xs text-ink-muted">{soldier.squad ?? 'Unassigned'}</div>
           </div>
         </div>
-        <div className="flex flex-col gap-3">
-          {categories.map(({ label, cell }) => (
-            <div
-              key={label}
-              className="flex items-start justify-between gap-2 border-t border-line-soft pt-3 first:border-t-0 first:pt-0"
-            >
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold tracking-wide text-ink-faint">{label}</div>
-                <div className="text-xs text-ink-muted">{cell.detail}</div>
-              </div>
-              <StatusPill tone={cell.tone} label={cell.label} />
-            </div>
-          ))}
+        <div className="mb-3">
+          <StatusPill tone={cell.tone} label={cell.pillLabel} />
         </div>
+        <p className="mb-4 text-sm text-ink-dim">{cell.detail}</p>
         <Link
           to={`/admin/roster/${soldier.id}`}
-          className="mt-4 block rounded-md bg-accent-soft px-3 py-2 text-center text-xs font-bold tracking-wide text-accent-soft-ink"
+          className="block rounded-md bg-accent-soft px-3 py-2 text-center text-xs font-bold tracking-wide text-accent-soft-ink"
         >
           VIEW FULL PROFILE &rarr;
         </Link>
@@ -171,7 +224,7 @@ export function Readiness() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [flaggedOnly, setFlaggedOnly] = useState(false)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedCell, setSelectedCell] = useState<{ soldierId: string; category: CategoryKey } | null>(null)
 
   useEffect(() => {
     Promise.all([listSoldiers(), listAftTests()])
@@ -195,7 +248,7 @@ export function Readiness() {
   const isFlagged = (r: ReadinessRow) => [r.aft, r.mrc, r.cac, r.gtcc, r.ncoer].some((c) => c.tone === 'bad' || c.tone === 'warn')
   const visibleRows = flaggedOnly ? rows.filter(isFlagged) : rows
   const flaggedCount = rows.filter(isFlagged).length
-  const selectedRow = rows.find((r) => r.soldier.id === selectedId) ?? null
+  const selectedRow = rows.find((r) => r.soldier.id === selectedCell?.soldierId) ?? null
 
   const squadGroups = [...SQUADS, null]
     .map((squad) => ({ squad, rows: visibleRows.filter((r) => r.soldier.squad === squad) }))
@@ -287,38 +340,24 @@ export function Readiness() {
                         </td>
                       </tr>
                       {group.rows.map((r) => (
-                        <tr
-                          key={r.soldier.id}
-                          onClick={() => setSelectedId(r.soldier.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') setSelectedId(r.soldier.id)
-                          }}
-                          tabIndex={0}
-                          className={`cursor-pointer border-t border-line focus:outline-none ${
-                            selectedId === r.soldier.id ? 'bg-surface-raised' : 'hover:bg-surface-raised'
-                          }`}
-                        >
+                        <tr key={r.soldier.id} className="border-t border-line">
                           <td className="px-4 py-3 font-medium">
-                            <div className="flex items-center gap-2">
+                            <Link to={`/admin/roster/${r.soldier.id}`} className="flex items-center gap-2 hover:underline">
                               <SoldierAvatar soldier={r.soldier} className="h-7 w-7" />
                               {r.soldier.last_name}, {r.soldier.first_name}
-                            </div>
+                            </Link>
                           </td>
-                          <td className="p-1.5">
-                            <StatusBlock tone={r.aft.tone} label={r.aft.label} />
-                          </td>
-                          <td className="p-1.5">
-                            <StatusBlock tone={r.mrc.tone} label={r.mrc.label} numeric />
-                          </td>
-                          <td className="p-1.5">
-                            <StatusBlock tone={r.cac.tone} label={r.cac.label} />
-                          </td>
-                          <td className="p-1.5">
-                            <StatusBlock tone={r.gtcc.tone} label={r.gtcc.label} />
-                          </td>
-                          <td className="p-1.5">
-                            <StatusBlock tone={r.ncoer.tone} label={r.ncoer.label} />
-                          </td>
+                          {(['aft', 'mrc', 'cac', 'gtcc', 'ncoer'] as const).map((category) => (
+                            <td key={category} className="p-1.5">
+                              <StatusBlock
+                                tone={r[category].tone}
+                                label={r[category].label}
+                                numeric={category === 'mrc'}
+                                onClick={() => setSelectedCell({ soldierId: r.soldier.id, category })}
+                                selected={selectedCell?.soldierId === r.soldier.id && selectedCell?.category === category}
+                              />
+                            </td>
+                          ))}
                         </tr>
                       ))}
                     </Fragment>
@@ -326,7 +365,7 @@ export function Readiness() {
                 </tbody>
               </table>
             </div>
-            <DetailPanel row={selectedRow} />
+            <DetailPanel row={selectedRow} category={selectedCell?.category ?? null} />
           </div>
         </>
       )}
