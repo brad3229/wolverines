@@ -23,7 +23,7 @@ import { formatPhoneNumber } from '../../lib/phone'
 import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
-import { IconPhone, IconCheck, IconGripVertical } from '../../components/icons'
+import { IconPhone, IconCheck, IconGripVertical, IconBan } from '../../components/icons'
 import type { Soldier } from '../../types/database'
 
 function etsClass(s: Soldier) {
@@ -62,6 +62,24 @@ function DroppableSquadHeaderRow({ squad, children }: { squad: Soldier['squad'];
     <tr ref={setNodeRef} className={`border-t border-line ${isOver ? 'bg-accent-soft' : 'bg-surface'}`}>
       {children}
     </tr>
+  )
+}
+
+// What a soldier can be dropped onto: a squad (reassign) or this zone (deactivate).
+type DropTarget = { squad: Soldier['squad'] } | { action: 'inactivate' }
+
+function InactivateDropZone() {
+  const { setNodeRef, isOver } = useDroppable({ id: 'inactivate-zone', data: { action: 'inactivate' } })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`mb-3 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed p-3 text-xs font-bold tracking-wide transition-colors ${
+        isOver ? 'border-bad-ink bg-bad-bg text-bad-ink' : 'border-line text-ink-faint'
+      }`}
+    >
+      <IconBan className="h-4 w-4" />
+      Drop a soldier here to mark them inactive
+    </div>
   )
 }
 
@@ -236,7 +254,7 @@ export function Roster() {
   const [showInactive, setShowInactive] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [activeSoldier, setActiveSoldier] = useState<Soldier | null>(null)
-  const [overSquad, setOverSquad] = useState<Soldier['squad'] | undefined>(undefined)
+  const [overTarget, setOverTarget] = useState<DropTarget | undefined>(undefined)
 
   // Distance/delay thresholds below are what let a plain tap or click still fall
   // through to navigation and tap-to-call -- a drag only "activates" past them.
@@ -258,28 +276,43 @@ export function Roster() {
 
   function handleDragStart(event: DragStartEvent) {
     setActiveSoldier(soldiers.find((s) => s.id === event.active.id) ?? null)
-    setOverSquad(undefined)
+    setOverTarget(undefined)
   }
 
   function handleDragOver(event: DragOverEvent) {
-    setOverSquad(event.over?.data.current?.squad as Soldier['squad'] | undefined)
+    setOverTarget(event.over?.data.current as DropTarget | undefined)
   }
 
   async function handleDragEnd(event: DragEndEvent) {
     setActiveSoldier(null)
-    setOverSquad(undefined)
+    setOverTarget(undefined)
     const { active, over } = event
     if (!over) return
-    const targetSquad = over.data.current?.squad as Soldier['squad'] | undefined
-    if (targetSquad === undefined) return
+    const target = over.data.current as DropTarget | undefined
+    if (!target) return
     const soldierId = active.id as string
     const soldier = soldiers.find((s) => s.id === soldierId)
-    if (!soldier || soldier.squad === targetSquad) return
+    if (!soldier) return
+
+    if ('action' in target) {
+      if (soldier.status === 'inactive') return
+      // Optimistic update -- same reasoning as the squad case below.
+      setSoldiers((prev) => prev.map((s) => (s.id === soldierId ? { ...s, status: 'inactive' } : s)))
+      try {
+        await updateSoldier(soldierId, { status: 'inactive' })
+      } catch (err) {
+        setLoadError(errorMessage(err, 'Failed to mark soldier inactive'))
+        refresh()
+      }
+      return
+    }
+
+    if (soldier.squad === target.squad) return
     // Optimistic update -- reassigning a squad should feel instant, and the
     // in-flight request rarely fails for a simple column update like this.
-    setSoldiers((prev) => prev.map((s) => (s.id === soldierId ? { ...s, squad: targetSquad } : s)))
+    setSoldiers((prev) => prev.map((s) => (s.id === soldierId ? { ...s, squad: target.squad } : s)))
     try {
-      await updateSoldier(soldierId, { squad: targetSquad })
+      await updateSoldier(soldierId, { squad: target.squad })
     } catch (err) {
       setLoadError(errorMessage(err, 'Failed to move soldier to that squad'))
       refresh()
@@ -353,8 +386,11 @@ export function Roster() {
           onDragEnd={handleDragEnd}
         >
           <p className="mb-3 text-xs text-ink-faint">
-            Drag a soldier by the <IconGripVertical className="inline h-3 w-3 align-text-bottom" /> grip onto a squad name to reassign them.
+            Drag a soldier by the <IconGripVertical className="inline h-3 w-3 align-text-bottom" /> grip onto a squad to reassign them, or
+            onto the zone below to mark them inactive.
           </p>
+
+          {!showInactive && <InactivateDropZone />}
 
           {/* Card list — mobile */}
           <div className="space-y-4 sm:hidden">
@@ -404,9 +440,15 @@ export function Roster() {
 
           <DragOverlay>
             {activeSoldier && (
-              <div className="pointer-events-none whitespace-nowrap rounded-lg bg-accent px-4 py-2.5 text-sm font-bold text-accent-ink opacity-0 shadow-lg [animation:logo-pop_0.15s_ease-out_forwards]">
-                {overSquad !== undefined
-                  ? `Add ${activeSoldier.last_name}, ${activeSoldier.first_name} to ${overSquad ?? 'Unassigned'}`
+              <div
+                className={`pointer-events-none whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold opacity-0 shadow-lg [animation:logo-pop_0.15s_ease-out_forwards] ${
+                  overTarget && 'action' in overTarget ? 'bg-bad-bg text-bad-ink' : 'bg-accent text-accent-ink'
+                }`}
+              >
+                {overTarget
+                  ? 'action' in overTarget
+                    ? `Mark ${activeSoldier.last_name}, ${activeSoldier.first_name} inactive`
+                    : `Add ${activeSoldier.last_name}, ${activeSoldier.first_name} to ${overTarget.squad ?? 'Unassigned'}`
                   : `${activeSoldier.rank} ${activeSoldier.last_name}, ${activeSoldier.first_name}`}
               </div>
             )}

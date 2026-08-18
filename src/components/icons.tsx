@@ -215,6 +215,15 @@ export function IconAlertTriangle(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconBan(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="5.5" y1="18.5" x2="18.5" y2="5.5" />
+    </Icon>
+  )
+}
+
 export function IconNote(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
