@@ -245,7 +245,9 @@ export function Readiness() {
   }
 
   const rows = soldiers.map((s) => buildRow(s, latestAftBySoldier.get(s.id) ?? null))
-  const isFlagged = (r: ReadinessRow) => [r.aft, r.mrc, r.cac, r.gtcc, r.ncoer].some((c) => c.tone === 'bad' || c.tone === 'warn')
+  // Deployability only turns on AFT and MRC -- CAC/GTCC/NCOER are tracked here too
+  // (still shown, still colored) but don't affect whether a soldier counts as flagged.
+  const isFlagged = (r: ReadinessRow) => [r.aft, r.mrc].some((c) => c.tone === 'bad' || c.tone === 'warn')
   const visibleRows = flaggedOnly ? rows.filter(isFlagged) : rows
   const flaggedCount = rows.filter(isFlagged).length
   const selectedRow = rows.find((r) => r.soldier.id === selectedCell?.soldierId) ?? null
