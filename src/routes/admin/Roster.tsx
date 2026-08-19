@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -45,66 +45,26 @@ function mrcFlagged(s: Soldier) {
 // driven by the parent's centrally-tracked overTarget rather than each
 // droppable's own isOver, so the *whole* squad block highlights together no
 // matter which specific row/header the pointer happens to be over.
-//
-// Squad names repeat across platoons ("1st Squad" exists under every
-// platoon), so a squad drop target always carries its parent platoon too --
-// dropping on a squad reassigns both fields in one action. Dropping directly
-// on a platoon's own header (squad: null) reassigns platoon and clears squad,
-// since a soldier's old squad has no meaning under a different platoon.
-function useReassignDroppable(platoon: Soldier['platoon'], squad: Soldier['squad'], key: string) {
-  return useDroppable({
-    id: `drop-${platoon ?? 'none'}-${squad ?? 'none'}-${key}`,
-    data: { platoon, squad },
-  })
-}
-
-function platoonLabel(platoon: Soldier['platoon']) {
-  return platoon ?? 'Unassigned'
+function useSquadDroppable(squad: Soldier['squad'], key: string) {
+  return useDroppable({ id: `squad-${squad ?? 'unassigned'}-${key}`, data: { squad } })
 }
 
 function squadLabel(squad: Soldier['squad']) {
   return squad ?? 'Unassigned'
 }
 
-function DroppablePlatoonSection({
-  platoon,
-  isTarget,
-  label,
-  children,
-}: {
-  platoon: Soldier['platoon']
-  isTarget: boolean
-  label: ReactNode
-  children: ReactNode
-}) {
-  const { setNodeRef } = useReassignDroppable(platoon, null, 'platoon-section')
-  return (
-    <div
-      ref={setNodeRef}
-      className={`rounded-xl p-2 transition-colors ${
-        isTarget ? 'border-2 border-dashed border-accent bg-accent-soft/10' : 'border-2 border-transparent'
-      }`}
-    >
-      <h1 className="mb-3 font-display text-base font-bold tracking-wide text-ink">{label}</h1>
-      <div className="space-y-4">{children}</div>
-    </div>
-  )
-}
-
 function DroppableSquadSection({
-  platoon,
   squad,
   isTarget,
   label,
   children,
 }: {
-  platoon: Soldier['platoon']
   squad: Soldier['squad']
   isTarget: boolean
   label: ReactNode
   children: ReactNode
 }) {
-  const { setNodeRef } = useReassignDroppable(platoon, squad, 'squad-section')
+  const { setNodeRef } = useSquadDroppable(squad, 'section')
   return (
     <div
       ref={setNodeRef}
@@ -118,35 +78,16 @@ function DroppableSquadSection({
   )
 }
 
-function DroppablePlatoonHeaderRow({
-  platoon,
-  isTarget,
-  children,
-}: {
-  platoon: Soldier['platoon']
-  isTarget: boolean
-  children: ReactNode
-}) {
-  const { setNodeRef } = useReassignDroppable(platoon, null, 'platoon-header')
-  return (
-    <tr ref={setNodeRef} className={`border-t-2 border-line ${isTarget ? 'bg-accent-soft' : 'bg-surface-raised'}`}>
-      {children}
-    </tr>
-  )
-}
-
 function DroppableSquadHeaderRow({
-  platoon,
   squad,
   isTarget,
   children,
 }: {
-  platoon: Soldier['platoon']
   squad: Soldier['squad']
   isTarget: boolean
   children: ReactNode
 }) {
-  const { setNodeRef } = useReassignDroppable(platoon, squad, 'squad-header')
+  const { setNodeRef } = useSquadDroppable(squad, 'header')
   return (
     <tr ref={setNodeRef} className={`border-t border-line ${isTarget ? 'bg-accent-soft' : 'bg-surface'}`}>
       {children}
@@ -154,12 +95,9 @@ function DroppableSquadHeaderRow({
   )
 }
 
-// What a soldier can be dropped onto: a platoon+squad pair (reassign) or this zone (deactivate).
-type DropTarget = { platoon: Soldier['platoon']; squad: Soldier['squad'] } | { action: 'inactivate' }
-
-function isReassignTarget(overTarget: DropTarget | undefined, platoon: Soldier['platoon'], squad: Soldier['squad']) {
-  return !!overTarget && !('action' in overTarget) && overTarget.platoon === platoon && overTarget.squad === squad
-}
+// What a soldier can be dropped onto: a squad (reassign), a platoon (reassign,
+// squad cleared), or this zone (deactivate).
+type DropTarget = { squad: Soldier['squad'] } | { platoon: Soldier['platoon'] } | { action: 'inactivate' }
 
 // Fixed to the viewport (not the document) and only mounted while a drag is
 // actually in progress -- on a long roster, a zone sitting in normal document
@@ -176,6 +114,35 @@ function InactivateDropZone() {
     >
       <IconBan className="h-4 w-4" />
       Drop a soldier here to mark them inactive
+    </div>
+  )
+}
+
+// One box per platoon, pinned to the right edge of the viewport (same reasoning
+// as InactivateDropZone -- reachable no matter how far down the roster you've
+// scrolled). Dropping a soldier here reassigns their platoon and clears their
+// squad, since a squad from the old platoon has no meaning under the new one.
+function PlatoonDropTarget({ platoon, activeSoldier }: { platoon: Soldier['platoon']; activeSoldier: Soldier | null }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `platoon-zone-${platoon}`, data: { platoon } })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`w-32 rounded-xl border-2 border-dashed p-2.5 text-center text-xs font-bold tracking-wide shadow-lg transition-colors ${
+        isOver ? 'border-accent bg-accent-soft text-accent-soft-ink' : 'border-line bg-panel text-ink-faint'
+      }`}
+    >
+      {isOver && activeSoldier ? `Add ${activeSoldier.last_name} to ${platoon}` : platoon}
+    </div>
+  )
+}
+
+function PlatoonDropPanel({ activeSoldier }: { activeSoldier: Soldier | null }) {
+  return (
+    <div className="fixed right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col items-center gap-2 sm:right-4">
+      <p className="mb-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-ink-faint">Move to platoon</p>
+      {PLATOONS.map((p) => (
+        <PlatoonDropTarget key={p} platoon={p} activeSoldier={activeSoldier} />
+      ))}
     </div>
   )
 }
@@ -269,7 +236,7 @@ function DesktopSoldierRow({
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: s.id })
   // Every row is also a drop target for its own squad, not just the header --
   // dragging a soldier onto any other soldier in 2nd Squad still means "move to 2nd Squad."
-  const { setNodeRef: setDropRef } = useDroppable({ id: `row-${s.id}`, data: { platoon: s.platoon, squad: s.squad } })
+  const { setNodeRef: setDropRef } = useDroppable({ id: `row-${s.id}`, data: { squad: s.squad } })
   return (
     <tr
       ref={(node) => {
@@ -412,16 +379,29 @@ export function Roster() {
       return
     }
 
-    if (soldier.platoon === target.platoon && soldier.squad === target.squad) return
-    // Optimistic update -- reassigning a squad/platoon should feel instant, and the
+    if ('platoon' in target) {
+      if (soldier.platoon === target.platoon) return
+      // Squad is cleared -- it belonged to the old platoon and has no meaning under the new one.
+      setSoldiers((prev) =>
+        prev.map((s) => (s.id === soldierId ? { ...s, platoon: target.platoon, squad: null } : s)),
+      )
+      try {
+        await updateSoldier(soldierId, { platoon: target.platoon, squad: null })
+      } catch (err) {
+        setLoadError(errorMessage(err, 'Failed to move soldier to that platoon'))
+        refresh()
+      }
+      return
+    }
+
+    if (soldier.squad === target.squad) return
+    // Optimistic update -- reassigning a squad should feel instant, and the
     // in-flight request rarely fails for a simple column update like this.
-    setSoldiers((prev) =>
-      prev.map((s) => (s.id === soldierId ? { ...s, platoon: target.platoon, squad: target.squad } : s)),
-    )
+    setSoldiers((prev) => prev.map((s) => (s.id === soldierId ? { ...s, squad: target.squad } : s)))
     try {
-      await updateSoldier(soldierId, { platoon: target.platoon, squad: target.squad })
+      await updateSoldier(soldierId, { squad: target.squad })
     } catch (err) {
-      setLoadError(errorMessage(err, 'Failed to move soldier'))
+      setLoadError(errorMessage(err, 'Failed to move soldier to that squad'))
       refresh()
     }
   }
@@ -430,16 +410,14 @@ export function Roster() {
     .filter((s) => s.status === (showInactive ? 'inactive' : 'active'))
     .filter((s) => `${s.rank} ${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()))
 
-  // Grouped platoon -> squad, matching how the unit is actually organized.
-  // Unassigned platoons/squads get their own trailing group instead of being hidden.
-  const platoonGroups = [...PLATOONS, null]
-    .map((platoon) => ({
-      platoon,
-      squadGroups: [...SQUADS, null]
-        .map((squad) => ({ squad, soldiers: filtered.filter((s) => s.platoon === platoon && s.squad === squad) }))
-        .filter((g) => g.soldiers.length > 0),
-    }))
-    .filter((g) => g.squadGroups.length > 0)
+  // Unassigned soldiers get their own trailing group instead of being hidden.
+  const squadGroups = [...SQUADS, null]
+    .map((squad) => ({ squad, soldiers: filtered.filter((s) => s.squad === squad) }))
+    .filter((g) => g.soldiers.length > 0)
+
+  function isSquadTarget(squad: Soldier['squad']) {
+    return !!overTarget && 'squad' in overTarget && overTarget.squad === squad
+  }
 
   return (
     <div>
@@ -499,50 +477,34 @@ export function Roster() {
           onDragEnd={handleDragEnd}
         >
           <p className="mb-3 text-xs text-ink-faint">
-            Drag a soldier by the <IconGripVertical className="inline h-3 w-3 align-text-bottom" /> grip onto a squad or platoon to
-            reassign them, or keep dragging to mark them inactive.
+            Drag a soldier by the <IconGripVertical className="inline h-3 w-3 align-text-bottom" /> grip onto a squad to reassign them,
+            onto a platoon on the right to move them there, or keep dragging to mark them inactive.
           </p>
 
+          {activeSoldier && <PlatoonDropPanel activeSoldier={activeSoldier} />}
           {!showInactive && activeSoldier && <InactivateDropZone />}
 
           {/* Card list — mobile */}
-          <div className="space-y-6 sm:hidden">
-            {platoonGroups.map((pGroup) => {
-              const platoonTargeted = isReassignTarget(overTarget, pGroup.platoon, null)
+          <div className="space-y-4 sm:hidden">
+            {squadGroups.map((group) => {
+              const targeted = isSquadTarget(group.squad)
               return (
-                <DroppablePlatoonSection
-                  key={pGroup.platoon ?? 'unassigned'}
-                  platoon={pGroup.platoon}
-                  isTarget={platoonTargeted}
+                <DroppableSquadSection
+                  key={group.squad ?? 'unassigned'}
+                  squad={group.squad}
+                  isTarget={targeted}
                   label={
-                    platoonTargeted && activeSoldier
-                      ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${platoonLabel(pGroup.platoon).toUpperCase()}`
-                      : platoonLabel(pGroup.platoon).toUpperCase()
+                    targeted && activeSoldier
+                      ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${squadLabel(group.squad).toUpperCase()}`
+                      : `${group.squad ?? 'UNASSIGNED'} (${group.soldiers.length})`
                   }
                 >
-                  {pGroup.squadGroups.map((group) => {
-                    const targeted = isReassignTarget(overTarget, pGroup.platoon, group.squad)
-                    return (
-                      <DroppableSquadSection
-                        key={group.squad ?? 'unassigned'}
-                        platoon={pGroup.platoon}
-                        squad={group.squad}
-                        isTarget={targeted}
-                        label={
-                          targeted && activeSoldier
-                            ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${squadLabel(group.squad).toUpperCase()}, ${platoonLabel(pGroup.platoon).toUpperCase()}`
-                            : `${group.squad ?? 'UNASSIGNED'} (${group.soldiers.length})`
-                        }
-                      >
-                        <div className="space-y-2">
-                          {group.soldiers.map((s) => (
-                            <MobileSoldierCard key={s.id} soldier={s} />
-                          ))}
-                        </div>
-                      </DroppableSquadSection>
-                    )
-                  })}
-                </DroppablePlatoonSection>
+                  <div className="space-y-2">
+                    {group.soldiers.map((s) => (
+                      <MobileSoldierCard key={s.id} soldier={s} />
+                    ))}
+                  </div>
+                </DroppableSquadSection>
               )
             })}
           </div>
@@ -560,47 +522,31 @@ export function Roster() {
                   <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PHONE</th>
                 </tr>
               </thead>
-              {platoonGroups.map((pGroup) => {
-                const platoonTargeted = isReassignTarget(overTarget, pGroup.platoon, null)
+              {squadGroups.map((group) => {
+                const targeted = isSquadTarget(group.squad)
                 return (
-                  // A real <tbody> per platoon/squad (multiple tbody elements are valid HTML) so a
-                  // dotted outline can wrap exactly one squad's rows, not the whole table.
-                  <Fragment key={pGroup.platoon ?? 'unassigned'}>
-                    <tbody>
-                      <DroppablePlatoonHeaderRow platoon={pGroup.platoon} isTarget={platoonTargeted}>
-                        <td colSpan={6} className="px-4 py-2.5 font-display text-sm font-bold tracking-wide text-ink">
-                          {platoonTargeted && activeSoldier
-                            ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${platoonLabel(pGroup.platoon).toUpperCase()} (SQUAD UNASSIGNED)`
-                            : platoonLabel(pGroup.platoon).toUpperCase()}
-                        </td>
-                      </DroppablePlatoonHeaderRow>
-                    </tbody>
-                    {pGroup.squadGroups.map((group) => {
-                      const targeted = isReassignTarget(overTarget, pGroup.platoon, group.squad)
-                      return (
-                        <tbody
-                          key={group.squad ?? 'unassigned'}
-                          className={targeted ? 'rounded-xl outline outline-2 -outline-offset-2 outline-dashed outline-accent' : ''}
-                        >
-                          <DroppableSquadHeaderRow platoon={pGroup.platoon} squad={group.squad} isTarget={targeted}>
-                            <td colSpan={6} className="px-4 py-2 pl-8 text-[13px] font-semibold tracking-wide text-ink-muted">
-                              {targeted && activeSoldier
-                                ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${squadLabel(group.squad).toUpperCase()}, ${platoonLabel(pGroup.platoon).toUpperCase()}`
-                                : `${group.squad ?? 'UNASSIGNED'} (${group.soldiers.length})`}
-                            </td>
-                          </DroppableSquadHeaderRow>
-                          {group.soldiers.map((s) => (
-                            <DesktopSoldierRow
-                              key={s.id}
-                              soldier={s}
-                              isTarget={targeted}
-                              onOpen={() => navigate(`/admin/roster/${s.id}`)}
-                            />
-                          ))}
-                        </tbody>
-                      )
-                    })}
-                  </Fragment>
+                  // A real <tbody> per squad (multiple tbody elements are valid HTML) so a
+                  // dotted outline can wrap exactly that squad's rows, not the whole table.
+                  <tbody
+                    key={group.squad ?? 'unassigned'}
+                    className={targeted ? 'rounded-xl outline outline-2 -outline-offset-2 outline-dashed outline-accent' : ''}
+                  >
+                    <DroppableSquadHeaderRow squad={group.squad} isTarget={targeted}>
+                      <td colSpan={6} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
+                        {targeted && activeSoldier
+                          ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${squadLabel(group.squad).toUpperCase()}`
+                          : `${group.squad ?? 'UNASSIGNED'} (${group.soldiers.length})`}
+                      </td>
+                    </DroppableSquadHeaderRow>
+                    {group.soldiers.map((s) => (
+                      <DesktopSoldierRow
+                        key={s.id}
+                        soldier={s}
+                        isTarget={targeted}
+                        onOpen={() => navigate(`/admin/roster/${s.id}`)}
+                      />
+                    ))}
+                  </tbody>
                 )
               })}
             </table>
