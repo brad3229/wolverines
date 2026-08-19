@@ -127,7 +127,7 @@ function PlatoonDropTarget({ platoon, activeSoldier }: { platoon: Soldier['plato
   return (
     <div
       ref={setNodeRef}
-      className={`w-32 rounded-xl border-2 border-dashed p-2.5 text-center text-xs font-bold tracking-wide shadow-lg transition-colors ${
+      className={`flex h-24 w-44 items-center justify-center rounded-xl border-2 border-dashed p-3 text-center text-base font-bold tracking-wide shadow-lg transition-colors ${
         isOver ? 'border-accent bg-accent-soft text-accent-soft-ink' : 'border-line bg-panel text-ink-faint'
       }`}
     >
@@ -138,8 +138,8 @@ function PlatoonDropTarget({ platoon, activeSoldier }: { platoon: Soldier['plato
 
 function PlatoonDropPanel({ activeSoldier }: { activeSoldier: Soldier | null }) {
   return (
-    <div className="fixed right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col items-center gap-2 sm:right-4">
-      <p className="mb-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-ink-faint">Move to platoon</p>
+    <div className="fixed right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col items-center gap-3 sm:right-4">
+      <p className="mb-0.5 text-center text-xs font-bold uppercase tracking-wide text-ink-faint">Move to platoon</p>
       {PLATOONS.map((p) => (
         <PlatoonDropTarget key={p} platoon={p} activeSoldier={activeSoldier} />
       ))}
