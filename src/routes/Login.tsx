@@ -6,7 +6,6 @@ import { signInWithPasskey, browserSupportsPasskeys } from '../lib/passkey'
 import { errorMessage } from '../lib/errors'
 import { initialAuthError } from '../lib/authFlow'
 import { IconPasskey } from '../components/icons'
-import { AtlasMark } from '../components/AtlasMark'
 
 // Minimum time the pre-login splash holds before handing off to the sign-in
 // form, so the logo animation always gets to play out even when the auth
@@ -42,10 +41,11 @@ export function Login() {
   if (loading || !splashMinElapsed) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-2 bg-surface">
-        <AtlasMark className="h-32 w-32 text-[#D13048] opacity-0 [animation:logo-pop_0.6s_ease-out_forwards]" />
-        <h1 className="font-display text-4xl font-semibold tracking-wide opacity-0 [animation:fade-in-up_0.4s_ease-out_0.25s_forwards]">
-          ATLAS
-        </h1>
+        <img
+          src={`${import.meta.env.BASE_URL}atlas-wordmark-dark.png`}
+          alt="ATLAS"
+          className="w-72 opacity-0 [animation:logo-pop_0.6s_ease-out_forwards]"
+        />
       </div>
     )
   }
@@ -82,8 +82,7 @@ export function Login() {
         className="w-full max-w-sm rounded-xl border border-line bg-panel p-8 opacity-0 [animation:fade-in-up_0.4s_ease-out_forwards]"
       >
         <div className="mb-6 flex flex-col items-center text-center">
-          <AtlasMark className="mb-2 h-10 w-10 text-[#D13048]" />
-          <h1 className="font-display text-xl font-semibold tracking-wide">ATLAS</h1>
+          <img src={`${import.meta.env.BASE_URL}atlas-wordmark-dark.png`} alt="ATLAS" className="h-9 w-auto" />
         </div>
 
         {browserSupportsPasskeys() && (

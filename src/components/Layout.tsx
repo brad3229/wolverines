@@ -4,7 +4,6 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
 import { NotificationBell, NotificationListPanel, useNotificationPanel } from './NotificationBell'
-import { AtlasMark } from './AtlasMark'
 import { IconBell } from './icons'
 
 export interface NavItem {
@@ -136,12 +135,9 @@ export function Layout({
     >
       {/* ===== Mobile header (branding + actions) -- desktop uses the rail + topbar below ===== */}
       <header className="sticky top-0 z-30 flex h-[60px] flex-shrink-0 items-center justify-between border-b border-line bg-surface-raised px-4 md:hidden">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <AtlasMark className="h-6 w-6 flex-shrink-0 text-[#D13048]" />
-          <div className="min-w-0">
-            <div className="truncate font-display text-[15px] font-semibold leading-tight tracking-wide">ATLAS</div>
-            <div className="truncate text-[11px] tracking-wide text-ink-muted">A CO 1-120 IN</div>
-          </div>
+        <div className="min-w-0">
+          <img src={`${import.meta.env.BASE_URL}atlas-wordmark-dark.png`} alt="ATLAS" className="h-5 w-auto" />
+          <div className="truncate text-[11px] tracking-wide text-ink-muted">A CO 1-120 IN</div>
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-2">
@@ -212,12 +208,9 @@ export function Layout({
 
       {/* ===== Desktop command rail ===== */}
       <nav className="hidden w-[236px] flex-shrink-0 flex-col bg-rail md:flex">
-        <div className="flex items-center gap-2.5 border-b border-rail-line px-4 py-4">
-          <AtlasMark className="h-6 w-6 flex-shrink-0 text-[#D13048]" />
-          <div className="min-w-0">
-            <div className="truncate font-display text-[14px] font-semibold leading-tight tracking-wide">ATLAS</div>
-            <div className="truncate text-[10px] tracking-wide text-ink-muted">A CO 1-120 IN</div>
-          </div>
+        <div className="border-b border-rail-line px-4 py-4">
+          <img src={`${import.meta.env.BASE_URL}atlas-wordmark-dark.png`} alt="ATLAS" className="h-5 w-auto" />
+          <div className="truncate text-[10px] tracking-wide text-ink-muted">A CO 1-120 IN</div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2.5">
