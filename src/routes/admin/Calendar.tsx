@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listDrillEvents, createDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange } from '../../lib/drillEvents'
+import { listDrillEvents, createDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange, googleMapsUrl } from '../../lib/drillEvents'
 import { EventForm, eventFormValuesToPayload } from '../../components/EventForm'
 import { errorMessage } from '../../lib/errors'
 import { todayLocalDateString } from '../../lib/dates'
+import { IconMapPin } from '../../components/icons'
 import type { DrillEvent } from '../../types/database'
 
 function monthDayLabel(dateStr: string) {
@@ -113,7 +114,21 @@ function EventGroup({
                 <p className="text-xs text-ink-muted">
                   {formatEventDateRange(event)}
                   {event.start_time ? ` · ${event.start_time}` : ''}
-                  {event.location ? ` · ${event.location}` : ''}
+                  {event.location && ' · '}
+                  {event.location && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        window.open(googleMapsUrl(event.location!), '_blank', 'noopener,noreferrer')
+                      }}
+                      className="inline-flex items-center gap-1 align-text-bottom font-semibold text-accent-soft-ink hover:underline"
+                    >
+                      <IconMapPin className="h-3 w-3" />
+                      {event.location}
+                    </button>
+                  )}
                 </p>
               </div>
               <span className="flex-shrink-0 text-xs font-semibold text-accent-soft-ink">Manage &rarr;</span>

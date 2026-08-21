@@ -256,6 +256,15 @@ export function IconPay(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconMapPin(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 21s-6.5-5.686-6.5-11a6.5 6.5 0 1 1 13 0c0 5.314-6.5 11-6.5 11z" />
+      <circle cx="12" cy="10" r="2.25" />
+    </Icon>
+  )
+}
+
 // Filled, not stroked -- a deliberate one-off exception to the rest of this
 // file's line-icon style.
 export function IconPasskey(props: SVGProps<SVGSVGElement>) {

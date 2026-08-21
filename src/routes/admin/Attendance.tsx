@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { listSoldiers } from '../../lib/soldiers'
-import { getDrillEvent, updateDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange } from '../../lib/drillEvents'
+import { getDrillEvent, updateDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange, googleMapsUrl } from '../../lib/drillEvents'
 import { listAttendanceForEvent, markAttendance, deleteAttendance, attendanceRowClass } from '../../lib/attendance'
 import { EventForm, eventFormValuesToPayload } from '../../components/EventForm'
 import { AttendanceSummary } from '../../components/AttendanceSummary'
@@ -9,7 +9,7 @@ import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
 import { SQUADS } from '../../components/SoldierForm'
-import { IconNote } from '../../components/icons'
+import { IconNote, IconMapPin } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
@@ -207,7 +207,17 @@ export function AttendancePage() {
             {event.location && (
               <div>
                 <dt className="text-[13px] font-semibold tracking-wide text-ink-dim">LOCATION</dt>
-                <dd className="text-lg font-semibold">{event.location}</dd>
+                <dd className="text-lg font-semibold">
+                  <a
+                    href={googleMapsUrl(event.location)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-accent-soft-ink hover:underline"
+                  >
+                    <IconMapPin className="h-4 w-4" />
+                    {event.location}
+                  </a>
+                </dd>
               </div>
             )}
             {event.notes && (

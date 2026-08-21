@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { getDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange, isEventOpenForCheckIn } from '../../lib/drillEvents'
+import { getDrillEvent, EVENT_TYPE_LABEL, formatEventDateRange, isEventOpenForCheckIn, googleMapsUrl } from '../../lib/drillEvents'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listAttendanceForEvent, markAttendance, deleteAttendance } from '../../lib/attendance'
 import { errorMessage } from '../../lib/errors'
@@ -8,6 +8,7 @@ import { formatDate, todayLocalDateString } from '../../lib/dates'
 import { useAuth } from '../../hooks/useAuth'
 import { BackButton } from '../../components/BackButton'
 import { LoadingScreen } from '../../components/LoadingScreen'
+import { IconMapPin } from '../../components/icons'
 import type { Attendance, DrillEvent, Soldier } from '../../types/database'
 
 export function CheckIn() {
@@ -111,7 +112,17 @@ export function CheckIn() {
           {event.location && (
             <div>
               <dt className="text-[13px] font-semibold tracking-wide text-ink-dim">LOCATION</dt>
-              <dd className="text-lg font-semibold">{event.location}</dd>
+              <dd className="text-lg font-semibold">
+                <a
+                  href={googleMapsUrl(event.location)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-accent-soft-ink hover:underline"
+                >
+                  <IconMapPin className="h-4 w-4" />
+                  {event.location}
+                </a>
+              </dd>
             </div>
           )}
           {event.notes && (

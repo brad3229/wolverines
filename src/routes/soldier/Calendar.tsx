@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listDrillEvents, isEventOpenForCheckIn, formatEventDateRange } from '../../lib/drillEvents'
+import { listDrillEvents, isEventOpenForCheckIn, formatEventDateRange, googleMapsUrl } from '../../lib/drillEvents'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listAttendanceForSoldier, attendanceBadge } from '../../lib/attendance'
 import { errorMessage } from '../../lib/errors'
 import { todayLocalDateString } from '../../lib/dates'
 import { useAuth } from '../../hooks/useAuth'
+import { IconMapPin } from '../../components/icons'
 import type { Attendance, DrillEvent } from '../../types/database'
 
 function monthDayLabel(dateStr: string) {
@@ -65,7 +66,21 @@ export function SoldierCalendar() {
                 <p className="text-xs text-ink-muted">
                   {formatEventDateRange(event)}
                   {event.start_time ? ` · ${event.start_time}` : ''}
-                  {event.location ? ` · ${event.location}` : ''}
+                  {event.location && ' · '}
+                  {event.location && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        window.open(googleMapsUrl(event.location!), '_blank', 'noopener,noreferrer')
+                      }}
+                      className="inline-flex items-center gap-1 align-text-bottom font-semibold text-accent-soft-ink hover:underline"
+                    >
+                      <IconMapPin className="h-3 w-3" />
+                      {event.location}
+                    </button>
+                  )}
                 </p>
               </div>
               {record ? (

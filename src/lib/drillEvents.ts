@@ -49,3 +49,10 @@ export function isEventOpenForCheckIn(event: DrillEvent) {
   const today = todayLocalDateString()
   return event.event_date <= today && today <= event.end_date
 }
+
+// location is free text (an armory name, an address, whatever the admin typed),
+// so a Maps *search* URL is what actually resolves it, rather than a directions
+// or place-id link that would require a precise, structured address.
+export function googleMapsUrl(location: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
+}
