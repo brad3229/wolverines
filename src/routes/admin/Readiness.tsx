@@ -13,7 +13,7 @@ import {
   type ExpirationFlag,
 } from '../../lib/expirations'
 import { formatDate } from '../../lib/dates'
-import { SQUADS } from '../../components/SoldierForm'
+import { PLATOONS, SQUADS } from '../../components/SoldierForm'
 import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
@@ -302,9 +302,19 @@ export function Readiness() {
   const visibleRows = flaggedOnly ? rows.filter(isFlagged) : rows
   const selectedRow = rows.find((r) => r.soldier.id === selectedCell?.soldierId) ?? null
 
-  const squadGroups = [...SQUADS, null]
-    .map((squad) => ({ squad, rows: visibleRows.filter((r) => r.soldier.squad === squad) }))
-    .filter((g) => g.rows.length > 0)
+  // Grouped platoon -> squad, matching how the unit is actually organized.
+  // Unassigned platoons/squads get their own trailing group instead of being hidden.
+  const platoonGroups = [...PLATOONS, null]
+    .map((platoon) => ({
+      platoon,
+      squadGroups: [...SQUADS, null]
+        .map((squad) => ({
+          squad,
+          rows: visibleRows.filter((r) => r.soldier.platoon === platoon && r.soldier.squad === squad),
+        }))
+        .filter((g) => g.rows.length > 0),
+    }))
+    .filter((g) => g.squadGroups.length > 0)
 
   return (
     <div>
@@ -331,37 +341,46 @@ export function Readiness() {
       ) : (
         <>
           {/* Card list — mobile */}
-          <div className="space-y-4 sm:hidden">
-            {squadGroups.map((group) => (
-              <div key={group.squad ?? 'unassigned'}>
-                <h2 className="mb-2 font-display text-[15px] font-semibold tracking-wide text-ink-muted">
-                  {group.squad ?? 'UNASSIGNED'} ({group.rows.length})
-                </h2>
-                <div className="space-y-2">
-                  {group.rows.map((r) => (
-                    <Link
-                      key={r.soldier.id}
-                      to={`/admin/roster/${r.soldier.id}`}
-                      className="block rounded-xl border border-line bg-panel p-4"
-                    >
-                      <div className="mb-3 flex items-center gap-2.5 font-semibold">
-                        <SoldierAvatar soldier={r.soldier} />
-                        <span className="truncate">
-                          {r.soldier.rank} {r.soldier.last_name}, {r.soldier.first_name}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-5 gap-1.5 text-center">
-                        {(['AFT', 'MRC', 'CAC', 'GTCC', 'NCOER'] as const).map((label) => {
-                          const cell = { AFT: r.aft, MRC: r.mrc, CAC: r.cac, GTCC: r.gtcc, NCOER: r.ncoer }[label]
-                          return (
-                            <div key={label}>
-                              <div className="mb-1 text-[9px] tracking-wide text-ink-faint">{label}</div>
-                              <StatusBlock tone={cell.tone} label={cell.label} numeric={label === 'MRC'} />
+          <div className="space-y-6 sm:hidden">
+            {platoonGroups.map((pGroup) => (
+              <div key={pGroup.platoon ?? 'unassigned'}>
+                <h1 className="mb-3 font-display text-base font-bold tracking-wide text-ink">
+                  {pGroup.platoon ?? 'UNASSIGNED'}
+                </h1>
+                <div className="space-y-4">
+                  {pGroup.squadGroups.map((group) => (
+                    <div key={group.squad ?? 'unassigned'}>
+                      <h2 className="mb-2 font-display text-[15px] font-semibold tracking-wide text-ink-muted">
+                        {group.squad ?? 'UNASSIGNED'} ({group.rows.length})
+                      </h2>
+                      <div className="space-y-2">
+                        {group.rows.map((r) => (
+                          <Link
+                            key={r.soldier.id}
+                            to={`/admin/roster/${r.soldier.id}`}
+                            className="block rounded-xl border border-line bg-panel p-4"
+                          >
+                            <div className="mb-3 flex items-center gap-2.5 font-semibold">
+                              <SoldierAvatar soldier={r.soldier} />
+                              <span className="truncate">
+                                {r.soldier.rank} {r.soldier.last_name}, {r.soldier.first_name}
+                              </span>
                             </div>
-                          )
-                        })}
+                            <div className="grid grid-cols-5 gap-1.5 text-center">
+                              {(['AFT', 'MRC', 'CAC', 'GTCC', 'NCOER'] as const).map((label) => {
+                                const cell = { AFT: r.aft, MRC: r.mrc, CAC: r.cac, GTCC: r.gtcc, NCOER: r.ncoer }[label]
+                                return (
+                                  <div key={label}>
+                                    <div className="mb-1 text-[9px] tracking-wide text-ink-faint">{label}</div>
+                                    <StatusBlock tone={cell.tone} label={cell.label} numeric={label === 'MRC'} />
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </Link>
+                        ))}
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -383,33 +402,42 @@ export function Readiness() {
                   </tr>
                 </thead>
                 <tbody>
-                  {squadGroups.map((group) => (
-                    <Fragment key={group.squad ?? 'unassigned'}>
-                      <tr className="border-t border-line bg-surface">
-                        <td colSpan={6} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
-                          {group.squad ?? 'UNASSIGNED'} ({group.rows.length})
+                  {platoonGroups.map((pGroup) => (
+                    <Fragment key={pGroup.platoon ?? 'unassigned'}>
+                      <tr className="border-t-2 border-line bg-surface-raised">
+                        <td colSpan={6} className="px-4 py-2.5 font-display text-sm font-bold tracking-wide text-ink">
+                          {pGroup.platoon ?? 'UNASSIGNED'}
                         </td>
                       </tr>
-                      {group.rows.map((r) => (
-                        <tr key={r.soldier.id} className="border-t border-line">
-                          <td className="px-4 py-3 font-medium">
-                            <Link to={`/admin/roster/${r.soldier.id}`} className="flex items-center gap-2 hover:underline">
-                              <SoldierAvatar soldier={r.soldier} className="h-7 w-7" />
-                              {r.soldier.last_name}, {r.soldier.first_name}
-                            </Link>
-                          </td>
-                          {(['aft', 'mrc', 'cac', 'gtcc', 'ncoer'] as const).map((category) => (
-                            <td key={category} className="p-1.5">
-                              <StatusBlock
-                                tone={r[category].tone}
-                                label={r[category].label}
-                                numeric={category === 'mrc'}
-                                onClick={() => setSelectedCell({ soldierId: r.soldier.id, category })}
-                                selected={selectedCell?.soldierId === r.soldier.id && selectedCell?.category === category}
-                              />
+                      {pGroup.squadGroups.map((group) => (
+                        <Fragment key={group.squad ?? 'unassigned'}>
+                          <tr className="border-t border-line bg-surface">
+                            <td colSpan={6} className="px-4 py-2 pl-8 text-[13px] font-semibold tracking-wide text-ink-muted">
+                              {group.squad ?? 'UNASSIGNED'} ({group.rows.length})
                             </td>
+                          </tr>
+                          {group.rows.map((r) => (
+                            <tr key={r.soldier.id} className="border-t border-line">
+                              <td className="px-4 py-3 font-medium">
+                                <Link to={`/admin/roster/${r.soldier.id}`} className="flex items-center gap-2 hover:underline">
+                                  <SoldierAvatar soldier={r.soldier} className="h-7 w-7" />
+                                  {r.soldier.last_name}, {r.soldier.first_name}
+                                </Link>
+                              </td>
+                              {(['aft', 'mrc', 'cac', 'gtcc', 'ncoer'] as const).map((category) => (
+                                <td key={category} className="p-1.5">
+                                  <StatusBlock
+                                    tone={r[category].tone}
+                                    label={r[category].label}
+                                    numeric={category === 'mrc'}
+                                    onClick={() => setSelectedCell({ soldierId: r.soldier.id, category })}
+                                    selected={selectedCell?.soldierId === r.soldier.id && selectedCell?.category === category}
+                                  />
+                                </td>
+                              ))}
+                            </tr>
                           ))}
-                        </tr>
+                        </Fragment>
                       ))}
                     </Fragment>
                   ))}
