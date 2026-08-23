@@ -1,19 +1,23 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { listSoldiers } from '../../lib/soldiers'
 import { listDrillEvents, formatEventDateRange } from '../../lib/drillEvents'
 import { listAttendanceForEvent } from '../../lib/attendance'
 import { listEditRequests, reviewEditRequest, coerceEditRequestValue, formatEditRequestValue } from '../../lib/editRequests'
 import { updateSoldier } from '../../lib/soldiers'
 import { getExpiringSoldiers } from '../../lib/expirations'
+import { listAftTests } from '../../lib/aft'
+import { computeReadinessSummary } from '../../lib/readiness'
+import { listReadinessSnapshots, upsertCurrentMonthSnapshot } from '../../lib/readinessSnapshots'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
-import { todayLocalDateString } from '../../lib/dates'
+import { todayLocalDateString, formatMonthLabel } from '../../lib/dates'
 import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { IconRoster, IconCalendar, IconInbox, IconAttendance, IconAlertTriangle, IconEvaluation } from '../../components/icons'
-import type { DrillEvent, EditRequest, Soldier } from '../../types/database'
+import type { DrillEvent, EditRequest, ReadinessSnapshot, Soldier } from '../../types/database'
 
 function monthDayLabel(dateStr: string) {
   const [, month, day] = dateStr.split('-')
@@ -28,14 +32,15 @@ export function Dashboard() {
   const [editRequests, setEditRequests] = useState<EditRequest[]>([])
   const [lastDrillPresentCount, setLastDrillPresentCount] = useState<number | null>(null)
   const [lastDrillEventId, setLastDrillEventId] = useState<string | null>(null)
+  const [readinessSnapshots, setReadinessSnapshots] = useState<ReadinessSnapshot[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   function refresh() {
     setLoading(true)
     setLoadError(null)
-    Promise.all([listSoldiers(), listDrillEvents(), listEditRequests()])
-      .then(([soldierData, eventData, requestData]) => {
+    Promise.all([listSoldiers(), listDrillEvents(), listEditRequests(), listAftTests()])
+      .then(([soldierData, eventData, requestData, aftTests]) => {
         setSoldiers(soldierData)
         setEvents(eventData)
         setEditRequests(requestData.filter((r) => r.status === 'pending'))
@@ -56,6 +61,14 @@ export function Dashboard() {
             })
             .catch((err) => setLoadError(errorMessage(err, 'Failed to load last drill attendance')))
         }
+
+        // Keeps this month's readiness snapshot live all month; past months are never
+        // touched again once the calendar rolls past them -- see readinessSnapshots.ts.
+        const summary = computeReadinessSummary(soldierData, aftTests)
+        upsertCurrentMonthSnapshot(summary)
+          .then(listReadinessSnapshots)
+          .then(setReadinessSnapshots)
+          .catch((err) => setLoadError(errorMessage(err, 'Failed to load unit readiness history')))
       })
       .catch((err) => {
         setLoadError(errorMessage(err, 'Failed to load dashboard'))
@@ -112,6 +125,8 @@ export function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         {/* Primary column */}
         <div>
+          <UnitReadinessCard snapshots={readinessSnapshots} />
+
           <div className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <StatTile
               icon={<IconRoster />}
@@ -348,5 +363,69 @@ function StatTile({
     <button onClick={onClick} className={className}>
       {content}
     </button>
+  )
+}
+
+function ReadinessTooltip({ active, payload }: { active?: boolean; payload?: { payload: { label: string; pct: number } }[] }) {
+  if (!active || !payload?.length) return null
+  const point = payload[0].payload
+  return (
+    <div className="rounded-lg border border-line bg-surface-raised px-3 py-2 shadow-lg">
+      <div className="font-display text-sm font-bold text-ink">{point.pct}%</div>
+      <div className="text-[11px] text-ink-muted">{point.label}</div>
+    </div>
+  )
+}
+
+// Monthly unit deployability trend -- see lib/readinessSnapshots.ts for how these
+// rows get captured. Renders the hero % (and month-over-month delta) unconditionally
+// once there's at least one snapshot, but only draws the trend line once there are
+// two or more -- a single point has no shape to show, so it gets an honest caption
+// instead of a one-dot chart.
+function UnitReadinessCard({ snapshots }: { snapshots: ReadinessSnapshot[] }) {
+  if (snapshots.length === 0) return null
+
+  const chartData = snapshots.map((s) => ({ month: s.month, label: formatMonthLabel(s.month), pct: s.deployable_pct }))
+  const current = chartData[chartData.length - 1]
+  const previous = chartData.length >= 2 ? chartData[chartData.length - 2] : null
+  const delta = previous ? current.pct - previous.pct : null
+
+  return (
+    <div className="mb-7 rounded-xl border border-line bg-panel p-4 sm:p-5">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold tracking-wide text-ink-faint">UNIT READINESS</span>
+        <Link to="/admin/readiness" className="text-xs font-semibold text-accent-soft-ink hover:underline">
+          View Readiness Matrix &rarr;
+        </Link>
+      </div>
+      <div className="mb-1 flex items-baseline gap-2.5">
+        <span className="font-display text-4xl font-bold text-accent">{current.pct}%</span>
+        {delta !== null && delta !== 0 && (
+          <span className={`text-sm font-semibold ${delta > 0 ? 'text-good-ink' : 'text-bad-ink'}`}>
+            {delta > 0 ? '+' : ''}
+            {delta}% this month
+          </span>
+        )}
+      </div>
+      {chartData.length >= 2 ? (
+        <div className="h-[140px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="readinessFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.18} />
+                  <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: 'var(--color-ink-faint)', fontSize: 11 }} />
+              <Tooltip content={<ReadinessTooltip />} cursor={{ stroke: 'var(--color-line)' }} />
+              <Area type="monotone" dataKey="pct" stroke="var(--color-accent)" strokeWidth={2} fill="url(#readinessFill)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <p className="text-xs text-ink-muted">Come back next month to see the trend.</p>
+      )}
+    </div>
   )
 }

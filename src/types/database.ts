@@ -256,3 +256,15 @@ export interface Notification {
   read: boolean
   created_at: string
 }
+
+export interface ReadinessSnapshot {
+  id: string
+  month: string
+  deployable_pct: number
+  go_count: number
+  at_risk_count: number
+  no_go_count: number
+  total_count: number
+  created_at: string
+  updated_at: string
+}

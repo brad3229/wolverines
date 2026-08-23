@@ -23,3 +23,12 @@ export function toLocalDateString(date: Date): string {
 export function todayLocalDateString(): string {
   return toLocalDateString(new Date())
 }
+
+export function currentMonthLocalDateString(): string {
+  const now = new Date()
+  return toLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1))
+}
+
+export function formatMonthLabel(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+}
