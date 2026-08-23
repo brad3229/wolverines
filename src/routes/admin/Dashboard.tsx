@@ -6,7 +6,14 @@ import { listDrillEvents, formatEventDateRange } from '../../lib/drillEvents'
 import { listAttendanceForEvent } from '../../lib/attendance'
 import { listEditRequests, reviewEditRequest, coerceEditRequestValue, formatEditRequestValue } from '../../lib/editRequests'
 import { updateSoldier } from '../../lib/soldiers'
-import { getExpiringSoldiers } from '../../lib/expirations'
+import {
+  getExpiringSoldiers,
+  CAC_WARNING_DAYS,
+  ETS_WARNING_DAYS,
+  NCOER_WARNING_DAYS,
+  type ExpirationFlag,
+  type SoldierExpiration,
+} from '../../lib/expirations'
 import { errorMessage } from '../../lib/errors'
 import { notify } from '../../lib/notifications'
 import { todayLocalDateString } from '../../lib/dates'
@@ -14,6 +21,39 @@ import { useAuth } from '../../hooks/useAuth'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { IconRoster, IconCalendar, IconInbox, IconAttendance, IconAlertTriangle, IconEvaluation } from '../../components/icons'
 import type { DrillEvent, EditRequest, Soldier } from '../../types/database'
+
+const PRIORITY_WARNING_DAYS: Record<'ETS' | 'CAC' | 'NCOER', number> = {
+  ETS: ETS_WARNING_DAYS,
+  CAC: CAC_WARNING_DAYS,
+  NCOER: NCOER_WARNING_DAYS,
+}
+
+type Priority =
+  | { kind: 'expiring'; soldier: Soldier; category: 'ETS' | 'CAC' | 'NCOER'; flag: ExpirationFlag; days: number }
+  | { kind: 'edit_requests'; count: number }
+
+// Reduces a soldier's (up to three) flagged categories to just the single
+// most urgent one -- the same soldier shouldn't take two of the two priority
+// slots just because both their CAC and ETS happen to be flagged.
+function mostUrgentFlag(e: SoldierExpiration): Priority {
+  const options = (
+    [
+      { category: 'ETS' as const, flag: e.etsFlag, days: e.etsDays },
+      { category: 'CAC' as const, flag: e.cacFlag, days: e.cacDays },
+      { category: 'NCOER' as const, flag: e.ncoerFlag, days: e.ncoerDays },
+    ] satisfies { category: 'ETS' | 'CAC' | 'NCOER'; flag: ExpirationFlag; days: number | null }[]
+  ).filter((o): o is { category: 'ETS' | 'CAC' | 'NCOER'; flag: ExpirationFlag; days: number } => o.flag !== null)
+  const top = options.reduce((min, o) => (o.days < min.days ? o : min))
+  return { kind: 'expiring', soldier: e.soldier, category: top.category, flag: top.flag, days: top.days }
+}
+
+// Edit requests have no natural "days" measure to compare against expiration
+// countdowns, so they're pinned at rank 0 -- anything already overdue (a
+// negative day count) still outranks the request queue, but the queue
+// outranks anything merely "due soon" (a positive day count).
+function priorityRank(p: Priority) {
+  return p.kind === 'edit_requests' ? 0 : p.days
+}
 
 function monthDayLabel(dateStr: string) {
   const [, month, day] = dateStr.split('-')
@@ -100,6 +140,14 @@ export function Dashboard() {
   const nextEvent = upcomingEvents[0]
   const expiringSoldiers = getExpiringSoldiers(soldiers)
   const ncoerDueCount = expiringSoldiers.filter((s) => s.ncoerFlag !== null).length
+  // expiringSoldiers is already sorted most-urgent-first, so nothing past index 1 could
+  // ever outrank what's already in these top two candidates -- see priorityRank above.
+  const topPriorities = [
+    ...expiringSoldiers.slice(0, 2).map(mostUrgentFlag),
+    ...(editRequests.length > 0 ? [{ kind: 'edit_requests' as const, count: editRequests.length }] : []),
+  ]
+    .sort((a, b) => priorityRank(a) - priorityRank(b))
+    .slice(0, 2)
   const soldierName = (id: string) => {
     const s = soldiers.find((s) => s.id === id)
     return s ? `${s.rank} ${s.last_name}, ${s.first_name}` : 'Unknown Soldier'
@@ -112,6 +160,19 @@ export function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         {/* Primary column */}
         <div>
+          {topPriorities.length > 0 && (
+            <div className="mb-7">
+              <h2 className="mb-2.5 font-display text-[13px] font-semibold tracking-wide text-ink-dim">
+                TOP PRIORITIES
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {topPriorities.map((p, i) => (
+                  <PriorityCard key={i} priority={p} onReviewRequests={() => scrollToSection('pending-edit-requests')} />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <StatTile
               icon={<IconRoster />}
@@ -269,6 +330,65 @@ export function Dashboard() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Tone-matched bar/badge colors, same expired=bad / soon=warn convention the
+// EXPIRING SOON list below already uses for its pills.
+const PRIORITY_TONE = {
+  bad: { badge: 'bg-bad-bg text-bad-ink', bar: 'bg-bad-ink', pill: 'bg-bad-bg text-bad-ink' },
+  warn: { badge: 'bg-warn-bg text-warn-ink', bar: 'bg-warn-ink', pill: 'bg-warn-bg text-warn-ink' },
+} as const
+
+function PriorityCard({ priority, onReviewRequests }: { priority: Priority; onReviewRequests: () => void }) {
+  const cardClass =
+    'flex items-center gap-3.5 rounded-xl border border-line bg-panel p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-line-soft hover:shadow-lg'
+
+  if (priority.kind === 'edit_requests') {
+    const tone = PRIORITY_TONE.warn
+    return (
+      <button onClick={onReviewRequests} className={cardClass}>
+        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${tone.badge}`}>
+          <IconInbox />
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold">
+            {priority.count} pending edit request{priority.count === 1 ? '' : 's'}
+          </div>
+          <div className="text-xs text-ink-muted">Waiting for your review</div>
+        </div>
+      </button>
+    )
+  }
+
+  const { soldier, category, flag, days } = priority
+  const tone = PRIORITY_TONE[flag === 'expired' ? 'bad' : 'warn']
+  const windowDays = PRIORITY_WARNING_DAYS[category]
+  // How much of the warning window has already elapsed, as a shrinking-runway bar --
+  // capped at 100% once expired rather than continuing to grow past it.
+  const elapsedPct = Math.max(0, Math.min(100, Math.round(((windowDays - days) / windowDays) * 100)))
+  const detail =
+    flag === 'expired'
+      ? `${category} expired ${Math.abs(days)}d ago`
+      : `${category} due in ${days}d`
+
+  return (
+    <Link to={`/admin/roster/${soldier.id}`} className={cardClass}>
+      <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${tone.badge}`}>
+        <IconAlertTriangle />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-semibold">
+          {soldier.rank} {soldier.last_name}, {soldier.first_name}
+        </div>
+        <div className="mb-2 mt-1">
+          <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wide ${tone.pill}`}>{detail}</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-line">
+          <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${elapsedPct}%` }} />
+        </div>
+      </div>
+    </Link>
   )
 }
 
