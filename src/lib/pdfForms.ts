@@ -2,7 +2,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import type { PDFForm } from 'pdf-lib'
 import { GEAR_CATEGORY_LABEL } from './gearRequests'
 import { SUTA_REQUEST_TYPE_LABEL, SUTA_DUTY_LOCATION_ADDRESS } from './sutaRequests'
-import { todayLocalDateString } from './dates'
+import { todayLocalDateString, toLocalDateString } from './dates'
 import { formatPhoneNumber } from './phone'
 import type {
   AftRunEventType,
@@ -287,12 +287,25 @@ export async function fillInitialCounseling(soldier: Soldier, counseling: Counse
     form.getTextField(da4856Field(2, 'Assessment')).setText(counseling.assessment)
   }
 
-  // The soldier's own agree/disagree, signatures, and dates happen at the
-  // actual counseling (on paper or a signed copy of this PDF), not here --
-  // only the counselor's own signature line is stamped, so the form looks
-  // ready to hand off rather than pre-deciding what the Soldier will sign.
   form.getTextField(da4856Field(2, 'Counselor_Date')).setText(mmddyyyy(counseling.session_date))
   await stampSignature(pdf, form, da4856Field(2, 'Signature_Counselor'), counseling.counselor_name, 1)
+
+  // The Soldier's own box/signature only fill in once they've actually
+  // acknowledged it in the app (see acknowledgeCounseling) -- until then
+  // these stay blank rather than pre-deciding what they'll sign.
+  if (counseling.acknowledgment) {
+    form
+      .getCheckBox(da4856Field(2, counseling.acknowledgment === 'agree' ? 'Individual_Counseled_I_Agree' : 'Individual_Counseled_I_Disagree'))
+      .check()
+  }
+  if (counseling.acknowledged_at) {
+    form
+      .getTextField(da4856Field(2, 'Individual_Counseled_Date'))
+      .setText(mmddyyyy(toLocalDateString(new Date(counseling.acknowledged_at))))
+  }
+  if (counseling.signature_name) {
+    await stampSignature(pdf, form, da4856Field(2, 'Signature_Individual_Counseled'), counseling.signature_name, 1)
+  }
 
   form.updateFieldAppearances()
   return pdf.save()

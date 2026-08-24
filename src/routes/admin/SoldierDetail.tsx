@@ -711,6 +711,21 @@ export function SoldierDetail() {
                   <div className="text-xs text-ink-muted">{c.counselor_name}</div>
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+                  <span
+                    className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
+                      c.acknowledgment === 'agree'
+                        ? 'bg-good-bg text-good-ink'
+                        : c.acknowledgment === 'disagree'
+                          ? 'bg-warn-bg text-warn-ink'
+                          : 'bg-neutral-bg text-neutral-ink'
+                    }`}
+                  >
+                    {c.acknowledgment === 'agree'
+                      ? 'SOLDIER AGREED'
+                      : c.acknowledgment === 'disagree'
+                        ? 'SOLDIER DISAGREED'
+                        : 'AWAITING SIGNATURE'}
+                  </span>
                   <button
                     onClick={() => handlePreviewCounseling(c)}
                     className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"

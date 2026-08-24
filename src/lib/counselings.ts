@@ -68,3 +68,27 @@ export async function deleteCounseling(id: string) {
   const { error } = await supabase.from('counselings').delete().eq('id', id)
   if (error) throw error
 }
+
+// Soldier-facing -- deliberately only ever touches these four columns (never
+// the counselor-authored content), even though the RLS policy backing this
+// is row- not column-scoped. See the migration that added acknowledgment.
+export async function acknowledgeCounseling(params: {
+  id: string
+  acknowledgment: 'agree' | 'disagree'
+  individualRemarks: string | null
+  signatureName: string
+}) {
+  const { data, error } = await supabase
+    .from('counselings')
+    .update({
+      acknowledgment: params.acknowledgment,
+      individual_remarks: params.individualRemarks,
+      signature_name: params.signatureName,
+      acknowledged_at: new Date().toISOString(),
+    })
+    .eq('id', params.id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as Counseling
+}

@@ -269,6 +269,9 @@ export interface Counseling {
   leader_responsibilities: string | null
   individual_remarks: string | null
   assessment: string | null
+  acknowledgment: 'agree' | 'disagree' | null
+  acknowledged_at: string | null
+  signature_name: string | null
   created_by: string | null
   created_at: string
 }
