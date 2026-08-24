@@ -14,15 +14,17 @@ import { listOwnGearRequests } from '../../lib/gearRequests'
 import { listOwnPayIssues } from '../../lib/payIssues'
 import { listActiveTaskLists, listTaskItems, listOwnCompletions } from '../../lib/tasks'
 import { listAftTestsForSoldier, deleteAftTest, AFT_STANDARD_LABEL, AFT_RESULT_LABEL } from '../../lib/aft'
+import { listCounselingsForSoldier, deleteCounseling } from '../../lib/counselings'
 import { formatDate, todayLocalDateString } from '../../lib/dates'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
 import { BackButton } from '../../components/BackButton'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { AftScoreModal } from '../../components/AftScoreModal'
+import { CounselingModal } from '../../components/CounselingModal'
 import { IconAttendance, IconSuta, IconGear, IconPay, IconTasks, IconNote } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
-import type { AftTest, EditRequest, Soldier, UserRole } from '../../types/database'
+import type { AftTest, Counseling, EditRequest, Soldier, UserRole } from '../../types/database'
 
 interface ReadinessSnapshot {
   sutaPending: number
@@ -92,6 +94,10 @@ export function SoldierDetail() {
   const [aftModalMode, setAftModalMode] = useState<'new' | 'edit' | null>(null)
   const [aftEditingTest, setAftEditingTest] = useState<AftTest | null>(null)
   const [confirmingDeleteAft, setConfirmingDeleteAft] = useState<string | null>(null)
+  const [counselings, setCounselings] = useState<Counseling[]>([])
+  const [counselingModalMode, setCounselingModalMode] = useState<'new' | 'edit' | null>(null)
+  const [editingCounseling, setEditingCounseling] = useState<Counseling | null>(null)
+  const [confirmingDeleteCounseling, setConfirmingDeleteCounseling] = useState<string | null>(null)
 
   function refresh() {
     if (!id) return
@@ -114,6 +120,10 @@ export function SoldierDetail() {
         listAftTestsForSoldier(s.id)
           .then(setAftTests)
           .catch(() => setAftTests([]))
+
+        listCounselingsForSoldier(s.id)
+          .then(setCounselings)
+          .catch(() => setCounselings([]))
       })
       .catch((err) => setLoadError(errorMessage(err, 'Failed to load Soldier')))
     listEditRequests()
@@ -217,6 +227,37 @@ export function SoldierDetail() {
     try {
       const { fillAftScorecard, previewPdf } = await import('../../lib/pdfForms')
       const bytes = await fillAftScorecard(soldier, test)
+      previewPdf(bytes)
+    } catch (err) {
+      setLoadError(errorMessage(err, 'Failed to generate form'))
+    }
+  }
+
+  function openNewCounselingModal() {
+    setEditingCounseling(null)
+    setCounselingModalMode('new')
+  }
+
+  function openEditCounselingModal(counseling: Counseling) {
+    setEditingCounseling(counseling)
+    setCounselingModalMode('edit')
+  }
+
+  async function handleDeleteCounseling(counselingId: string) {
+    try {
+      await deleteCounseling(counselingId)
+      setConfirmingDeleteCounseling(null)
+      refresh()
+    } catch (err) {
+      setLoadError(errorMessage(err, 'Failed to delete counseling'))
+    }
+  }
+
+  async function handlePreviewCounseling(counseling: Counseling) {
+    if (!soldier) return
+    try {
+      const { fillInitialCounseling, previewPdf } = await import('../../lib/pdfForms')
+      const bytes = await fillInitialCounseling(soldier, counseling)
       previewPdf(bytes)
     } catch (err) {
       setLoadError(errorMessage(err, 'Failed to generate form'))
@@ -646,6 +687,72 @@ export function SoldierDetail() {
         )}
       </div>
 
+      <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-[15px] font-semibold tracking-wide text-ink-dim">COUNSELINGS</h2>
+          <button
+            onClick={openNewCounselingModal}
+            className="rounded-md bg-accent px-3 py-1.5 text-[11px] font-bold tracking-wide text-accent-ink"
+          >
+            + ADD COUNSELING
+          </button>
+        </div>
+        {counselings.length === 0 ? (
+          <p className="text-sm text-ink-muted">No counselings on record.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {counselings.map((c) => (
+              <div
+                key={c.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold">{formatDate(c.session_date)} — {c.purpose}</div>
+                  <div className="text-xs text-ink-muted">{c.counselor_name}</div>
+                </div>
+                <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+                  <button
+                    onClick={() => handlePreviewCounseling(c)}
+                    className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    PREVIEW
+                  </button>
+                  <button
+                    onClick={() => openEditCounselingModal(c)}
+                    className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    EDIT
+                  </button>
+                  {confirmingDeleteCounseling === c.id ? (
+                    <>
+                      <button
+                        onClick={() => handleDeleteCounseling(c.id)}
+                        className="rounded-md bg-bad-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-bad-ink"
+                      >
+                        CONFIRM
+                      </button>
+                      <button
+                        onClick={() => setConfirmingDeleteCounseling(null)}
+                        className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
+                      >
+                        CANCEL
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmingDeleteCounseling(c.id)}
+                      className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-bad-ink"
+                    >
+                      DELETE
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="rounded-xl border border-line bg-panel p-4 sm:p-6">
         <h2 className="mb-4 font-display text-[15px] font-semibold tracking-wide text-ink-dim">DETAILS</h2>
         <SoldierForm
@@ -666,6 +773,18 @@ export function SoldierDetail() {
           onClose={() => setAftModalMode(null)}
           onSaved={() => {
             setAftModalMode(null)
+            refresh()
+          }}
+        />
+      )}
+
+      {counselingModalMode && (
+        <CounselingModal
+          soldier={soldier}
+          existing={editingCounseling}
+          onClose={() => setCounselingModalMode(null)}
+          onSaved={() => {
+            setCounselingModalMode(null)
             refresh()
           }}
         />

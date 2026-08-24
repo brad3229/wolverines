@@ -257,6 +257,22 @@ export interface Notification {
   created_at: string
 }
 
+export interface Counseling {
+  id: string
+  soldier_id: string
+  session_date: string
+  organization: string
+  counselor_name: string
+  purpose: string
+  key_points: string
+  plan_of_action: string
+  leader_responsibilities: string | null
+  individual_remarks: string | null
+  assessment: string | null
+  created_by: string | null
+  created_at: string
+}
+
 export interface ReadinessSnapshot {
   id: string
   month: string

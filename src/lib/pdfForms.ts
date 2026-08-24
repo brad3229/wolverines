@@ -4,7 +4,16 @@ import { GEAR_CATEGORY_LABEL } from './gearRequests'
 import { SUTA_REQUEST_TYPE_LABEL, SUTA_DUTY_LOCATION_ADDRESS } from './sutaRequests'
 import { todayLocalDateString } from './dates'
 import { formatPhoneNumber } from './phone'
-import type { AftRunEventType, AftTest, DrillEvent, GearRequest, Soldier, SutaRequest, SutaRequestType } from '../types/database'
+import type {
+  AftRunEventType,
+  AftTest,
+  Counseling,
+  DrillEvent,
+  GearRequest,
+  Soldier,
+  SutaRequest,
+  SutaRequestType,
+} from '../types/database'
 
 // Maps a SUTA request type to the export value of its radio widget on
 // NC ARNG Form 350-2R's Group14 -- determined by inspecting the template's
@@ -66,14 +75,14 @@ function soldierInitials(soldier: Soldier): string {
 // widgets (not text fields), which pdf-lib can't fill through the normal
 // form-field API -- this draws the typed name directly onto the page at the
 // widget's position instead. A visual stamp, not a cryptographic signature.
-async function stampSignature(pdf: PDFDocument, form: PDFForm, fieldName: string, text: string) {
+async function stampSignature(pdf: PDFDocument, form: PDFForm, fieldName: string, text: string, pageIndex = 0) {
   const field = form.getField(fieldName)
   const widget = field.acroField.getWidgets()[0]
   if (!widget) return
   const rect = widget.getRectangle()
   const font = await pdf.embedFont(StandardFonts.TimesRomanItalic)
   const fontSize = Math.min(rect.height * 0.55, 16)
-  pdf.getPages()[0].drawText(text, {
+  pdf.getPages()[pageIndex].drawText(text, {
     x: rect.x + 4,
     y: rect.y + rect.height * 0.28,
     size: fontSize,
@@ -244,6 +253,46 @@ export async function fillAftScorecard(soldier: Soldier, test: AftTest): Promise
   if (test.overall_result) {
     form.getCheckBox(aftField(test.overall_result === 'go' ? 'Test_One_Final_Go' : 'Test_One_Final_NoGo')).check()
   }
+
+  form.updateFieldAppearances()
+  return pdf.save()
+}
+
+// DA FORM 4856's field names carry the same XFA-style path convention as
+// DA 705 above, just split across two pages.
+function da4856Field(page: 1 | 2, name: string) {
+  return `form1[0].Page${page}[0].${name}[0]`
+}
+
+export async function fillInitialCounseling(soldier: Soldier, counseling: Counseling): Promise<Uint8Array> {
+  const pdf = await loadTemplate('forms/da4856-initial-counseling.pdf')
+  const form = pdf.getForm()
+
+  form.getTextField(da4856Field(1, 'Name')).setText(lastFirstMi(soldier))
+  form.getTextField(da4856Field(1, 'Rank_Grade')).setText(soldier.rank)
+  form.getTextField(da4856Field(1, 'Date_Counseling')).setText(mmddyyyy(counseling.session_date))
+  form.getTextField(da4856Field(1, 'Organization')).setText(counseling.organization)
+  form.getTextField(da4856Field(1, 'Name_Title_Counselor')).setText(counseling.counselor_name)
+  form.getTextField(da4856Field(1, 'Purpose_Counseling')).setText(counseling.purpose)
+  form.getTextField(da4856Field(1, 'Key_Points_Disscussion')).setText(counseling.key_points)
+
+  form.getTextField(da4856Field(2, 'Plan_Action')).setText(counseling.plan_of_action)
+  if (counseling.leader_responsibilities) {
+    form.getTextField(da4856Field(2, 'Leader_Responsibilities')).setText(counseling.leader_responsibilities)
+  }
+  if (counseling.individual_remarks) {
+    form.getTextField(da4856Field(2, 'Individual_Couseled_Remarks')).setText(counseling.individual_remarks)
+  }
+  if (counseling.assessment) {
+    form.getTextField(da4856Field(2, 'Assessment')).setText(counseling.assessment)
+  }
+
+  // The soldier's own agree/disagree, signatures, and dates happen at the
+  // actual counseling (on paper or a signed copy of this PDF), not here --
+  // only the counselor's own signature line is stamped, so the form looks
+  // ready to hand off rather than pre-deciding what the Soldier will sign.
+  form.getTextField(da4856Field(2, 'Counselor_Date')).setText(mmddyyyy(counseling.session_date))
+  await stampSignature(pdf, form, da4856Field(2, 'Signature_Counselor'), counseling.counselor_name, 1)
 
   form.updateFieldAppearances()
   return pdf.save()

@@ -25,6 +25,7 @@ import {
   IconFitness,
   IconPhone,
   IconAlertTriangle,
+  IconNote,
 } from './components/icons'
 import { Login } from './routes/Login'
 
@@ -61,6 +62,7 @@ const SoldierGearRequests = lazy(() =>
 )
 const SoldierTasks = lazy(() => import('./routes/soldier/Tasks').then((m) => ({ default: m.Tasks })))
 const SoldierAft = lazy(() => import('./routes/soldier/Aft').then((m) => ({ default: m.Aft })))
+const SoldierCounselings = lazy(() => import('./routes/soldier/Counselings').then((m) => ({ default: m.Counselings })))
 const PlatoonDirectory = lazy(() =>
   import('./routes/soldier/PlatoonDirectory').then((m) => ({ default: m.PlatoonDirectory })),
 )
@@ -135,6 +137,7 @@ const SOLDIER_NAV: NavItem[] = [
   { to: '/soldier/gear-requests', label: 'Gear Requests', shortLabel: 'Gear', icon: <IconGear /> },
   { to: '/soldier/tasks', label: 'Tasks', icon: <IconTasks /> },
   { to: '/soldier/aft', label: 'AFT', icon: <IconFitness /> },
+  { to: '/soldier/counselings', label: 'Counselings', icon: <IconNote /> },
   { to: '/soldier/settings', label: 'Settings', icon: <IconSettings /> },
 ]
 
@@ -455,6 +458,16 @@ function App() {
               <RequireRole allow={['soldier']}>
                 <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <SoldierAft />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/soldier/counselings"
+            element={
+              <RequireRole allow={['soldier']}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
+                  <SoldierCounselings />
                 </Layout>
               </RequireRole>
             }
