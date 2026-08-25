@@ -21,9 +21,10 @@ export const AFT_RESULT_LABEL: Record<AftResult, string> = {
   nogo: 'NO-GO',
 }
 
-// The Army requires an AFT roughly twice a year -- used to flag soldiers
-// overdue/coming due the same way ETS/CAC/NCOER dates already are.
-export const AFT_CYCLE_DAYS = 180
+// National Guard Soldiers test once a year (Active Duty tests roughly twice a
+// year, but that's not this unit) -- used to flag soldiers overdue/coming due
+// the same way ETS/CAC/NCOER dates already are.
+export const AFT_CYCLE_DAYS = 365
 export const AFT_WARNING_DAYS = 30
 
 export function aftDueDate(lastTestDate: string): string {
