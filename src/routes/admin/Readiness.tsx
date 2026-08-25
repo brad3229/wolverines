@@ -94,10 +94,21 @@ interface ReadinessRow {
   ncoer: StatusCell
 }
 
-function buildRow(soldier: Soldier, latestAftDate: string | null): ReadinessRow {
+function buildRow(soldier: Soldier, latestAftTest: AftTest | null): ReadinessRow {
   const aft: StatusCell = (() => {
-    if (!latestAftDate) return { tone: 'neutral', label: 'NO TEST', pillLabel: 'NO DATA', detail: 'No AFT test on record.' }
-    const due = aftDueDate(latestAftDate)
+    if (!latestAftTest) return { tone: 'neutral', label: 'NO TEST', pillLabel: 'NO DATA', detail: 'No AFT test on record.' }
+    // A failed test is a no-go regardless of how recently it was taken --
+    // the date-based flag below only answers "is a retest due soon," which
+    // used to be the only thing checked here even for a just-failed test.
+    if (latestAftTest.overall_result === 'nogo') {
+      return {
+        tone: 'bad',
+        label: 'NO-GO',
+        pillLabel: 'FAILED',
+        detail: `Failed the last AFT (${formatDate(latestAftTest.test_date)}).`,
+      }
+    }
+    const due = aftDueDate(latestAftTest.test_date)
     const flag = flagForDate(due, AFT_WARNING_DAYS)
     const days = daysUntil(due)
     const detail =
@@ -105,7 +116,7 @@ function buildRow(soldier: Soldier, latestAftDate: string | null): ReadinessRow 
         ? `AFT overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}.`
         : flag === 'soon'
           ? `AFT due in ${days} day${days === 1 ? '' : 's'}.`
-          : `Last test ${formatDate(latestAftDate)} · next due ${formatDate(due)}.`
+          : `Last test ${formatDate(latestAftTest.test_date)} · next due ${formatDate(due)}.`
     return {
       tone: toneForFlag(flag),
       label: labelForFlag(flag, 'OVERDUE'),
@@ -290,9 +301,9 @@ export function Readiness() {
   if (loading) return <LoadingScreen />
 
   // aftTests is already ordered test_date desc, so the first match per soldier is their latest.
-  const latestAftBySoldier = new Map<string, string>()
+  const latestAftBySoldier = new Map<string, AftTest>()
   for (const test of aftTests) {
-    if (!latestAftBySoldier.has(test.soldier_id)) latestAftBySoldier.set(test.soldier_id, test.test_date)
+    if (!latestAftBySoldier.has(test.soldier_id)) latestAftBySoldier.set(test.soldier_id, test)
   }
 
   const rows = soldiers.map((s) => buildRow(s, latestAftBySoldier.get(s.id) ?? null))

@@ -3,8 +3,14 @@ import type { AftTest, Soldier } from '../types/database'
 
 type Tone = 'good' | 'warn' | 'bad'
 
-function aftTone(latestAftDate: string | null): Tone {
-  const { flag } = aftFlag(latestAftDate)
+function aftTone(latestTest: AftTest | null): Tone {
+  if (!latestTest) return 'good'
+  // A failed test is a no-go regardless of how recently it was taken --
+  // the date-based flag below only ever answers "is a retest due soon,"
+  // which used to be the only thing checked here even for a soldier who
+  // just failed a brand-new test.
+  if (latestTest.overall_result === 'nogo') return 'bad'
+  const { flag } = aftFlag(latestTest.test_date)
   if (flag === 'expired') return 'bad'
   if (flag === 'soon') return 'warn'
   return 'good'
@@ -29,9 +35,9 @@ export interface ReadinessSummary {
 // kept here as the one shared source of truth so this summary and the matrix's
 // DEPLOYABLE % can never quietly drift apart.
 export function computeReadinessSummary(soldiers: Soldier[], aftTests: AftTest[]): ReadinessSummary {
-  const latestAftBySoldier = new Map<string, string>()
+  const latestAftBySoldier = new Map<string, AftTest>()
   for (const test of aftTests) {
-    if (!latestAftBySoldier.has(test.soldier_id)) latestAftBySoldier.set(test.soldier_id, test.test_date)
+    if (!latestAftBySoldier.has(test.soldier_id)) latestAftBySoldier.set(test.soldier_id, test)
   }
 
   let goCount = 0
