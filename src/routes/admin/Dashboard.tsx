@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { listSoldiers } from '../../lib/soldiers'
-import { listDrillEvents, formatEventDateRange } from '../../lib/drillEvents'
+import { listDrillEvents, formatEventDateRange, EVENT_TYPE_LABEL } from '../../lib/drillEvents'
 import { listAttendanceForEvent } from '../../lib/attendance'
 import { listEditRequests, reviewEditRequest, coerceEditRequestValue, formatEditRequestValue } from '../../lib/editRequests'
 import { updateSoldier } from '../../lib/soldiers'
@@ -110,7 +110,20 @@ export function Dashboard() {
   const today = todayLocalDateString()
   const activeCount = soldiers.filter((s) => s.status === 'active').length
   const upcomingEvents = events.filter((e) => e.end_date >= today).slice(0, 3)
-  const nextEvent = upcomingEvents[0]
+  // Distinct from upcomingEvents[0] -- that would silently pick up an event
+  // already in progress (e.g. a multi-week Annual Training) and mislabel it
+  // as the "next" one. The stat tile needs to tell those two cases apart and
+  // name the actual event type instead of hardcoding "drill".
+  const currentEvent = events.find((e) => e.event_date <= today && today <= e.end_date)
+  const nextFutureEvent = events.find((e) => e.event_date > today)
+  const eventTile = currentEvent
+    ? {
+        label: `${EVENT_TYPE_LABEL[currentEvent.event_type].toUpperCase()} · IN PROGRESS`,
+        event: currentEvent,
+      }
+    : nextFutureEvent
+      ? { label: `NEXT ${EVENT_TYPE_LABEL[nextFutureEvent.event_type].toUpperCase()}`, event: nextFutureEvent }
+      : { label: 'NEXT DRILL', event: null }
   const expiringSoldiers = getExpiringSoldiers(soldiers)
   const ncoerDueCount = expiringSoldiers.filter((s) => s.ncoerFlag !== null).length
   const soldierName = (id: string) => {
@@ -138,9 +151,13 @@ export function Dashboard() {
             <StatTile
               icon={<IconCalendar />}
               accent="info"
-              label="NEXT DRILL"
-              value={nextEvent ? monthDayLabel(nextEvent.event_date).monthLabel + ' ' + monthDayLabel(nextEvent.event_date).dayLabel : '—'}
-              to={nextEvent ? `/admin/calendar/${nextEvent.id}` : '/admin/calendar'}
+              label={eventTile.label}
+              value={
+                eventTile.event
+                  ? monthDayLabel(eventTile.event.event_date).monthLabel + ' ' + monthDayLabel(eventTile.event.event_date).dayLabel
+                  : '—'
+              }
+              to={eventTile.event ? `/admin/calendar/${eventTile.event.id}` : '/admin/calendar'}
             />
             <StatTile
               icon={<IconInbox />}
