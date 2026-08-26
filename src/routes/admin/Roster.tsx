@@ -24,7 +24,7 @@ import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
 import { IconPhone, IconCheck, IconGripVertical, IconBan } from '../../components/icons'
-import type { Soldier } from '../../types/database'
+import type { Platoon, Soldier } from '../../types/database'
 
 function etsClass(s: Soldier) {
   const flag = flagForDate(s.ets_date, ETS_WARNING_DAYS)
@@ -118,17 +118,31 @@ function InactivateDropZone() {
   )
 }
 
+// Guidon colors (1st red / 2nd white / 3rd blue -- infantry tradition -- plus
+// green for HQ) so the platoon zones read apart from each other at a glance
+// instead of all being the same gray box. Only the idle border/text carry the
+// color; the drop-target highlight on hover stays the same accent green every
+// other drop zone in this file uses, so "you're about to drop here" doesn't
+// get mixed up with "this is 1st Platoon."
+const PLATOON_COLOR: Record<Platoon, { border: string; text: string }> = {
+  '1st Platoon': { border: 'border-platoon-1st-border', text: 'text-platoon-1st-ink' },
+  '2nd Platoon': { border: 'border-platoon-2nd-border', text: 'text-platoon-2nd-ink' },
+  '3rd Platoon': { border: 'border-platoon-3rd-border', text: 'text-platoon-3rd-ink' },
+  'HQ Platoon': { border: 'border-platoon-hq-border', text: 'text-platoon-hq-ink' },
+}
+
 // One box per platoon, pinned to the right edge of the viewport (same reasoning
 // as InactivateDropZone -- reachable no matter how far down the roster you've
 // scrolled). Dropping a soldier here reassigns their platoon and clears their
 // squad, since a squad from the old platoon has no meaning under the new one.
-function PlatoonDropTarget({ platoon, activeSoldier }: { platoon: Soldier['platoon']; activeSoldier: Soldier | null }) {
+function PlatoonDropTarget({ platoon, activeSoldier }: { platoon: Platoon; activeSoldier: Soldier | null }) {
   const { setNodeRef, isOver } = useDroppable({ id: `platoon-zone-${platoon}`, data: { platoon } })
+  const color = PLATOON_COLOR[platoon]
   return (
     <div
       ref={setNodeRef}
       className={`flex h-24 w-44 items-center justify-center rounded-xl border-2 border-dashed p-3 text-center text-base font-bold tracking-wide shadow-lg transition-colors ${
-        isOver ? 'border-accent bg-accent-soft text-accent-soft-ink' : 'border-line bg-panel text-ink-faint'
+        isOver ? 'border-accent bg-accent-soft text-accent-soft-ink' : `${color.border} bg-panel ${color.text}`
       }`}
     >
       {isOver && activeSoldier ? `Add ${activeSoldier.last_name} to ${platoon}` : platoon}

@@ -55,6 +55,22 @@
   --color-rail: oklch(0.09 0.01 110);
   --color-rail-line: oklch(0.16 0.015 110);
   --color-rail-hover: oklch(0.14 0.015 110);
+
+  /* Platoon guidon colors (1st red / 2nd white / 3rd blue, infantry tradition)
+     plus green for HQ Platoon -- identity colors, deliberately separate tokens
+     from the status palette above even where a hue is similar, since these
+     label a specific platoon rather than good/warn/bad. */
+  --color-platoon-1st-ink: oklch(0.75 0.19 25);
+  --color-platoon-1st-border: oklch(0.75 0.19 25 / 0.4);
+
+  --color-platoon-2nd-ink: oklch(0.92 0.005 110);
+  --color-platoon-2nd-border: oklch(0.92 0.005 110 / 0.35);
+
+  --color-platoon-3rd-ink: oklch(0.72 0.14 255);
+  --color-platoon-3rd-border: oklch(0.72 0.14 255 / 0.4);
+
+  --color-platoon-hq-ink: oklch(0.74 0.16 150);
+  --color-platoon-hq-border: oklch(0.74 0.16 150 / 0.4);
 }
 
 :root {
