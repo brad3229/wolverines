@@ -4,7 +4,7 @@ import { listDrillEvents, formatEventDateRange } from '../../lib/drillEvents'
 import { listAttendanceForEvent, markAttendance, deleteAttendance, attendanceRowClass } from '../../lib/attendance'
 import { AttendanceSummary } from '../../components/AttendanceSummary'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
-import { SQUADS } from '../../components/SoldierForm'
+import { PLATOONS, SQUADS } from '../../components/SoldierForm'
 import { IconNote } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
 import { errorMessage } from '../../lib/errors'
@@ -30,10 +30,16 @@ export function AttendanceHome() {
   const [error, setError] = useState<string | null>(null)
   const [noteModal, setNoteModal] = useState<{ name: string; reason: string } | null>(null)
 
-  // Unassigned soldiers get their own trailing group instead of being hidden.
-  const squadGroups = [...SQUADS, null]
-    .map((squad) => ({ squad, soldiers: soldiers.filter((s) => s.squad === squad) }))
-    .filter((g) => g.soldiers.length > 0)
+  // Grouped platoon -> squad, each platoon its own section. Unassigned
+  // platoons/squads get their own trailing group instead of being hidden.
+  const platoonGroups = [...PLATOONS, null]
+    .map((platoon) => ({
+      platoon,
+      squadGroups: [...SQUADS, null]
+        .map((squad) => ({ squad, soldiers: soldiers.filter((s) => s.platoon === platoon && s.squad === squad) }))
+        .filter((g) => g.soldiers.length > 0),
+    }))
+    .filter((g) => g.squadGroups.length > 0)
 
   useEffect(() => {
     Promise.all([listDrillEvents(), listSoldiers()])
@@ -190,14 +196,20 @@ export function AttendanceHome() {
 
           <AttendanceSummary soldiers={soldiers} records={records} />
 
-          <div className="flex flex-col gap-4">
-            {squadGroups.map((group) => (
-              <div key={group.squad ?? 'unassigned'}>
-                <h2 className="mb-2 font-display text-[15px] font-semibold tracking-wide text-ink-muted">
-                  {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
-                </h2>
-                <div className="flex flex-col gap-2">
-                  {group.soldiers.map((soldier) => {
+          <div className="flex flex-col gap-8">
+            {platoonGroups.map((pGroup) => (
+              <div key={pGroup.platoon ?? 'unassigned'}>
+                <h1 className="mb-3 font-display text-2xl font-bold tracking-wide text-ink">
+                  {pGroup.platoon ?? 'UNASSIGNED'}
+                </h1>
+                <div className="flex flex-col gap-4">
+                  {pGroup.squadGroups.map((group) => (
+                    <div key={group.squad ?? 'unassigned'}>
+                      <h2 className="mb-2 font-display text-[15px] font-semibold tracking-wide text-ink-muted">
+                        {group.squad ?? 'UNASSIGNED'} ({group.soldiers.length})
+                      </h2>
+                      <div className="flex flex-col gap-2">
+                        {group.soldiers.map((soldier) => {
                     const record = records[soldier.id]
                     const status = record?.status
                     const isSelfReported =
@@ -265,6 +277,9 @@ export function AttendanceHome() {
                       </div>
                     )
                   })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}

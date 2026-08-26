@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { listSoldiers } from '../../lib/soldiers'
 import { listAftTests } from '../../lib/aft'
@@ -355,7 +354,7 @@ export function Readiness() {
           <div className="space-y-6 sm:hidden">
             {platoonGroups.map((pGroup) => (
               <div key={pGroup.platoon ?? 'unassigned'}>
-                <h1 className="mb-3 font-display text-base font-bold tracking-wide text-ink">
+                <h1 className="mb-3 font-display text-2xl font-bold tracking-wide text-ink">
                   {pGroup.platoon ?? 'UNASSIGNED'}
                 </h1>
                 <div className="space-y-4">
@@ -398,32 +397,30 @@ export function Readiness() {
             ))}
           </div>
 
-          {/* Table — sm and up, with a detail panel alongside instead of navigating away */}
+          {/* Tables — sm and up, one table per platoon, with a detail panel alongside instead of navigating away */}
           <div className="hidden gap-4 sm:flex">
-            <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-line bg-panel">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-surface-raised">
-                  <tr>
-                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">NAME</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">AFT</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">MRC</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">CAC</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">GTCC</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">NCOER</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {platoonGroups.map((pGroup) => (
-                    <Fragment key={pGroup.platoon ?? 'unassigned'}>
-                      <tr className="border-t-2 border-line bg-surface-raised">
-                        <td colSpan={6} className="px-4 py-2.5 font-display text-sm font-bold tracking-wide text-ink">
-                          {pGroup.platoon ?? 'UNASSIGNED'}
-                        </td>
-                      </tr>
+            <div className="min-w-0 flex-1 space-y-8">
+              {platoonGroups.map((pGroup) => (
+                <div key={pGroup.platoon ?? 'unassigned'}>
+                  <h2 className="mb-2 font-display text-2xl font-bold tracking-wide text-ink">
+                    {pGroup.platoon ?? 'UNASSIGNED'}
+                  </h2>
+                  <div className="overflow-x-auto rounded-xl border border-line bg-panel">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-surface-raised">
+                        <tr>
+                          <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">NAME</th>
+                          <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">AFT</th>
+                          <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">MRC</th>
+                          <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">CAC</th>
+                          <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">GTCC</th>
+                          <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">NCOER</th>
+                        </tr>
+                      </thead>
                       {pGroup.squadGroups.map((group) => (
-                        <Fragment key={group.squad ?? 'unassigned'}>
+                        <tbody key={group.squad ?? 'unassigned'}>
                           <tr className="border-t border-line bg-surface">
-                            <td colSpan={6} className="px-4 py-2 pl-8 text-[13px] font-semibold tracking-wide text-ink-muted">
+                            <td colSpan={6} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
                               {group.squad ?? 'UNASSIGNED'} ({group.rows.length})
                             </td>
                           </tr>
@@ -448,12 +445,12 @@ export function Readiness() {
                               ))}
                             </tr>
                           ))}
-                        </Fragment>
+                        </tbody>
                       ))}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
+                    </table>
+                  </div>
+                </div>
+              ))}
             </div>
             {selectedRow && selectedCell && <DetailPanel row={selectedRow} category={selectedCell.category} />}
           </div>
