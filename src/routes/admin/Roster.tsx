@@ -424,10 +424,17 @@ export function Roster() {
     .filter((s) => s.status === (showInactive ? 'inactive' : 'active'))
     .filter((s) => `${s.rank} ${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()))
 
-  // Unassigned soldiers get their own trailing group instead of being hidden.
-  const squadGroups = [...SQUADS, null]
-    .map((squad) => ({ squad, soldiers: filtered.filter((s) => s.squad === squad) }))
-    .filter((g) => g.soldiers.length > 0)
+  // Grouped platoon -> squad, each platoon getting its own table for
+  // readability rather than one long table for the whole roster. Unassigned
+  // platoons/squads get their own trailing group instead of being hidden.
+  const platoonGroups = [...PLATOONS, null]
+    .map((platoon) => ({
+      platoon,
+      squadGroups: [...SQUADS, null]
+        .map((squad) => ({ squad, soldiers: filtered.filter((s) => s.platoon === platoon && s.squad === squad) }))
+        .filter((g) => g.soldiers.length > 0),
+    }))
+    .filter((g) => g.squadGroups.length > 0)
 
   function isSquadTarget(squad: Soldier['squad']) {
     return !!overTarget && 'squad' in overTarget && overTarget.squad === squad
@@ -498,72 +505,90 @@ export function Roster() {
           {activeSoldier && <PlatoonDropPanel activeSoldier={activeSoldier} />}
           {!showInactive && activeSoldier && <InactivateDropZone />}
 
-          {/* Card list — mobile */}
-          <div className="space-y-4 sm:hidden">
-            {squadGroups.map((group) => {
-              const targeted = isSquadTarget(group.squad)
-              return (
-                <DroppableSquadSection
-                  key={group.squad ?? 'unassigned'}
-                  squad={group.squad}
-                  isTarget={targeted}
-                  label={
-                    targeted && activeSoldier
-                      ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${squadLabel(group.squad).toUpperCase()}`
-                      : `${group.squad ?? 'UNASSIGNED'} (${group.soldiers.length})`
-                  }
-                >
-                  <div className="space-y-2">
-                    {group.soldiers.map((s) => (
-                      <MobileSoldierCard key={s.id} soldier={s} />
-                    ))}
-                  </div>
-                </DroppableSquadSection>
-              )
-            })}
+          {/* Card list — mobile, one section per platoon */}
+          <div className="space-y-6 sm:hidden">
+            {platoonGroups.map((pGroup) => (
+              <div key={pGroup.platoon ?? 'unassigned'}>
+                <h1 className="mb-3 font-display text-base font-bold tracking-wide text-ink">
+                  {pGroup.platoon ?? 'Unassigned'}
+                </h1>
+                <div className="space-y-4">
+                  {pGroup.squadGroups.map((group) => {
+                    const targeted = isSquadTarget(group.squad)
+                    return (
+                      <DroppableSquadSection
+                        key={group.squad ?? 'unassigned'}
+                        squad={group.squad}
+                        isTarget={targeted}
+                        label={
+                          targeted && activeSoldier
+                            ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${squadLabel(group.squad).toUpperCase()}`
+                            : `${group.squad ?? 'UNASSIGNED'} (${group.soldiers.length})`
+                        }
+                      >
+                        <div className="space-y-2">
+                          {group.soldiers.map((s) => (
+                            <MobileSoldierCard key={s.id} soldier={s} />
+                          ))}
+                        </div>
+                      </DroppableSquadSection>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Table — sm and up */}
-          <div className="hidden overflow-x-auto rounded-xl border border-line bg-panel sm:block">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-surface-raised">
-                <tr>
-                  <th className="w-8 px-2 py-3" aria-hidden="true"></th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">NAME</th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">RANK</th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">ETS DATE</th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PAY-OUT</th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PHONE</th>
-                </tr>
-              </thead>
-              {squadGroups.map((group) => {
-                const targeted = isSquadTarget(group.squad)
-                return (
-                  // A real <tbody> per squad (multiple tbody elements are valid HTML) so a
-                  // dotted outline can wrap exactly that squad's rows, not the whole table.
-                  <tbody
-                    key={group.squad ?? 'unassigned'}
-                    className={targeted ? 'rounded-xl outline outline-2 -outline-offset-2 outline-dashed outline-accent' : ''}
-                  >
-                    <DroppableSquadHeaderRow squad={group.squad} isTarget={targeted}>
-                      <td colSpan={6} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
-                        {targeted && activeSoldier
-                          ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${squadLabel(group.squad).toUpperCase()}`
-                          : `${group.squad ?? 'UNASSIGNED'} (${group.soldiers.length})`}
-                      </td>
-                    </DroppableSquadHeaderRow>
-                    {group.soldiers.map((s) => (
-                      <DesktopSoldierRow
-                        key={s.id}
-                        soldier={s}
-                        isTarget={targeted}
-                        onOpen={() => navigate(`/admin/roster/${s.id}`)}
-                      />
-                    ))}
-                  </tbody>
-                )
-              })}
-            </table>
+          {/* Tables — sm and up, one table per platoon */}
+          <div className="hidden space-y-8 sm:block">
+            {platoonGroups.map((pGroup) => (
+              <div key={pGroup.platoon ?? 'unassigned'}>
+                <h2 className="mb-2 font-display text-base font-bold tracking-wide text-ink">
+                  {pGroup.platoon ?? 'Unassigned'}
+                </h2>
+                <div className="overflow-x-auto rounded-xl border border-line bg-panel">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-surface-raised">
+                      <tr>
+                        <th className="w-8 px-2 py-3" aria-hidden="true"></th>
+                        <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">NAME</th>
+                        <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">RANK</th>
+                        <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">ETS DATE</th>
+                        <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PAY-OUT</th>
+                        <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">PHONE</th>
+                      </tr>
+                    </thead>
+                    {pGroup.squadGroups.map((group) => {
+                      const targeted = isSquadTarget(group.squad)
+                      return (
+                        // A real <tbody> per squad (multiple tbody elements are valid HTML) so a
+                        // dotted outline can wrap exactly that squad's rows, not the whole table.
+                        <tbody
+                          key={group.squad ?? 'unassigned'}
+                          className={targeted ? 'rounded-xl outline outline-2 -outline-offset-2 outline-dashed outline-accent' : ''}
+                        >
+                          <DroppableSquadHeaderRow squad={group.squad} isTarget={targeted}>
+                            <td colSpan={6} className="px-4 py-2 text-[13px] font-semibold tracking-wide text-ink-muted">
+                              {targeted && activeSoldier
+                                ? `ADD ${activeSoldier.last_name}, ${activeSoldier.first_name} TO ${squadLabel(group.squad).toUpperCase()}`
+                                : `${group.squad ?? 'UNASSIGNED'} (${group.soldiers.length})`}
+                            </td>
+                          </DroppableSquadHeaderRow>
+                          {group.soldiers.map((s) => (
+                            <DesktopSoldierRow
+                              key={s.id}
+                              soldier={s}
+                              isTarget={targeted}
+                              onOpen={() => navigate(`/admin/roster/${s.id}`)}
+                            />
+                          ))}
+                        </tbody>
+                      )
+                    })}
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
 
           <DragOverlay>
