@@ -509,7 +509,7 @@ export function Roster() {
           <div className="space-y-6 sm:hidden">
             {platoonGroups.map((pGroup) => (
               <div key={pGroup.platoon ?? 'unassigned'}>
-                <h1 className="mb-3 font-display text-base font-bold tracking-wide text-ink">
+                <h1 className="mb-3 font-display text-2xl font-bold tracking-wide text-ink">
                   {pGroup.platoon ?? 'Unassigned'}
                 </h1>
                 <div className="space-y-4">
@@ -543,7 +543,7 @@ export function Roster() {
           <div className="hidden space-y-8 sm:block">
             {platoonGroups.map((pGroup) => (
               <div key={pGroup.platoon ?? 'unassigned'}>
-                <h2 className="mb-2 font-display text-base font-bold tracking-wide text-ink">
+                <h2 className="mb-2 font-display text-2xl font-bold tracking-wide text-ink">
                   {pGroup.platoon ?? 'Unassigned'}
                 </h2>
                 <div className="overflow-x-auto rounded-xl border border-line bg-panel">
