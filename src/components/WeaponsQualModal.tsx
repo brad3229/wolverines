@@ -67,6 +67,7 @@ const labelClass = 'mb-1 block text-[11px] font-semibold tracking-wide text-ink-
 const totalDisplayClass =
   'flex h-[38px] w-full items-center justify-center rounded-md border border-line-soft bg-surface/60 px-3 font-display text-base font-semibold text-ink'
 const HIT_OPTIONS = Array.from({ length: 11 }, (_, i) => i)
+const LANE_OPTIONS = Array.from({ length: 40 }, (_, i) => i + 1)
 
 export function WeaponsQualModal({ soldier, existing, onClose, onSaved }: WeaponsQualModalProps) {
   const { session } = useAuth()
@@ -184,11 +185,18 @@ export function WeaponsQualModal({ soldier, existing, onClose, onSaved }: Weapon
           </div>
           <div>
             <label className={labelClass}>LANE/FIRING ORDER (OPTIONAL)</label>
-            <input
+            <select
               value={form.lane_firing_order}
               onChange={(e) => setForm((p) => ({ ...p, lane_firing_order: e.target.value }))}
               className={inputClass}
-            />
+            >
+              <option value="">Select</option>
+              {LANE_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className={labelClass}>RANGE OIC NAME/RANK (OPTIONAL)</label>
