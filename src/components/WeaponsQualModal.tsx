@@ -153,21 +153,33 @@ export function WeaponsQualModal({ soldier, existing, onClose, onSaved }: Weapon
           </div>
           <div>
             <label className={labelClass}>WEAPON TYPE</label>
-            <input
-              placeholder="e.g. M4A1"
+            <select
               value={form.weapon_type}
               onChange={(e) => setForm((p) => ({ ...p, weapon_type: e.target.value }))}
               className={inputClass}
-            />
+            >
+              <option value="" disabled>
+                Select
+              </option>
+              <option value="M4">M4</option>
+              <option value="M249">M249</option>
+              <option value="M7">M7</option>
+              <option value="M250">M250</option>
+            </select>
           </div>
           <div>
             <label className={labelClass}>EQUIPMENT/OPTICS (OPTIONAL)</label>
-            <input
-              placeholder="e.g. ACOG"
+            <select
               value={form.equipment_optics}
               onChange={(e) => setForm((p) => ({ ...p, equipment_optics: e.target.value }))}
               className={inputClass}
-            />
+            >
+              <option value="">Select</option>
+              <option value="Iron Sights">Iron Sights</option>
+              <option value="ACOG">ACOG</option>
+              <option value="CCO">CCO</option>
+              <option value="M157">M157</option>
+            </select>
           </div>
           <div>
             <label className={labelClass}>LANE/FIRING ORDER (OPTIONAL)</label>
