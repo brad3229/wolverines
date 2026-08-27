@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-import type { PDFForm } from 'pdf-lib'
+import type { PDFFont, PDFForm, PDFPage } from 'pdf-lib'
 import { GEAR_CATEGORY_LABEL } from './gearRequests'
 import { SUTA_REQUEST_TYPE_LABEL, SUTA_DUTY_LOCATION_ADDRESS } from './sutaRequests'
 import { todayLocalDateString, toLocalDateString } from './dates'
@@ -13,6 +13,7 @@ import type {
   Soldier,
   SutaRequest,
   SutaRequestType,
+  WeaponsQualification,
 } from '../types/database'
 
 // Maps a SUTA request type to the export value of its radio widget on
@@ -308,6 +309,109 @@ export async function fillInitialCounseling(soldier: Soldier, counseling: Counse
   }
 
   form.updateFieldAppearances()
+  return pdf.save()
+}
+
+// DA FORM 7801's official source PDF is a dynamic XFA form with zero real
+// AcroForm fields -- pdf-lib can't read or write XFA at all, so this template
+// (forms/da7801-weapons-qual.pdf) is a flattened export from real Adobe
+// Reader (which does render XFA correctly): File > Print > Save as PDF from
+// the original. That flattening removes every form field, so there's nothing
+// to look up by name here -- every value below is drawn directly onto the
+// static page at a fixed coordinate, measured once against this exact
+// flattened copy (regenerating the template from a different export could
+// shift positions). Coordinates are in PDF space (origin bottom-left);
+// comments give the equivalent top-down (fitz) reading position they were
+// measured at, since that's how the template was inspected.
+function da7801Field(x: number, yFromTop: number): { x: number; y: number } {
+  return { x, y: 612 - yFromTop }
+}
+
+function drawCentered(page: PDFPage, text: string, cx: number, cy: number, font: PDFFont, size: number, color = rgb(0, 0, 0)) {
+  const width = font.widthOfTextAtSize(text, size)
+  page.drawText(text, { x: cx - width / 2, y: cy - size * 0.35, size, font, color })
+}
+
+export async function fillWeaponsQualScorecard(soldier: Soldier, qual: WeaponsQualification): Promise<Uint8Array> {
+  const pdf = await loadTemplate('forms/da7801-weapons-qual.pdf')
+  const page = pdf.getPages()[0]
+  const font = await pdf.embedFont(StandardFonts.Helvetica)
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
+
+  const draw = (text: string, pos: { x: number; y: number }, size = 10) =>
+    page.drawText(text, { x: pos.x, y: pos.y, size, font })
+
+  // Block 1-4, row 1 of the header.
+  draw(lastFirstMi(soldier), da7801Field(48, 105))
+  draw(soldier.rank, da7801Field(226, 105))
+  draw(soldier.dod_id, da7801Field(406, 105))
+  draw(yyyymmdd(qual.qual_date), da7801Field(586, 105))
+
+  // Block 5-7, row 2 of the header.
+  if (qual.lane_firing_order) draw(qual.lane_firing_order, da7801Field(48, 145))
+  draw(qual.weapon_type, da7801Field(226, 145))
+  if (qual.equipment_optics) draw(qual.equipment_optics, da7801Field(406, 145))
+
+  // Block 8 -- TABLE V PRACTICE / TABLE VI QUALIFICATION checkbox.
+  const tableCheckPos = qual.table_type === 'practice' ? da7801Field(648.7, 140.5) : da7801Field(748.5, 140.5)
+  drawCentered(page, 'X', tableCheckPos.x, tableCheckPos.y, bold, 10)
+
+  // Phase totals, both where they appear inline in the Stage I grid (blocks
+  // 9-12) and again in the block 13 summary -- the paper form repeats them.
+  const phases: [number | null | undefined, number][] = [
+    [qual.phase1_hits, 190],
+    [qual.phase2_hits, 374],
+    [qual.phase3_hits, 555],
+    [qual.phase4_hits, 736],
+  ]
+  for (const [hits, x] of phases) {
+    if (hits != null) drawCentered(page, String(hits), x, 612 - 383, font, 10)
+  }
+  const summaryRows: [number | null | undefined, number][] = [
+    [qual.phase1_hits, 415],
+    [qual.phase2_hits, 433],
+    [qual.phase3_hits, 450],
+    [qual.phase4_hits, 468],
+  ]
+  for (const [hits, yFromTop] of summaryRows) {
+    if (hits != null) drawCentered(page, String(hits), 125, 612 - yFromTop, font, 10)
+  }
+  if (qual.total_hits != null) drawCentered(page, String(qual.total_hits), 125, 612 - 487, font, 10)
+
+  // Block 14 -- qualification rating checkbox (Expert/Sharpshooter/Marksman/Unqualified).
+  const ratingY: Record<string, number> = { expert: 411.15, sharpshooter: 424.65, marksman: 438.05, unqualified: 451.35 }
+  if (qual.qualification_rating) {
+    drawCentered(page, 'X', 212.35, 612 - ratingY[qual.qualification_rating], bold, 10)
+  }
+
+  // Block 15 -- remarks (wrapped manually since this is a plain page draw, not a real multiline field).
+  if (qual.remarks) {
+    const words = qual.remarks.split(/\s+/)
+    let line = ''
+    let y = 612 - 412
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word
+      if (font.widthOfTextAtSize(candidate, 8) > 230 && line) {
+        page.drawText(line, { x: 320, y, size: 8, font })
+        line = word
+        y -= 10
+      } else {
+        line = candidate
+      }
+    }
+    if (line) page.drawText(line, { x: 320, y, size: 8, font })
+  }
+
+  // Block 16/17 -- Range OIC's printed name/rank and a visual stamp of the
+  // same on the signature line, same convention as the SUTA/DA 4856 stamps.
+  // Block 18 (commander's certifying signature) is left blank for the actual
+  // certifying official to sign.
+  if (qual.range_oic_name) {
+    draw(qual.range_oic_name, da7801Field(50, 555))
+    const italic = await pdf.embedFont(StandardFonts.HelveticaOblique)
+    page.drawText(qual.range_oic_name, { x: 292, y: 612 - 555, size: 10, font: italic, color: rgb(0.1, 0.1, 0.35) })
+  }
+
   return pdf.save()
 }
 

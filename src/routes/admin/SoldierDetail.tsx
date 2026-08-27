@@ -15,6 +15,11 @@ import { listOwnPayIssues } from '../../lib/payIssues'
 import { listActiveTaskLists, listTaskItems, listOwnCompletions } from '../../lib/tasks'
 import { listAftTestsForSoldier, deleteAftTest, AFT_STANDARD_LABEL, AFT_RESULT_LABEL } from '../../lib/aft'
 import { listCounselingsForSoldier, deleteCounseling } from '../../lib/counselings'
+import {
+  listWeaponsQualificationsForSoldier,
+  deleteWeaponsQualification,
+  WEAPONS_QUAL_RATING_LABEL,
+} from '../../lib/weaponsQual'
 import { formatDate, todayLocalDateString } from '../../lib/dates'
 import { SoldierForm, soldierFormValuesToPayload } from '../../components/SoldierForm'
 import { BackButton } from '../../components/BackButton'
@@ -22,9 +27,10 @@ import { SoldierAvatar } from '../../components/SoldierAvatar'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { AftScoreModal } from '../../components/AftScoreModal'
 import { CounselingModal } from '../../components/CounselingModal'
+import { WeaponsQualModal } from '../../components/WeaponsQualModal'
 import { IconAttendance, IconSuta, IconGear, IconPay, IconTasks, IconNote } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
-import type { AftTest, Counseling, EditRequest, Soldier, UserRole } from '../../types/database'
+import type { AftTest, Counseling, EditRequest, Soldier, UserRole, WeaponsQualification } from '../../types/database'
 
 interface ReadinessSnapshot {
   sutaPending: number
@@ -98,6 +104,10 @@ export function SoldierDetail() {
   const [counselingModalMode, setCounselingModalMode] = useState<'new' | 'edit' | null>(null)
   const [editingCounseling, setEditingCounseling] = useState<Counseling | null>(null)
   const [confirmingDeleteCounseling, setConfirmingDeleteCounseling] = useState<string | null>(null)
+  const [weaponsQuals, setWeaponsQuals] = useState<WeaponsQualification[]>([])
+  const [weaponsQualModalMode, setWeaponsQualModalMode] = useState<'new' | 'edit' | null>(null)
+  const [editingWeaponsQual, setEditingWeaponsQual] = useState<WeaponsQualification | null>(null)
+  const [confirmingDeleteWeaponsQual, setConfirmingDeleteWeaponsQual] = useState<string | null>(null)
 
   function refresh() {
     if (!id) return
@@ -124,6 +134,10 @@ export function SoldierDetail() {
         listCounselingsForSoldier(s.id)
           .then(setCounselings)
           .catch(() => setCounselings([]))
+
+        listWeaponsQualificationsForSoldier(s.id)
+          .then(setWeaponsQuals)
+          .catch(() => setWeaponsQuals([]))
       })
       .catch((err) => setLoadError(errorMessage(err, 'Failed to load Soldier')))
     listEditRequests()
@@ -258,6 +272,37 @@ export function SoldierDetail() {
     try {
       const { fillInitialCounseling, previewPdf } = await import('../../lib/pdfForms')
       const bytes = await fillInitialCounseling(soldier, counseling)
+      previewPdf(bytes)
+    } catch (err) {
+      setLoadError(errorMessage(err, 'Failed to generate form'))
+    }
+  }
+
+  function openNewWeaponsQualModal() {
+    setEditingWeaponsQual(null)
+    setWeaponsQualModalMode('new')
+  }
+
+  function openEditWeaponsQualModal(qual: WeaponsQualification) {
+    setEditingWeaponsQual(qual)
+    setWeaponsQualModalMode('edit')
+  }
+
+  async function handleDeleteWeaponsQual(qualId: string) {
+    try {
+      await deleteWeaponsQualification(qualId)
+      setConfirmingDeleteWeaponsQual(null)
+      refresh()
+    } catch (err) {
+      setLoadError(errorMessage(err, 'Failed to delete weapons qualification'))
+    }
+  }
+
+  async function handlePreviewWeaponsQual(qual: WeaponsQualification) {
+    if (!soldier) return
+    try {
+      const { fillWeaponsQualScorecard, previewPdf } = await import('../../lib/pdfForms')
+      const bytes = await fillWeaponsQualScorecard(soldier, qual)
       previewPdf(bytes)
     } catch (err) {
       setLoadError(errorMessage(err, 'Failed to generate form'))
@@ -768,6 +813,85 @@ export function SoldierDetail() {
         )}
       </div>
 
+      <div className="mb-6 rounded-xl border border-line bg-panel p-4 sm:p-6">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-[15px] font-semibold tracking-wide text-ink-dim">WEAPONS QUAL</h2>
+          <button
+            onClick={openNewWeaponsQualModal}
+            className="rounded-md bg-accent px-3 py-1.5 text-[11px] font-bold tracking-wide text-accent-ink"
+          >
+            + ADD QUAL
+          </button>
+        </div>
+        {weaponsQuals.length === 0 ? (
+          <p className="text-sm text-ink-muted">No weapons qualifications on record.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {weaponsQuals.map((q) => (
+              <div
+                key={q.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold">
+                    {formatDate(q.qual_date)} — {q.weapon_type}
+                  </div>
+                  <div className="text-xs text-ink-muted">
+                    {q.total_hits != null ? `${q.total_hits}/40 pts` : 'No score recorded'}
+                  </div>
+                </div>
+                <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+                  {q.qualification_rating && (
+                    <span
+                      className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide ${
+                        q.qualification_rating === 'unqualified' ? 'bg-bad-bg text-bad-ink' : 'bg-good-bg text-good-ink'
+                      }`}
+                    >
+                      {WEAPONS_QUAL_RATING_LABEL[q.qualification_rating].toUpperCase()}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handlePreviewWeaponsQual(q)}
+                    className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    PREVIEW
+                  </button>
+                  <button
+                    onClick={() => openEditWeaponsQualModal(q)}
+                    className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
+                  >
+                    EDIT
+                  </button>
+                  {confirmingDeleteWeaponsQual === q.id ? (
+                    <>
+                      <button
+                        onClick={() => handleDeleteWeaponsQual(q.id)}
+                        className="rounded-md bg-bad-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-bad-ink"
+                      >
+                        CONFIRM
+                      </button>
+                      <button
+                        onClick={() => setConfirmingDeleteWeaponsQual(null)}
+                        className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-neutral-ink"
+                      >
+                        CANCEL
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmingDeleteWeaponsQual(q.id)}
+                      className="rounded-md bg-neutral-bg px-2.5 py-1 text-[10px] font-bold tracking-wide text-bad-ink"
+                    >
+                      DELETE
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="rounded-xl border border-line bg-panel p-4 sm:p-6">
         <h2 className="mb-4 font-display text-[15px] font-semibold tracking-wide text-ink-dim">DETAILS</h2>
         <SoldierForm
@@ -800,6 +924,18 @@ export function SoldierDetail() {
           onClose={() => setCounselingModalMode(null)}
           onSaved={() => {
             setCounselingModalMode(null)
+            refresh()
+          }}
+        />
+      )}
+
+      {weaponsQualModalMode && (
+        <WeaponsQualModal
+          soldier={soldier}
+          existing={editingWeaponsQual}
+          onClose={() => setWeaponsQualModalMode(null)}
+          onSaved={() => {
+            setWeaponsQualModalMode(null)
             refresh()
           }}
         />

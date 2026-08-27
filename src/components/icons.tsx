@@ -205,6 +205,16 @@ export function IconFitness(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconTarget(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    </Icon>
+  )
+}
+
 export function IconAlertTriangle(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

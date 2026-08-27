@@ -26,6 +26,7 @@ import {
   IconPhone,
   IconAlertTriangle,
   IconNote,
+  IconTarget,
 } from './components/icons'
 import { Login } from './routes/Login'
 
@@ -63,6 +64,7 @@ const SoldierGearRequests = lazy(() =>
 const SoldierTasks = lazy(() => import('./routes/soldier/Tasks').then((m) => ({ default: m.Tasks })))
 const SoldierAft = lazy(() => import('./routes/soldier/Aft').then((m) => ({ default: m.Aft })))
 const SoldierCounselings = lazy(() => import('./routes/soldier/Counselings').then((m) => ({ default: m.Counselings })))
+const SoldierWeaponsQual = lazy(() => import('./routes/soldier/WeaponsQual').then((m) => ({ default: m.WeaponsQual })))
 const PlatoonDirectory = lazy(() =>
   import('./routes/soldier/PlatoonDirectory').then((m) => ({ default: m.PlatoonDirectory })),
 )
@@ -138,6 +140,7 @@ const SOLDIER_NAV: NavItem[] = [
   { to: '/soldier/tasks', label: 'Tasks', icon: <IconTasks /> },
   { to: '/soldier/aft', label: 'AFT', icon: <IconFitness /> },
   { to: '/soldier/counselings', label: 'Counselings', icon: <IconNote /> },
+  { to: '/soldier/weapons-qual', label: 'Weapons Qual', shortLabel: 'Wpns Qual', icon: <IconTarget /> },
   { to: '/soldier/settings', label: 'Settings', icon: <IconSettings /> },
 ]
 
@@ -468,6 +471,16 @@ function App() {
               <RequireRole allow={['soldier']}>
                 <Layout navItems={SOLDIER_NAV} mobileNav="menu">
                   <SoldierCounselings />
+                </Layout>
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/soldier/weapons-qual"
+            element={
+              <RequireRole allow={['soldier']}>
+                <Layout navItems={SOLDIER_NAV} mobileNav="menu">
+                  <SoldierWeaponsQual />
                 </Layout>
               </RequireRole>
             }

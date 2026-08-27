@@ -276,6 +276,29 @@ export interface Counseling {
   created_at: string
 }
 
+export type WeaponsQualTableType = 'practice' | 'qualification'
+export type WeaponsQualRating = 'expert' | 'sharpshooter' | 'marksman' | 'unqualified'
+
+export interface WeaponsQualification {
+  id: string
+  soldier_id: string
+  qual_date: string
+  weapon_type: string
+  equipment_optics: string | null
+  lane_firing_order: string | null
+  table_type: WeaponsQualTableType
+  phase1_hits: number | null
+  phase2_hits: number | null
+  phase3_hits: number | null
+  phase4_hits: number | null
+  total_hits: number | null
+  qualification_rating: WeaponsQualRating | null
+  range_oic_name: string | null
+  remarks: string | null
+  created_by: string | null
+  created_at: string
+}
+
 export interface ReadinessSnapshot {
   id: string
   month: string
