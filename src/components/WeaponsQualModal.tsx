@@ -66,6 +66,7 @@ const inputClass =
 const labelClass = 'mb-1 block text-[11px] font-semibold tracking-wide text-ink-faint'
 const totalDisplayClass =
   'flex h-[38px] w-full items-center justify-center rounded-md border border-line-soft bg-surface/60 px-3 font-display text-base font-semibold text-ink'
+const HIT_OPTIONS = Array.from({ length: 11 }, (_, i) => i)
 
 export function WeaponsQualModal({ soldier, existing, onClose, onSaved }: WeaponsQualModalProps) {
   const { session } = useAuth()
@@ -206,47 +207,71 @@ export function WeaponsQualModal({ soldier, existing, onClose, onSaved }: Weapon
           </div>
           <div>
             <label className={labelClass}>PHASE 1 (STANDING/PRONE)</label>
-            <input
-              type="number"
-              min={0}
-              max={10}
+            <select
               value={form.phase1_hits}
               onChange={(e) => setForm((p) => ({ ...p, phase1_hits: e.target.value }))}
               className={inputClass}
-            />
+            >
+              <option value="" disabled>
+                Select
+              </option>
+              {HIT_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className={labelClass}>PHASE 2 (PRONE SUPPORTED)</label>
-            <input
-              type="number"
-              min={0}
-              max={10}
+            <select
               value={form.phase2_hits}
               onChange={(e) => setForm((p) => ({ ...p, phase2_hits: e.target.value }))}
               className={inputClass}
-            />
+            >
+              <option value="" disabled>
+                Select
+              </option>
+              {HIT_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className={labelClass}>PHASE 3 (KNEELING SUPPORTED)</label>
-            <input
-              type="number"
-              min={0}
-              max={10}
+            <select
               value={form.phase3_hits}
               onChange={(e) => setForm((p) => ({ ...p, phase3_hits: e.target.value }))}
               className={inputClass}
-            />
+            >
+              <option value="" disabled>
+                Select
+              </option>
+              {HIT_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className={labelClass}>PHASE 4 (STANDING SUPPORTED)</label>
-            <input
-              type="number"
-              min={0}
-              max={10}
+            <select
               value={form.phase4_hits}
               onChange={(e) => setForm((p) => ({ ...p, phase4_hits: e.target.value }))}
               className={inputClass}
-            />
+            >
+              <option value="" disabled>
+                Select
+              </option>
+              {HIT_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="col-span-2 mt-1 border-t border-line pt-2">
