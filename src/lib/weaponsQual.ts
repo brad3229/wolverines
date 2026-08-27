@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient'
+import { flagForDate, daysUntil, type ExpirationFlag } from './expirations'
+import { toLocalDateString } from './dates'
 import type { WeaponsQualification, WeaponsQualRating, WeaponsQualTableType } from '../types/database'
 
 export const WEAPONS_QUAL_TABLE_LABEL: Record<WeaponsQualTableType, string> = {
@@ -22,6 +24,23 @@ export function qualificationRatingForTotal(total: number | null): WeaponsQualRa
   if (total >= 30) return 'sharpshooter'
   if (total >= 23) return 'marksman'
   return 'unqualified'
+}
+
+// Same annual-cycle pattern as AFT: Soldiers requalify once a year, flagged
+// the same way ETS/CAC/NCOER dates already are.
+export const WEAPONS_QUAL_CYCLE_DAYS = 365
+export const WEAPONS_QUAL_WARNING_DAYS = 30
+
+export function weaponsQualDueDate(lastQualDate: string): string {
+  const due = new Date(`${lastQualDate}T00:00:00`)
+  due.setDate(due.getDate() + WEAPONS_QUAL_CYCLE_DAYS)
+  return toLocalDateString(due)
+}
+
+export function weaponsQualFlag(lastQualDate: string | null): { flag: ExpirationFlag; days: number | null } {
+  if (!lastQualDate) return { flag: null, days: null }
+  const due = weaponsQualDueDate(lastQualDate)
+  return { flag: flagForDate(due, WEAPONS_QUAL_WARNING_DAYS), days: daysUntil(due) }
 }
 
 export async function listWeaponsQualifications() {

@@ -3,20 +3,14 @@ import { Link } from 'react-router-dom'
 import { listSoldiers } from '../../lib/soldiers'
 import { listAftTests } from '../../lib/aft'
 import { AFT_WARNING_DAYS, aftDueDate } from '../../lib/aft'
-import {
-  flagForDate,
-  daysUntil,
-  ncoerDueDate,
-  CAC_WARNING_DAYS,
-  NCOER_WARNING_DAYS,
-  type ExpirationFlag,
-} from '../../lib/expirations'
+import { listWeaponsQualifications, WEAPONS_QUAL_WARNING_DAYS, weaponsQualDueDate } from '../../lib/weaponsQual'
+import { flagForDate, daysUntil, ncoerDueDate, NCOER_WARNING_DAYS, type ExpirationFlag } from '../../lib/expirations'
 import { formatDate } from '../../lib/dates'
 import { PLATOONS, SQUADS } from '../../components/SoldierForm'
 import { errorMessage } from '../../lib/errors'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
-import type { AftTest, Soldier } from '../../types/database'
+import type { AftTest, Soldier, WeaponsQualification } from '../../types/database'
 
 type Tone = 'good' | 'warn' | 'bad' | 'neutral'
 
@@ -88,12 +82,12 @@ interface ReadinessRow {
   soldier: Soldier
   aft: StatusCell
   mrc: StatusCell
-  cac: StatusCell
+  wpnsQual: StatusCell
   gtcc: StatusCell
   ncoer: StatusCell
 }
 
-function buildRow(soldier: Soldier, latestAftTest: AftTest | null): ReadinessRow {
+function buildRow(soldier: Soldier, latestAftTest: AftTest | null, latestWeaponsQual: WeaponsQualification | null): ReadinessRow {
   const aft: StatusCell = (() => {
     if (!latestAftTest) return { tone: 'neutral', label: 'NO TEST', pillLabel: 'NO DATA', detail: 'No AFT test on record.' }
     // A failed test is a no-go regardless of how recently it was taken --
@@ -135,20 +129,33 @@ function buildRow(soldier: Soldier, latestAftTest: AftTest | null): ReadinessRow
     }
   })()
 
-  const cac: StatusCell = (() => {
-    const flag = flagForDate(soldier.cac_expiration_date, CAC_WARNING_DAYS)
-    const days = soldier.cac_expiration_date ? daysUntil(soldier.cac_expiration_date) : null
-    const detail = !soldier.cac_expiration_date
-      ? 'No expiration date on file.'
-      : flag === 'expired'
-        ? `CAC expired ${Math.abs(days!)} day${Math.abs(days!) === 1 ? '' : 's'} ago.`
+  const wpnsQual: StatusCell = (() => {
+    if (!latestWeaponsQual) {
+      return { tone: 'neutral', label: 'NO DATA', pillLabel: 'NO DATA', detail: 'No weapons qualification on record.' }
+    }
+    // Unqualified is a no-go regardless of how recently it was fired -- the
+    // date-based flag below only ever answers "is a requal due soon."
+    if (latestWeaponsQual.qualification_rating === 'unqualified') {
+      return {
+        tone: 'bad',
+        label: 'UNQUAL',
+        pillLabel: 'UNQUALIFIED',
+        detail: `Unqualified on the last attempt (${formatDate(latestWeaponsQual.qual_date)}).`,
+      }
+    }
+    const due = weaponsQualDueDate(latestWeaponsQual.qual_date)
+    const flag = flagForDate(due, WEAPONS_QUAL_WARNING_DAYS)
+    const days = daysUntil(due)
+    const detail =
+      flag === 'expired'
+        ? `Requal overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}.`
         : flag === 'soon'
-          ? `CAC expires in ${days} day${days === 1 ? '' : 's'}.`
-          : `Expires ${formatDate(soldier.cac_expiration_date)}.`
+          ? `Requal due in ${days} day${days === 1 ? '' : 's'}.`
+          : `Last qualified ${formatDate(latestWeaponsQual.qual_date)} · next due ${formatDate(due)}.`
     return {
       tone: toneForFlag(flag),
-      label: labelForFlag(flag, 'EXPIRED'),
-      pillLabel: flag === 'expired' ? 'EXPIRED' : flag === 'soon' ? 'EXPIRING SOON' : soldier.cac_expiration_date ? 'CURRENT' : 'NO DATA',
+      label: labelForFlag(flag, 'OVERDUE'),
+      pillLabel: flag === 'expired' ? 'OVERDUE' : flag === 'soon' ? 'DUE SOON' : 'CURRENT',
       detail,
     }
   })()
@@ -177,15 +184,15 @@ function buildRow(soldier: Soldier, latestAftTest: AftTest | null): ReadinessRow
     }
   })()
 
-  return { soldier, aft, mrc, cac, gtcc, ncoer }
+  return { soldier, aft, mrc, wpnsQual, gtcc, ncoer }
 }
 
-type CategoryKey = 'aft' | 'mrc' | 'cac' | 'gtcc' | 'ncoer'
+type CategoryKey = 'aft' | 'mrc' | 'wpnsQual' | 'gtcc' | 'ncoer'
 
 const CATEGORY_LABEL: Record<CategoryKey, string> = {
   aft: 'AFT',
   mrc: 'MRC',
-  cac: 'CAC',
+  wpnsQual: 'WPNS QUAL',
   gtcc: 'GTCC',
   ncoer: 'NCOER',
 }
@@ -282,16 +289,18 @@ function DetailPanel({ row, category }: { row: ReadinessRow; category: CategoryK
 export function Readiness() {
   const [soldiers, setSoldiers] = useState<Soldier[]>([])
   const [aftTests, setAftTests] = useState<AftTest[]>([])
+  const [weaponsQuals, setWeaponsQuals] = useState<WeaponsQualification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [flaggedOnly, setFlaggedOnly] = useState(false)
   const [selectedCell, setSelectedCell] = useState<{ soldierId: string; category: CategoryKey } | null>(null)
 
   useEffect(() => {
-    Promise.all([listSoldiers(), listAftTests()])
-      .then(([soldierData, aftData]) => {
+    Promise.all([listSoldiers(), listAftTests(), listWeaponsQualifications()])
+      .then(([soldierData, aftData, weaponsQualData]) => {
         setSoldiers(soldierData.filter((s) => s.status === 'active'))
         setAftTests(aftData)
+        setWeaponsQuals(weaponsQualData)
       })
       .catch((err) => setError(errorMessage(err, 'Failed to load readiness data')))
       .finally(() => setLoading(false))
@@ -304,9 +313,16 @@ export function Readiness() {
   for (const test of aftTests) {
     if (!latestAftBySoldier.has(test.soldier_id)) latestAftBySoldier.set(test.soldier_id, test)
   }
+  // Same ordering guarantee (qual_date desc) as aftTests above.
+  const latestWeaponsQualBySoldier = new Map<string, WeaponsQualification>()
+  for (const qual of weaponsQuals) {
+    if (!latestWeaponsQualBySoldier.has(qual.soldier_id)) latestWeaponsQualBySoldier.set(qual.soldier_id, qual)
+  }
 
-  const rows = soldiers.map((s) => buildRow(s, latestAftBySoldier.get(s.id) ?? null))
-  // Deployability only turns on AFT and MRC -- CAC/GTCC/NCOER are tracked here too
+  const rows = soldiers.map((s) =>
+    buildRow(s, latestAftBySoldier.get(s.id) ?? null, latestWeaponsQualBySoldier.get(s.id) ?? null),
+  )
+  // Deployability only turns on AFT and MRC -- WPNS QUAL/GTCC/NCOER are tracked here too
   // (still shown, still colored) but don't affect whether a soldier counts as flagged.
   const isFlagged = (r: ReadinessRow) => deployStatus(r) !== 'good'
   const visibleRows = flaggedOnly ? rows.filter(isFlagged) : rows
@@ -377,8 +393,14 @@ export function Readiness() {
                               </span>
                             </div>
                             <div className="grid grid-cols-5 gap-1.5 text-center">
-                              {(['AFT', 'MRC', 'CAC', 'GTCC', 'NCOER'] as const).map((label) => {
-                                const cell = { AFT: r.aft, MRC: r.mrc, CAC: r.cac, GTCC: r.gtcc, NCOER: r.ncoer }[label]
+                              {(['AFT', 'MRC', 'WPNS QUAL', 'GTCC', 'NCOER'] as const).map((label) => {
+                                const cell = {
+                                  AFT: r.aft,
+                                  MRC: r.mrc,
+                                  'WPNS QUAL': r.wpnsQual,
+                                  GTCC: r.gtcc,
+                                  NCOER: r.ncoer,
+                                }[label]
                                 return (
                                   <div key={label}>
                                     <div className="mb-1 text-[9px] tracking-wide text-ink-faint">{label}</div>
@@ -412,7 +434,7 @@ export function Readiness() {
                           <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">NAME</th>
                           <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">AFT</th>
                           <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">MRC</th>
-                          <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">CAC</th>
+                          <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">WPNS QUAL</th>
                           <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">GTCC</th>
                           <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-ink-muted">NCOER</th>
                         </tr>
@@ -432,7 +454,7 @@ export function Readiness() {
                                   {r.soldier.last_name}, {r.soldier.first_name}
                                 </Link>
                               </td>
-                              {(['aft', 'mrc', 'cac', 'gtcc', 'ncoer'] as const).map((category) => (
+                              {(['aft', 'mrc', 'wpnsQual', 'gtcc', 'ncoer'] as const).map((category) => (
                                 <td key={category} className="p-1.5">
                                   <StatusBlock
                                     tone={r[category].tone}
