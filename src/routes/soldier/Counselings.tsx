@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getOwnSoldierRecord } from '../../lib/soldiers'
 import { listCounselingsForSoldier, acknowledgeCounseling } from '../../lib/counselings'
+import { COUNSELING_TYPE_LABEL } from '../../components/CounselingModal'
 import { formatDate } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { useAuth } from '../../hooks/useAuth'
@@ -44,8 +45,8 @@ export function Counselings() {
   async function handlePreview(counseling: Counseling) {
     if (!soldier) return
     try {
-      const { fillInitialCounseling, previewPdf } = await import('../../lib/pdfForms')
-      const bytes = await fillInitialCounseling(soldier, counseling)
+      const { fillCounseling, previewPdf } = await import('../../lib/pdfForms')
+      const bytes = await fillCounseling(soldier, counseling)
       previewPdf(bytes)
     } catch (err) {
       setError(errorMessage(err, 'Failed to generate form'))
@@ -113,7 +114,7 @@ export function Counselings() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">
-                    {formatDate(c.session_date)} — {c.purpose}
+                    {formatDate(c.session_date)} — {COUNSELING_TYPE_LABEL[c.counseling_type]}
                   </div>
                   <div className="mt-0.5 text-xs text-ink-muted">{c.counselor_name}</div>
                 </div>
@@ -163,7 +164,7 @@ export function Counselings() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-sm font-semibold">
-              Sign counseling — {formatDate(ackTarget.session_date)} — {ackTarget.purpose}
+              Sign counseling — {formatDate(ackTarget.session_date)} — {COUNSELING_TYPE_LABEL[ackTarget.counseling_type]}
             </div>
             <button
               onClick={() => handlePreview(ackTarget)}

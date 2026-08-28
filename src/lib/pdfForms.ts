@@ -264,73 +264,117 @@ export async function fillAftScorecard(soldier: Soldier, test: AftTest): Promise
 // the lingering XFA layer instead of the filled AcroForm appearance, showing
 // the original blank form. The fix is the same one used for DA 7801: flatten
 // via real Adobe Reader (File > Print > Save as PDF), which strips the XFA
-// entirely. This unit only ever uses this form for one canned "initial/
-// welcome" counseling script, so the flattened copy was made FROM an example
-// using that exact boilerplate (see CounselingModal's INITIAL_COUNSELING_*
-// constants) -- meaning Organization, Purpose, Key Points, Plan of Action,
-// and Leader Responsibilities are now permanent, baked-in page content, not
-// something this function fills. Only what actually varies per Soldier/
-// session is drawn here, at coordinates measured once against this exact
-// flattened copy (regenerating the template from a different export could
-// shift positions). Coordinates are in PDF space (origin bottom-left);
-// comments give the equivalent top-down (fitz) reading position they were
-// measured at, since that's how the template was inspected. Page height is
-// 792 (portrait Letter).
+// entirely -- forms/da4856-counseling.pdf is a genuinely blank flattened copy
+// (the MAR 2023 v2.00ES 2-page edition), so every field below is drawn
+// directly onto the static page at a fixed coordinate, measured once against
+// this exact flattened copy (regenerating the template from a different
+// export could shift positions). Coordinates are in PDF space (origin
+// bottom-left); comments give the equivalent top-down (fitz) reading
+// position they were measured at, since that's how the template was
+// inspected. Page height is 792 (portrait Letter).
 function da4856Pos(x: number, yFromTop: number): { x: number; y: number } {
   return { x, y: 792 - yFromTop }
 }
 
-function drawWrappedDa4856(page: PDFPage, text: string, font: PDFFont, x: number, yFromTop: number, maxWidth: number, size: number, lineHeight: number) {
-  const words = text.split(/\s+/)
-  let line = ''
+function drawWrappedDa4856(page: PDFPage, text: string, font: PDFFont, x: number, yFromTop: number, maxWidth: number, size: number, lineHeight: number, maxLines?: number) {
+  const paragraphs = text.split('\n')
   let y = 792 - yFromTop
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word
-    if (font.widthOfTextAtSize(candidate, size) > maxWidth && line) {
-      page.drawText(line, { x, y, size, font })
-      line = word
+  let linesDrawn = 0
+  for (const paragraph of paragraphs) {
+    if (maxLines != null && linesDrawn >= maxLines) return
+    const words = paragraph.split(/\s+/).filter(Boolean)
+    if (words.length === 0) {
+      // A blank line between paragraphs (e.g. plan-of-action items joined
+      // with "\n\n") still needs to consume vertical space, not collapse.
       y -= lineHeight
-    } else {
-      line = candidate
+      linesDrawn++
+      continue
+    }
+    let line = ''
+    for (const word of words) {
+      if (maxLines != null && linesDrawn >= maxLines) return
+      const candidate = line ? `${line} ${word}` : word
+      if (font.widthOfTextAtSize(candidate, size) > maxWidth && line) {
+        page.drawText(line, { x, y, size, font })
+        linesDrawn++
+        line = word
+        y -= lineHeight
+      } else {
+        line = candidate
+      }
+    }
+    if (maxLines != null && linesDrawn >= maxLines) return
+    if (line) {
+      page.drawText(line, { x, y, size, font })
+      linesDrawn++
+      y -= lineHeight
     }
   }
-  if (line) page.drawText(line, { x, y, size, font })
 }
 
-export async function fillInitialCounseling(soldier: Soldier, counseling: Counseling): Promise<Uint8Array> {
-  const pdf = await loadTemplate('forms/da4856-initial-counseling.pdf')
-  const [page1, page2, page3] = pdf.getPages()
+export async function fillCounseling(soldier: Soldier, counseling: Counseling): Promise<Uint8Array> {
+  const pdf = await loadTemplate('forms/da4856-counseling.pdf')
+  const [page1, page2] = pdf.getPages()
   const font = await pdf.embedFont(StandardFonts.Helvetica)
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
   const italic = await pdf.embedFont(StandardFonts.HelveticaOblique)
 
-  // Page 1 -- Part I administrative data (the only part of this page that isn't fixed boilerplate).
+  // Page 1, Part I -- administrative data.
   page1.drawText(lastFirstMi(soldier), { ...da4856Pos(21, 198), size: 10, font })
   page1.drawText(soldier.rank, { ...da4856Pos(342, 198), size: 10, font })
   page1.drawText(mmddyyyy(counseling.session_date), { ...da4856Pos(437, 198), size: 10, font })
+  page1.drawText(counseling.organization, { ...da4856Pos(21, 221), size: 10, font })
+  page1.drawText(counseling.counselor_name, { ...da4856Pos(309, 221), size: 10, font })
 
-  // Page 2 -- individual counseled acknowledgment. Left blank until the
-  // Soldier actually acknowledges it in the app (see acknowledgeCounseling).
+  // Page 1, Part II -- Approach/Type of Counseling. The blank template this
+  // was flattened from ships with "Non Directive"/"General Form" pre-checked
+  // as its baked-in default, which is right for Initial but wrong for Late
+  // (an event-oriented, directive counseling) -- so for anything but Initial,
+  // white out those two marks and check the ones that actually apply.
+  if (counseling.counseling_type !== 'initial') {
+    page1.drawRectangle({ x: 72.2, y: 792 - 277.0, width: 81.1 - 72.2, height: 277.0 - 268.0, color: rgb(1, 1, 1) })
+    page1.drawRectangle({ x: 107.4, y: 792 - 294.0, width: 116.5 - 107.4, height: 294.0 - 285.0, color: rgb(1, 1, 1) })
+    if (counseling.counseling_type === 'late') {
+      drawCentered(page1, 'X', 235.1, 792 - 272.5, bold, 10)
+      drawCentered(page1, 'X', 379.7, 792 - 289.5, bold, 10)
+    }
+  }
+
+  drawWrappedDa4856(page1, counseling.purpose, font, 21, 310, 560, 10, 12, 7)
+
+  // Page 1, Part III -- key points discussion. Small font -- the Initial
+  // script's 19 points wrap to ~34 lines, and this is the only size that
+  // fits them all in the box without truncating.
+  drawWrappedDa4856(page1, counseling.key_points, font, 21, 446, 560, 7, 8, 34)
+
+  // Page 2 -- plan of action.
+  drawWrappedDa4856(page2, counseling.plan_of_action, font, 21, 77, 560, 9, 11, 19)
+
+  // Page 2 -- session closing: Soldier's acknowledgment, left blank until
+  // they actually acknowledge it in the app (see acknowledgeCounseling).
   if (counseling.acknowledgment) {
-    const checkPos = counseling.acknowledgment === 'agree' ? da4856Pos(107, 606.5) : da4856Pos(160, 606.5)
+    const checkPos = counseling.acknowledgment === 'agree' ? da4856Pos(107, 323.5) : da4856Pos(160, 323.5)
     drawCentered(page2, 'X', checkPos.x, checkPos.y, bold, 10)
   }
   if (counseling.individual_remarks) {
-    drawWrappedDa4856(page2, counseling.individual_remarks, font, 21, 644, 550, 9, 11)
+    drawWrappedDa4856(page2, counseling.individual_remarks, font, 21, 358, 550, 9, 11, 4)
   }
   if (counseling.signature_name) {
-    page2.drawText(counseling.signature_name, { ...da4856Pos(24, 716), size: 11, font: italic, color: rgb(0.1, 0.1, 0.35) })
+    page2.drawText(counseling.signature_name, { ...da4856Pos(24, 433), size: 11, font: italic, color: rgb(0.1, 0.1, 0.35) })
   }
   if (counseling.acknowledged_at) {
-    page2.drawText(yyyymmdd(toLocalDateString(new Date(counseling.acknowledged_at))), { ...da4856Pos(500, 716), size: 10, font })
+    page2.drawText(yyyymmdd(toLocalDateString(new Date(counseling.acknowledged_at))), { ...da4856Pos(500, 433), size: 10, font })
   }
 
-  // Page 3 -- counselor's signature is always stamped (unlike the Soldier's,
-  // which waits on their own acknowledgment); Assessment is free text.
-  page3.drawText(counseling.counselor_name, { ...da4856Pos(24, 142), size: 11, font: italic, color: rgb(0.1, 0.1, 0.35) })
-  page3.drawText(yyyymmdd(counseling.session_date), { ...da4856Pos(500, 142), size: 10, font })
+  // Page 2 -- leader responsibilities and the counselor's signature, always
+  // stamped (unlike the Soldier's, which waits on their own acknowledgment).
+  drawWrappedDa4856(page2, counseling.leader_responsibilities ?? '', font, 21, 456, 560, 8, 8.5, 6)
+  page2.drawText(counseling.counselor_name, { ...da4856Pos(24, 538), size: 11, font: italic, color: rgb(0.1, 0.1, 0.35) })
+  page2.drawText(yyyymmdd(counseling.session_date), { ...da4856Pos(500, 538), size: 10, font })
+
+  // Page 2, Part IV -- assessment of the plan of action.
   if (counseling.assessment) {
-    drawWrappedDa4856(page3, counseling.assessment, font, 21, 195, 550, 9, 11)
+    drawWrappedDa4856(page2, counseling.assessment, font, 21, 598, 560, 9, 11, 8)
   }
 
   return pdf.save()

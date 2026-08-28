@@ -26,7 +26,7 @@ import { BackButton } from '../../components/BackButton'
 import { SoldierAvatar } from '../../components/SoldierAvatar'
 import { LoadingScreen } from '../../components/LoadingScreen'
 import { AftScoreModal } from '../../components/AftScoreModal'
-import { CounselingModal } from '../../components/CounselingModal'
+import { CounselingModal, COUNSELING_TYPE_LABEL } from '../../components/CounselingModal'
 import { WeaponsQualModal } from '../../components/WeaponsQualModal'
 import { IconAttendance, IconSuta, IconGear, IconPay, IconTasks, IconNote } from '../../components/icons'
 import { useAuth } from '../../hooks/useAuth'
@@ -270,8 +270,8 @@ export function SoldierDetail() {
   async function handlePreviewCounseling(counseling: Counseling) {
     if (!soldier) return
     try {
-      const { fillInitialCounseling, previewPdf } = await import('../../lib/pdfForms')
-      const bytes = await fillInitialCounseling(soldier, counseling)
+      const { fillCounseling, previewPdf } = await import('../../lib/pdfForms')
+      const bytes = await fillCounseling(soldier, counseling)
       previewPdf(bytes)
     } catch (err) {
       setLoadError(errorMessage(err, 'Failed to generate form'))
@@ -752,7 +752,9 @@ export function SoldierDetail() {
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2.5"
               >
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold">{formatDate(c.session_date)} — {c.purpose}</div>
+                  <div className="text-sm font-semibold">
+                    {formatDate(c.session_date)} — {COUNSELING_TYPE_LABEL[c.counseling_type]}
+                  </div>
                   <div className="text-xs text-ink-muted">{c.counselor_name}</div>
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">

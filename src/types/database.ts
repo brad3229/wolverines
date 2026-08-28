@@ -257,10 +257,13 @@ export interface Notification {
   created_at: string
 }
 
+export type CounselingType = 'initial' | 'late'
+
 export interface Counseling {
   id: string
   soldier_id: string
   session_date: string
+  counseling_type: CounselingType
   organization: string
   counselor_name: string
   purpose: string

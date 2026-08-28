@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import type { Counseling } from '../types/database'
+import type { Counseling, CounselingType } from '../types/database'
 
 export async function listCounselings() {
   const { data, error } = await supabase.from('counselings').select('*').order('session_date', { ascending: false })
@@ -23,6 +23,7 @@ export async function listCounselingsForSoldier(soldierId: string) {
 export interface CounselingInput {
   soldierId: string
   sessionDate: string
+  counselingType: CounselingType
   organization: string
   counselorName: string
   purpose: string
@@ -37,6 +38,7 @@ function toPayload(input: CounselingInput) {
   return {
     soldier_id: input.soldierId,
     session_date: input.sessionDate,
+    counseling_type: input.counselingType,
     organization: input.organization,
     counselor_name: input.counselorName,
     purpose: input.purpose,
