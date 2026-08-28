@@ -8,19 +8,20 @@ import type { Counseling, Soldier } from '../types/database'
 
 interface CounselingFormValues {
   session_date: string
-  organization: string
   counselor_name: string
-  purpose: string
-  key_points: string
-  plan_of_action: string
-  leader_responsibilities: string
   individual_remarks: string
   assessment: string
 }
 
-// The unit's standard boilerplate for a new Soldier's initial counseling --
-// prefilled on every new counseling since that's the overwhelming common
-// case here, but every field stays fully editable for anything else.
+// This unit only ever uses DA 4856 for one canned "initial/welcome"
+// counseling script -- Organization, Purpose, Key Points, Plan of Action,
+// and Leader Responsibilities are baked directly into the PDF template
+// itself (see fillInitialCounseling in pdfForms.ts) and always written here
+// unchanged, since they can no longer vary per record. Only what genuinely
+// differs per Soldier/session -- date, counselor, remarks, assessment --
+// is editable below.
+const INITIAL_COUNSELING_ORGANIZATION = 'A CO 1-120 IN'
+
 const INITIAL_COUNSELING_PURPOSE =
   'The purpose of this counseling is to formally welcome you to the unit, outline your basic roles and responsibilities as a Soldier, and clearly define my standards, expectations, and goals for your performance, conduct, and professional development.'
 
@@ -69,12 +70,7 @@ const INITIAL_COUNSELING_LEADER_RESPONSIBILITIES = [
 function emptyCounselingForm(): CounselingFormValues {
   return {
     session_date: todayLocalDateString(),
-    organization: 'A CO 1-120 IN',
     counselor_name: '',
-    purpose: INITIAL_COUNSELING_PURPOSE,
-    key_points: INITIAL_COUNSELING_KEY_POINTS,
-    plan_of_action: INITIAL_COUNSELING_PLAN_OF_ACTION,
-    leader_responsibilities: INITIAL_COUNSELING_LEADER_RESPONSIBILITIES,
     individual_remarks: '',
     assessment: '',
   }
@@ -83,12 +79,7 @@ function emptyCounselingForm(): CounselingFormValues {
 function counselingToForm(c: Counseling): CounselingFormValues {
   return {
     session_date: c.session_date,
-    organization: c.organization,
     counselor_name: c.counselor_name,
-    purpose: c.purpose,
-    key_points: c.key_points,
-    plan_of_action: c.plan_of_action,
-    leader_responsibilities: c.leader_responsibilities ?? '',
     individual_remarks: c.individual_remarks ?? '',
     assessment: c.assessment ?? '',
   }
@@ -113,7 +104,7 @@ export function CounselingModal({ soldier, existing, onClose, onSaved }: Counsel
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const canSubmit = !!(form.session_date && form.counselor_name && form.purpose && form.key_points && form.plan_of_action)
+  const canSubmit = !!(form.session_date && form.counselor_name)
 
   async function handleSubmit() {
     if (!canSubmit || !session) return
@@ -122,12 +113,12 @@ export function CounselingModal({ soldier, existing, onClose, onSaved }: Counsel
     const input: CounselingInput = {
       soldierId: soldier.id,
       sessionDate: form.session_date,
-      organization: form.organization,
+      organization: INITIAL_COUNSELING_ORGANIZATION,
       counselorName: form.counselor_name,
-      purpose: form.purpose,
-      keyPoints: form.key_points,
-      planOfAction: form.plan_of_action,
-      leaderResponsibilities: form.leader_responsibilities || null,
+      purpose: INITIAL_COUNSELING_PURPOSE,
+      keyPoints: INITIAL_COUNSELING_KEY_POINTS,
+      planOfAction: INITIAL_COUNSELING_PLAN_OF_ACTION,
+      leaderResponsibilities: INITIAL_COUNSELING_LEADER_RESPONSIBILITIES,
       individualRemarks: form.individual_remarks || null,
       assessment: form.assessment || null,
     }
@@ -156,20 +147,12 @@ export function CounselingModal({ soldier, existing, onClose, onSaved }: Counsel
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
-          <div>
+          <div className="col-span-2">
             <label className={labelClass}>DATE OF COUNSELING</label>
             <input
               type="date"
               value={form.session_date}
               onChange={(e) => setForm((p) => ({ ...p, session_date: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>ORGANIZATION</label>
-            <input
-              value={form.organization}
-              onChange={(e) => setForm((p) => ({ ...p, organization: e.target.value }))}
               className={inputClass}
             />
           </div>
@@ -180,38 +163,6 @@ export function CounselingModal({ soldier, existing, onClose, onSaved }: Counsel
               value={form.counselor_name}
               onChange={(e) => setForm((p) => ({ ...p, counselor_name: e.target.value }))}
               className={inputClass}
-            />
-          </div>
-          <div className="col-span-2">
-            <label className={labelClass}>PURPOSE OF COUNSELING</label>
-            <input
-              value={form.purpose}
-              onChange={(e) => setForm((p) => ({ ...p, purpose: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <div className="col-span-2">
-            <label className={labelClass}>KEY POINTS OF DISCUSSION</label>
-            <textarea
-              value={form.key_points}
-              onChange={(e) => setForm((p) => ({ ...p, key_points: e.target.value }))}
-              className={textareaClass}
-            />
-          </div>
-          <div className="col-span-2">
-            <label className={labelClass}>PLAN OF ACTION</label>
-            <textarea
-              value={form.plan_of_action}
-              onChange={(e) => setForm((p) => ({ ...p, plan_of_action: e.target.value }))}
-              className={textareaClass}
-            />
-          </div>
-          <div className="col-span-2">
-            <label className={labelClass}>LEADER RESPONSIBILITIES (OPTIONAL)</label>
-            <textarea
-              value={form.leader_responsibilities}
-              onChange={(e) => setForm((p) => ({ ...p, leader_responsibilities: e.target.value }))}
-              className={textareaClass}
             />
           </div>
           <div className="col-span-2">
@@ -233,8 +184,10 @@ export function CounselingModal({ soldier, existing, onClose, onSaved }: Counsel
         </div>
 
         <p className="text-xs text-ink-faint">
-          The Soldier&rsquo;s agree/disagree, signature, and dates are completed on the generated PDF at the actual
-          counseling — only the counselor&rsquo;s signature line is pre-filled.
+          Organization, Purpose, Key Points, Plan of Action, and Leader Responsibilities are the unit&rsquo;s standard
+          initial-counseling script and are printed directly on the form. The Soldier&rsquo;s agree/disagree, signature,
+          and dates are completed on the generated PDF at the actual counseling — only the counselor&rsquo;s signature
+          line is pre-filled.
         </p>
 
         {error && <p className="text-sm text-bad-ink">{error}</p>}

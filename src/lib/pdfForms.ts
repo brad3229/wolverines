@@ -259,56 +259,80 @@ export async function fillAftScorecard(soldier: Soldier, test: AftTest): Promise
   return pdf.save()
 }
 
-// DA FORM 4856's field names carry the same XFA-style path convention as
-// DA 705 above, just split across two pages.
-function da4856Field(page: 1 | 2, name: string) {
-  return `form1[0].Page${page}[0].${name}[0]`
+// DA FORM 4856's official source PDF is a hybrid XFA form -- pdf-lib could
+// fill its named AcroForm fields directly, but some non-Adobe viewers render
+// the lingering XFA layer instead of the filled AcroForm appearance, showing
+// the original blank form. The fix is the same one used for DA 7801: flatten
+// via real Adobe Reader (File > Print > Save as PDF), which strips the XFA
+// entirely. This unit only ever uses this form for one canned "initial/
+// welcome" counseling script, so the flattened copy was made FROM an example
+// using that exact boilerplate (see CounselingModal's INITIAL_COUNSELING_*
+// constants) -- meaning Organization, Purpose, Key Points, Plan of Action,
+// and Leader Responsibilities are now permanent, baked-in page content, not
+// something this function fills. Only what actually varies per Soldier/
+// session is drawn here, at coordinates measured once against this exact
+// flattened copy (regenerating the template from a different export could
+// shift positions). Coordinates are in PDF space (origin bottom-left);
+// comments give the equivalent top-down (fitz) reading position they were
+// measured at, since that's how the template was inspected. Page height is
+// 792 (portrait Letter).
+function da4856Pos(x: number, yFromTop: number): { x: number; y: number } {
+  return { x, y: 792 - yFromTop }
+}
+
+function drawWrappedDa4856(page: PDFPage, text: string, font: PDFFont, x: number, yFromTop: number, maxWidth: number, size: number, lineHeight: number) {
+  const words = text.split(/\s+/)
+  let line = ''
+  let y = 792 - yFromTop
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word
+    if (font.widthOfTextAtSize(candidate, size) > maxWidth && line) {
+      page.drawText(line, { x, y, size, font })
+      line = word
+      y -= lineHeight
+    } else {
+      line = candidate
+    }
+  }
+  if (line) page.drawText(line, { x, y, size, font })
 }
 
 export async function fillInitialCounseling(soldier: Soldier, counseling: Counseling): Promise<Uint8Array> {
   const pdf = await loadTemplate('forms/da4856-initial-counseling.pdf')
-  const form = pdf.getForm()
+  const [page1, page2, page3] = pdf.getPages()
+  const font = await pdf.embedFont(StandardFonts.Helvetica)
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
+  const italic = await pdf.embedFont(StandardFonts.HelveticaOblique)
 
-  form.getTextField(da4856Field(1, 'Name')).setText(lastFirstMi(soldier))
-  form.getTextField(da4856Field(1, 'Rank_Grade')).setText(soldier.rank)
-  form.getTextField(da4856Field(1, 'Date_Counseling')).setText(mmddyyyy(counseling.session_date))
-  form.getTextField(da4856Field(1, 'Organization')).setText(counseling.organization)
-  form.getTextField(da4856Field(1, 'Name_Title_Counselor')).setText(counseling.counselor_name)
-  form.getTextField(da4856Field(1, 'Purpose_Counseling')).setText(counseling.purpose)
-  form.getTextField(da4856Field(1, 'Key_Points_Disscussion')).setText(counseling.key_points)
+  // Page 1 -- Part I administrative data (the only part of this page that isn't fixed boilerplate).
+  page1.drawText(lastFirstMi(soldier), { ...da4856Pos(21, 198), size: 10, font })
+  page1.drawText(soldier.rank, { ...da4856Pos(342, 198), size: 10, font })
+  page1.drawText(mmddyyyy(counseling.session_date), { ...da4856Pos(437, 198), size: 10, font })
 
-  form.getTextField(da4856Field(2, 'Plan_Action')).setText(counseling.plan_of_action)
-  if (counseling.leader_responsibilities) {
-    form.getTextField(da4856Field(2, 'Leader_Responsibilities')).setText(counseling.leader_responsibilities)
+  // Page 2 -- individual counseled acknowledgment. Left blank until the
+  // Soldier actually acknowledges it in the app (see acknowledgeCounseling).
+  if (counseling.acknowledgment) {
+    const checkPos = counseling.acknowledgment === 'agree' ? da4856Pos(107, 606.5) : da4856Pos(160, 606.5)
+    drawCentered(page2, 'X', checkPos.x, checkPos.y, bold, 10)
   }
   if (counseling.individual_remarks) {
-    form.getTextField(da4856Field(2, 'Individual_Couseled_Remarks')).setText(counseling.individual_remarks)
-  }
-  if (counseling.assessment) {
-    form.getTextField(da4856Field(2, 'Assessment')).setText(counseling.assessment)
-  }
-
-  form.getTextField(da4856Field(2, 'Counselor_Date')).setText(mmddyyyy(counseling.session_date))
-  await stampSignature(pdf, form, da4856Field(2, 'Signature_Counselor'), counseling.counselor_name, 1)
-
-  // The Soldier's own box/signature only fill in once they've actually
-  // acknowledged it in the app (see acknowledgeCounseling) -- until then
-  // these stay blank rather than pre-deciding what they'll sign.
-  if (counseling.acknowledgment) {
-    form
-      .getCheckBox(da4856Field(2, counseling.acknowledgment === 'agree' ? 'Individual_Counseled_I_Agree' : 'Individual_Counseled_I_Disagree'))
-      .check()
-  }
-  if (counseling.acknowledged_at) {
-    form
-      .getTextField(da4856Field(2, 'Individual_Counseled_Date'))
-      .setText(mmddyyyy(toLocalDateString(new Date(counseling.acknowledged_at))))
+    drawWrappedDa4856(page2, counseling.individual_remarks, font, 21, 644, 550, 9, 11)
   }
   if (counseling.signature_name) {
-    await stampSignature(pdf, form, da4856Field(2, 'Signature_Individual_Counseled'), counseling.signature_name, 1)
+    page2.drawText(counseling.signature_name, { ...da4856Pos(24, 716), size: 11, font: italic, color: rgb(0.1, 0.1, 0.35) })
+  }
+  if (counseling.acknowledged_at) {
+    page2.drawText(yyyymmdd(toLocalDateString(new Date(counseling.acknowledged_at))), { ...da4856Pos(500, 716), size: 10, font })
   }
 
-  form.updateFieldAppearances()
+  // Page 3 -- counselor's signature is always stamped (unlike the Soldier's,
+  // which waits on their own acknowledgment); Assessment is free text.
+  page3.drawText(counseling.counselor_name, { ...da4856Pos(24, 142), size: 11, font: italic, color: rgb(0.1, 0.1, 0.35) })
+  page3.drawText(yyyymmdd(counseling.session_date), { ...da4856Pos(500, 142), size: 10, font })
+  if (counseling.assessment) {
+    drawWrappedDa4856(page3, counseling.assessment, font, 21, 195, 550, 9, 11)
+  }
+
   return pdf.save()
 }
 
