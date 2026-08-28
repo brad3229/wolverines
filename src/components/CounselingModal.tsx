@@ -9,8 +9,6 @@ import type { Counseling, Soldier } from '../types/database'
 interface CounselingFormValues {
   session_date: string
   counselor_name: string
-  individual_remarks: string
-  assessment: string
 }
 
 // This unit only ever uses DA 4856 for one canned "initial/welcome"
@@ -71,8 +69,6 @@ function emptyCounselingForm(): CounselingFormValues {
   return {
     session_date: todayLocalDateString(),
     counselor_name: '',
-    individual_remarks: '',
-    assessment: '',
   }
 }
 
@@ -80,8 +76,6 @@ function counselingToForm(c: Counseling): CounselingFormValues {
   return {
     session_date: c.session_date,
     counselor_name: c.counselor_name,
-    individual_remarks: c.individual_remarks ?? '',
-    assessment: c.assessment ?? '',
   }
 }
 
@@ -96,7 +90,6 @@ interface CounselingModalProps {
 const inputClass =
   'w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none'
 const labelClass = 'mb-1 block text-[11px] font-semibold tracking-wide text-ink-faint'
-const textareaClass = `${inputClass} min-h-[90px] resize-y`
 
 export function CounselingModal({ soldier, existing, onClose, onSaved }: CounselingModalProps) {
   const { session } = useAuth()
@@ -119,8 +112,12 @@ export function CounselingModal({ soldier, existing, onClose, onSaved }: Counsel
       keyPoints: INITIAL_COUNSELING_KEY_POINTS,
       planOfAction: INITIAL_COUNSELING_PLAN_OF_ACTION,
       leaderResponsibilities: INITIAL_COUNSELING_LEADER_RESPONSIBILITIES,
-      individualRemarks: form.individual_remarks || null,
-      assessment: form.assessment || null,
+      // Both of these are the Soldier's own words, not the counselor's --
+      // remarks come from their acknowledgeCounseling, assessment from a
+      // follow-up session -- so an edit here must carry forward whatever's
+      // already there instead of wiping it.
+      individualRemarks: existing?.individual_remarks ?? null,
+      assessment: existing?.assessment ?? null,
     }
     try {
       if (existing) {
@@ -165,29 +162,13 @@ export function CounselingModal({ soldier, existing, onClose, onSaved }: Counsel
               className={inputClass}
             />
           </div>
-          <div className="col-span-2">
-            <label className={labelClass}>INDIVIDUAL COUNSELED REMARKS (OPTIONAL)</label>
-            <textarea
-              value={form.individual_remarks}
-              onChange={(e) => setForm((p) => ({ ...p, individual_remarks: e.target.value }))}
-              className={textareaClass}
-            />
-          </div>
-          <div className="col-span-2">
-            <label className={labelClass}>ASSESSMENT OF THE PLAN OF ACTION (OPTIONAL)</label>
-            <textarea
-              value={form.assessment}
-              onChange={(e) => setForm((p) => ({ ...p, assessment: e.target.value }))}
-              className={textareaClass}
-            />
-          </div>
         </div>
 
         <p className="text-xs text-ink-faint">
           Organization, Purpose, Key Points, Plan of Action, and Leader Responsibilities are the unit&rsquo;s standard
-          initial-counseling script and are printed directly on the form. The Soldier&rsquo;s agree/disagree, signature,
-          and dates are completed on the generated PDF at the actual counseling — only the counselor&rsquo;s signature
-          line is pre-filled.
+          initial-counseling script and are printed directly on the form. The Soldier&rsquo;s agree/disagree, remarks,
+          signature, and date are completed on the generated PDF at the actual counseling — only the counselor&rsquo;s
+          signature line is pre-filled. Assessment of the plan of action is completed at a later follow-up session.
         </p>
 
         {error && <p className="text-sm text-bad-ink">{error}</p>}
